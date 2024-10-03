@@ -1,27 +1,27 @@
-#ifndef CODOM_MM_PHYLO_CTMC_HPP
-#define CODOM_MM_PHYLO_CTMC_HPP
+#ifndef PHYLO_CTMC_HPP
+#define PHYLO_CTMC_HPP
 #include "modeling/likelihoods/LikelihoodNode.hpp"
 #include "modeling/parameters/trees/TreeParameter.hpp"
 
 class ConditionalLikelihood;
-class MultiMatrixTransitionProbability;
+class TransitionProbability;
 class Alignment;
 class RandomVariable;
 class RateMatrix;
 class CodonMultiMatrix;
 class DirichletProcessPrior;
 
-class CodonMMPhyloCTMC : public LikelihoodNode{
+class PhyloCTMC : public LikelihoodNode{
     public:
-        CodonMMPhyloCTMC(void) = delete;
-        CodonMMPhyloCTMC(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProcessPrior* d);
-        ~CodonMMPhyloCTMC();
+        PhyloCTMC(void) = delete;
+        PhyloCTMC(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProcessPrior* d);
+        ~PhyloCTMC();
         double lnLikelihood() {return currentLikelihood;}
         double regenerateAtSite(int site, int category, bool update);
         void regenerate();
         void accept();
         void reject();
-        MultiMatrixTransitionProbability* getTransitionProbability() {return transProb;}
+        TransitionProbability* getTransitionProbability() {return transProb;}
         ConditionalLikelihood* getPostOrderL() {return postOrder;}
         std::string writeValue() {return std::to_string(currentLikelihood);}
     protected:
@@ -34,7 +34,7 @@ class CodonMMPhyloCTMC : public LikelihoodNode{
         CodonMultiMatrix* rateMatrix;
         Alignment* aln;
         ConditionalLikelihood* postOrder;
-        MultiMatrixTransitionProbability* transProb;
+        TransitionProbability* transProb;
         TreeParameter* tree;
         DirichletProcessPrior* dpp;
 };

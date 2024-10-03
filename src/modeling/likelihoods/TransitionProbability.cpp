@@ -1,12 +1,12 @@
 #include <complex>
-#include "MultiMatrixTransitionProbability.hpp"
+#include "TransitionProbability.hpp"
 #include "core/Math.hpp"
 
 /* This constructor builds a time-reversible transition matrix to describe
    evolutionary substitutions along a phylogenetic tree for discrete characters.
    Such a model is often used to describe substitutions for DNA or amino acid data
    but it works equally well for other characters with discrete states. */
-MultiMatrixTransitionProbability::MultiMatrixTransitionProbability(const int nn, const int nC, const Matrix<double> &qMat)
+TransitionProbability::TransitionProbability(const int nn, const int nC, const Matrix<double> &qMat)
     : ceigValExp(0), eigens(0), eigValExp(0), isComplex(false), isOldComplex(false),
 	  numStates(qMat.dim1()), numNodes(nn), numCats(nC) {
 
@@ -28,7 +28,7 @@ MultiMatrixTransitionProbability::MultiMatrixTransitionProbability(const int nn,
 
 /* Destructor. Deallocates memory used for Q matrix
    and eigensystem. */
-MultiMatrixTransitionProbability::~MultiMatrixTransitionProbability(void) {
+TransitionProbability::~TransitionProbability(void) {
 
 	delete [] ceigValExp;
 	delete eigens;
@@ -48,7 +48,7 @@ MultiMatrixTransitionProbability::~MultiMatrixTransitionProbability(void) {
    matrix and the inverse of the eigenvector matrix. This function also
    fetches the eigenvalues from the eigensystem and stores them in an array
    of doubles in this class. */
-void MultiMatrixTransitionProbability::calcCijk(int mIndex) {
+void TransitionProbability::calcCijk(int mIndex) {
 
 	// keep a copy of the eigenvalues
 	double* p = &(eigens->getRealEigenvalues()[0]);
@@ -73,7 +73,7 @@ void MultiMatrixTransitionProbability::calcCijk(int mIndex) {
    fetches the real and imaginary eigenvalues from the eigensystem and stores
    them in two arrays of double values (eigenvalues and ieigenvalues) in this
    class. */
-void MultiMatrixTransitionProbability::calcComplexCijk(int mIndex) {
+void TransitionProbability::calcComplexCijk(int mIndex) {
 
 	// keep a copy of the complex eigenvalues
 	double* p = &(eigens->getRealEigenvalues()[0]);
@@ -124,7 +124,7 @@ void MultiMatrixTransitionProbability::calcComplexCijk(int mIndex) {
    Stewart, W. J. 1999. Numerical methods for computing stationary distributions of
       finite irreducible Markov chains. In "Advances in Computational
       Probability", W. Grassmann, ed. Kluwer Academic Publishers. */
-void MultiMatrixTransitionProbability::calcStationaryFreq(void) {
+void TransitionProbability::calcStationaryFreq(void) {
 
 	// transpose the rate matrix (qMatrix) and put into QT
 	Matrix<double> QT(numStates, numStates);
@@ -154,7 +154,7 @@ void MultiMatrixTransitionProbability::calcStationaryFreq(void) {
 		pi[i] /= sum;
 }
 
-void MultiMatrixTransitionProbability::initializeProbabilityBuffer(){
+void TransitionProbability::initializeProbabilityBuffer(){
 	probs[0] = new Matrix<double>*[2*numNodes*numCats];
     probs[1] = probs[0] + numNodes;
 
@@ -167,7 +167,7 @@ void MultiMatrixTransitionProbability::initializeProbabilityBuffer(){
 /* Rescale the rate matrix so that the mean rate at stationarity
    is 1.0. Requires that stationary frequencies have been
    calculated first. */
-void MultiMatrixTransitionProbability::rescaleQ (bool scalePi) {
+void TransitionProbability::rescaleQ (bool scalePi) {
 
 	// Calculate the scaler, a factor by which all elements of Q
 	// are multiplied such that the mean rate of substitution is 1
@@ -185,7 +185,7 @@ void MultiMatrixTransitionProbability::rescaleQ (bool scalePi) {
 			Q(i, j) *= scaler;
 }
 
-void MultiMatrixTransitionProbability::accept(void) {
+void TransitionProbability::accept(void) {
 	isOldComplex = isComplex;
 	for(int i = 0; i < isComplex.size(); i++){
 		if(!isComplex[i]){
@@ -199,7 +199,7 @@ void MultiMatrixTransitionProbability::accept(void) {
 	}
 }
 
-void MultiMatrixTransitionProbability::reject(void) {	
+void TransitionProbability::reject(void) {	
 	isComplex = isOldComplex;
 	for(int i = 0; i < isOldComplex.size(); i++){
 		if(!isComplex[i]){
@@ -215,7 +215,7 @@ void MultiMatrixTransitionProbability::reject(void) {
 
 
 /* This function returns transition probabilities in the Matrix P */
-void MultiMatrixTransitionProbability::setProbs(const int state, const int rate, const int node, const double v) {
+void TransitionProbability::setProbs(const int state, const int rate, const int node, const double v) {
 	Matrix<double> P = *(probs[state][rate*numNodes + node]);
 	if (!isComplex[rate])
 		tiProbsEigens(v, P, rate);
@@ -225,7 +225,7 @@ void MultiMatrixTransitionProbability::setProbs(const int state, const int rate,
 
 /* This function calculates transition probabilities using
    complex eigenvalues and eigenvectors. */
-void MultiMatrixTransitionProbability::tiProbsComplexEigens(const double v, Matrix<double>& P, const int mIndex) {
+void TransitionProbability::tiProbsComplexEigens(const double v, Matrix<double>& P, const int mIndex) {
 	
 	for (int s=0; s<numStates; s++)
 		ceigValExp[s] = exp(complexRateEigen[mIndex].ceigenvalue[s] * v);
@@ -245,7 +245,7 @@ void MultiMatrixTransitionProbability::tiProbsComplexEigens(const double v, Matr
 
 /* This function calculates transition probabilities using
    eigenvalues and eigenvectors. */
-void MultiMatrixTransitionProbability::tiProbsEigens(const double v, Matrix<double> &P, const int mIndex) {
+void TransitionProbability::tiProbsEigens(const double v, Matrix<double> &P, const int mIndex) {
 	
 	for (int s=0; s<numStates; s++)
 		eigValExp[s] = exp(rateEigen[mIndex].eigenvalue[s] * v);
@@ -263,7 +263,7 @@ void MultiMatrixTransitionProbability::tiProbsEigens(const double v, Matrix<doub
 		}
 }
 
-int MultiMatrixTransitionProbability::updateQ(const Matrix<double>& qTemp, const int index) {
+int TransitionProbability::updateQ(const Matrix<double>& qTemp, const int index) {
 
 	// Initialize the Q matrix
 	for (int i=0; i<numStates; i++)
@@ -293,7 +293,7 @@ int MultiMatrixTransitionProbability::updateQ(const Matrix<double>& qTemp, const
 }
 
 // Be sure you want to delete!!
-void MultiMatrixTransitionProbability::deleteQ(const int index) {
+void TransitionProbability::deleteQ(const int index) {
 	isComplex.erase(isComplex.begin() + index);
 	rateEigen.erase(rateEigen.begin() + index);
 	complexRateEigen.erase(complexRateEigen.begin() + index);

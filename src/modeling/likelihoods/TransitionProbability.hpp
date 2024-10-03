@@ -1,5 +1,5 @@
-#ifndef MULTI_MATRIX_TRANSITION_PROBABILITY_HPP
-#define MULTI_MATRIX_TRANSITION_PROBABILITY_HPP
+#ifndef TRANSITION_PROBABILITY_HPP
+#define TRANSITION_PROBABILITY_HPP
 
 #include <complex>
 #include <vector>
@@ -44,11 +44,11 @@
    That is, the off-diagonal rates are given one row at a time: A->C, A->G, A->T, C->A, C->G,
    C->T, G->A, G->C, G->T, T->A, T->C, T->G. */
 
-class MultiMatrixTransitionProbability {
+class TransitionProbability {
 
 	public:
-                                MultiMatrixTransitionProbability(const int nn, const int nC, const Matrix<double>& qMat);
-                               ~MultiMatrixTransitionProbability ();                                                                                     //!< destructor
+                                TransitionProbability(const int nn, const int nC, const Matrix<double>& qMat);
+                               ~TransitionProbability ();                                                                                     //!< destructor
         Matrix<double>*         operator()(int s, int r, int n) { return probs[s][r*numNodes + n]; }
         int                     getNumStates(void) { return numStates; }
         int                     getNumMatrices(void) {return isComplex.size();}

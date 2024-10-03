@@ -19,7 +19,7 @@
 #include "modeling/parameters/trees/TreeParameter.hpp"
 #include "modeling/parameters/rates/CodonMultiMatrix.hpp"
 #include "modeling/parameters/BasicParameter.hpp"
-#include "modeling/likelihoods/CodonMMPhyloCTMC.hpp"
+#include "modeling/likelihoods/PhyloCTMC.hpp"
 #include "modeling/priors/TreePrior.hpp"
 #include "modeling/priors/DirichletPrior.hpp"
 #include "modeling/priors/DirichletProcessPrior.hpp"
@@ -60,7 +60,7 @@ int main(int argc, char* argv[]) {
 
     CodonMultiMatrix rateMatrix(&dpp, &k, stationaryDist);
 
-    CodonMMPhyloCTMC ctmc(&aln, &treeParam, &rateMatrix, &dpp);
+    PhyloCTMC ctmc(&aln, &treeParam, &rateMatrix, &dpp);
 
     MoveDPPCodonGibbs moveDPP(&ctmc, &dpp);
     moveScheduler.registerMove(&moveDPP, 10.0);

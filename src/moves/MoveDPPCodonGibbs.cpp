@@ -1,12 +1,12 @@
 #include "MoveDPPCodonGibbs.hpp"
 #include "core/RandomVariable.hpp"
 #include "core/Probability.hpp"
-#include "modeling/likelihoods/MultiMatrixTransitionProbability.hpp"
+#include "modeling/likelihoods/TransitionProbability.hpp"
 #include <iostream>
 #include <cmath>
 #include <algorithm>
 
-MoveDPPCodonGibbs::MoveDPPCodonGibbs(CodonMMPhyloCTMC* l, DirichletProcessPrior* d) : likelihood(l), dpp(d), currentMember(0) {}
+MoveDPPCodonGibbs::MoveDPPCodonGibbs(PhyloCTMC* l, DirichletProcessPrior* d) : likelihood(l), dpp(d), currentMember(0) {}
   
 double MoveDPPCodonGibbs::update(){
 

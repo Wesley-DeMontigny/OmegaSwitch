@@ -1,9 +1,9 @@
-#include "CodonMMPhyloCTMC.hpp"
+#include "PhyloCTMC.hpp"
 #include "core/RandomVariable.hpp"
 #include "core/Alignment.hpp"
 #include "core/Msg.hpp"
 #include "ConditionalLikelihood.hpp"
-#include "MultiMatrixTransitionProbability.hpp"
+#include "TransitionProbability.hpp"
 #include "modeling/parameters/trees/Node.hpp"
 #include "modeling/parameters/trees/TreeObject.hpp"
 #include "modeling/parameters/trees/TreeParameter.hpp"
@@ -14,7 +14,7 @@
 #include <string>
 #include <iostream>
 
-CodonMMPhyloCTMC::CodonMMPhyloCTMC(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProcessPrior* d) : aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0), dpp(d) {
+PhyloCTMC::PhyloCTMC(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProcessPrior* d) : aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0), dpp(d) {
 
     this->dirty();
 
@@ -65,19 +65,19 @@ CodonMMPhyloCTMC::CodonMMPhyloCTMC(Alignment* a, TreeParameter* t, CodonMultiMat
     tree->accept(); //Accept the tip changes into memory tree (if any happened)
 
     postOrder = new ConditionalLikelihood(aln, 1);
-    transProb = new MultiMatrixTransitionProbability(numNodes, aln->getNumChar(), rateMatrix->Q());
+    transProb = new TransitionProbability(numNodes, aln->getNumChar(), rateMatrix->Q());
 
     activeT->updateAll();
 }
 
-CodonMMPhyloCTMC::~CodonMMPhyloCTMC(){
+PhyloCTMC::~PhyloCTMC(){
     delete postOrder;
     delete transProb;
     delete [] activeCL;
     delete [] activeTP;
 }
 
-void CodonMMPhyloCTMC::accept() {
+void PhyloCTMC::accept() {
     oldLikelihood = currentLikelihood;
 
     int numNodes = aln->getNumTaxa() * 2;
@@ -98,7 +98,7 @@ void CodonMMPhyloCTMC::accept() {
     transProb->accept();
 }
 
-void CodonMMPhyloCTMC::reject() {
+void PhyloCTMC::reject() {
     currentLikelihood = oldLikelihood;
 
     int numNodes = aln->getNumTaxa() * 2;
@@ -119,7 +119,7 @@ void CodonMMPhyloCTMC::reject() {
     transProb->reject();
 }
 
-void CodonMMPhyloCTMC::regenerate(){
+void PhyloCTMC::regenerate(){
     tree->regenerate();
     rateMatrix->regenerate();
 
@@ -213,7 +213,7 @@ void CodonMMPhyloCTMC::regenerate(){
     }
 }
 
-double CodonMMPhyloCTMC::regenerateAtSite(int site, int category, bool update){
+double PhyloCTMC::regenerateAtSite(int site, int category, bool update){
     this->dirty();
 
     int numChar = aln->getNumChar();

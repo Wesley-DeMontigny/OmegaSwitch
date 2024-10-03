@@ -20,6 +20,7 @@ class ConditionalLikelihood{
         int numChar;
         int numNodes;
         int numRates;
+        int stateSpace;
 };
 
 #endif

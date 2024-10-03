@@ -206,6 +206,9 @@ void PhyloCTMC::regenerate(){
             }
             lnL += std::log(like);
 
+            if(std::log(like) == -1.0 * INFINITY)
+                break;
+
             pR += stateSpace;
         }
 

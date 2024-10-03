@@ -76,8 +76,8 @@ void TransitionProbability::calcComplexCijk(int mIndex) {
 		complexRateEigen[mIndex].ceigenvalue[i] = std::complex<double>(*p++, *q++);
 
 	// calculate cc_ijk
-	Matrix<std::complex<double> > cev = eigens->getComplexEigenvectors();
-	Matrix<std::complex<double> > ciev = eigens->getComplexInverseEigenvectors();
+	Matrix<std::complex<double>> cev = eigens->getComplexEigenvectors();
+	Matrix<std::complex<double>> ciev = eigens->getComplexInverseEigenvectors();
 	std::complex<double>* pc = complexRateEigen[mIndex].cc_ijk;
 	for (int i=0; i<numStates; i++)
 		for (int j=0; j<numStates; j++)

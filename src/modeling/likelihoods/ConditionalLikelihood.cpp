@@ -2,9 +2,9 @@
 #include "core/Alignment.hpp"
 #include "core/Msg.hpp"
 
-ConditionalLikelihood::ConditionalLikelihood(Alignment* aln, int nR) : numNodes(aln->getNumTaxa() * 2), numRates(nR) {
+ConditionalLikelihood::ConditionalLikelihood(Alignment* aln, int nR) : numNodes(aln->getNumTaxa() * 2), numRates(nR), stateSpace(122) {
     numChar = aln->getNumChar();
-    int width = numNodes*numChar*122*numRates;
+    int width = numNodes*numChar*stateSpace*numRates;
     condLikelihoods[0] = new double[2 * width];
     condLikelihoods[1] = condLikelihoods[0] + (width);
 
@@ -50,11 +50,11 @@ ConditionalLikelihood::~ConditionalLikelihood(){
 
 
 double* ConditionalLikelihood::operator()(int n, int s, int r){
-    return condLikelihoods[s] + n*numChar*122 + (r*numNodes*numChar*122);
+    return condLikelihoods[s] + n*numChar*stateSpace + (r*numNodes*numChar*stateSpace);
 }
 
 double* ConditionalLikelihood::operator[](int n){
-    return condLikelihoods[activeCLs[n]] + n*numChar*122;
+    return condLikelihoods[activeCLs[n]] + n*numChar*stateSpace;
 }
 
 void ConditionalLikelihood::flipCL(int n){

@@ -114,7 +114,7 @@ void CodonMultiMatrix::regenerate() {
         double ttR = kParam->getValue();
         if(dirtyStationary){
             returnStationary.clear();
-            for(int i = 0; i < 61; i++){
+            for(int i = 0; i < 122; i++){
                 returnStationary.push_back(stationaryDist[i]->getValue());
             }
         }
@@ -160,10 +160,12 @@ Matrix<double> CodonMultiMatrix::Q(int i) {
         returnMatrix(coord.second + 61, coord.first + 61) *= ddR2; 
     }
 
-    for(int i = 0; i < 61; i++){
+    for(int i = 0; i < 122; i++){
         double total = 0.0;
-        for(int j = 0; j < 61; j++){
-            if(j != i) total += returnMatrix(i , j);
+        for(int j = 0; j < 122; j++){
+            if(j != i){
+                total += returnMatrix(i , j);
+            }
         }
         returnMatrix(i , i) = total * -1;
     }

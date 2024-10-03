@@ -41,7 +41,10 @@ int main(int argc, char* argv[]) {
     //Purely empirical values right now.
     std::vector<BasicParameter<double>*> stationaryDist;
     for(double v : aln.getStateFrequencies()){
-        stationaryDist.push_back(new BasicParameter<double>(v));
+        stationaryDist.push_back(new BasicParameter<double>(v/2));
+    }
+    for(double v : aln.getStateFrequencies()){
+        stationaryDist.push_back(new BasicParameter<double>(v/2));
     }
 
     TreeParameter treeParam(&aln);
@@ -62,16 +65,16 @@ int main(int argc, char* argv[]) {
     MoveScaleDouble rMove(&r);
     moveScheduler.registerMove(&rMove, 2.5);
 
-    DirichletProcessPrior dpp(aln.getNumChar(), 1);
+    DirichletProcessPrior dpp(aln.getNumChar(), 0.5);
 
     CodonMultiMatrix rateMatrix(&dpp, &k, &r, stationaryDist);
 
     PhyloCTMC ctmc(&aln, &treeParam, &rateMatrix, &dpp);
 
     MoveDPPCodonGibbs moveDPP(&ctmc, &dpp);
-    moveScheduler.registerMove(&moveDPP, 10.0);
+    //moveScheduler.registerMove(&moveDPP, 10.0);
     MoveScaleDPPCategory moveCategories(&dpp);
-    moveScheduler.registerMove(&moveCategories, 10.0);
+    //moveScheduler.registerMove(&moveCategories, 10.0);
 
     MoveTreeLocal localMove(&treeParam);
     moveScheduler.registerMove(&localMove, 15.0);

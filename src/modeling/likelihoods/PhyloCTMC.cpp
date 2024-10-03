@@ -19,7 +19,7 @@ PhyloCTMC::PhyloCTMC(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, Dirich
     this->dirty();
 
     TreeObject* activeT = tree->getTree();
-    stateSpace = aln->getStateSpace();
+    stateSpace = 122;
     if(aln->getNumTaxa() != activeT->getNumTaxa())
         Msg::error("Expected " + std::to_string(aln->getNumTaxa()) + 
         "taxa in the tree, but found only " + std::to_string(activeT->getNumTaxa()));
@@ -65,7 +65,7 @@ PhyloCTMC::PhyloCTMC(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, Dirich
     tree->accept(); //Accept the tip changes into memory tree (if any happened)
 
     postOrder = new ConditionalLikelihood(aln, 1);
-    transProb = new TransitionProbability(numNodes, aln->getNumChar(), rateMatrix->Q());
+    transProb = new TransitionProbability(numNodes, aln->getNumChar());
 
     activeT->updateAll();
 }

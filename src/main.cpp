@@ -54,11 +54,17 @@ int main(int argc, char* argv[]) {
     ExponentialRatioPrior kPrior(&k);
     kPrior.sample();
     MoveScaleDouble kMove(&k);
-    moveScheduler.registerMove(&kMove, 5.0);
+    moveScheduler.registerMove(&kMove, 2.5);
+
+    BasicParameter<double> r(1.0);
+    ExponentialRatioPrior rPrior(&r);
+    rPrior.sample();
+    MoveScaleDouble rMove(&r);
+    moveScheduler.registerMove(&rMove, 2.5);
 
     DirichletProcessPrior dpp(aln.getNumChar(), 1);
 
-    CodonMultiMatrix rateMatrix(&dpp, &k, stationaryDist);
+    CodonMultiMatrix rateMatrix(&dpp, &k, &r, stationaryDist);
 
     PhyloCTMC ctmc(&aln, &treeParam, &rateMatrix, &dpp);
 
@@ -70,7 +76,7 @@ int main(int argc, char* argv[]) {
     MoveTreeLocal localMove(&treeParam);
     moveScheduler.registerMove(&localMove, 15.0);
 
-    PosteriorNode posterior(&ctmc, {&treePrior, &kPrior, &dpp});
+    PosteriorNode posterior(&ctmc, {&treePrior, &kPrior, &rPrior, &dpp});
 
     Mcmc myMCMC(&posterior, &moveScheduler);
 
@@ -80,29 +86,31 @@ int main(int argc, char* argv[]) {
     burnIn.initialize();
 
     std::cout << "Starting Burn-In" << std::endl;
-    myMCMC.run(30000, &burnIn);
+    //myMCMC.run(30000, &burnIn);
 
     std::vector<std::pair<std::string, ModelNode*>> loggables;
     loggables.push_back(std::make_pair("Tree Prior", &treePrior));
     loggables.push_back(std::make_pair("K Prior", &kPrior));
+    loggables.push_back(std::make_pair("R Prior", &rPrior));
     loggables.push_back(std::make_pair("DPP Prior", &dpp));
     loggables.push_back(std::make_pair("Likelihood", &ctmc));
     loggables.push_back(std::make_pair("Posterior", &posterior));
     loggables.push_back(std::make_pair("K", &k));
+    loggables.push_back(std::make_pair("R", &r));
 
     EventManager realRun;
     ScreenLogEvent screenLogger(loggables);
-    realRun.registerEvent(&screenLogger, 50);
+    realRun.registerEvent(&screenLogger, 1);
     FileLogEvent fileLogger(loggables, "C:/Users/wescd/OneDrive/Documents/Code/Varying_Selectection_DPP/res/test_mcmc.log");
-    realRun.registerEvent(&fileLogger, 50);
+    realRun.registerEvent(&fileLogger, 1);
     loggables.push_back(std::make_pair("Tree", &treeParam));
     loggables.erase(loggables.begin());
     loggables.erase(loggables.begin());
     FileLogEvent treeLogger(loggables, "C:/Users/wescd/OneDrive/Documents/Code/Varying_Selectection_DPP/res/tree_trace.trees");
-    realRun.registerEvent(&treeLogger, 50);
+    realRun.registerEvent(&treeLogger, 1);
 
-    DPPFileLogEvent logDPP(&dpp, &posterior, "C:/Users/wescd/OneDrive/Documents/Code/Varying_Selectection_DPP/res/dpp_sites.log", false);
-    realRun.registerEvent(&logDPP, 50);
+    DPPFileLogEvent logDPP(&dpp, &posterior, "C:/Users/wescd/OneDrive/Documents/Code/Varying_Selectection_DPP/res/dpp_sites.log");
+    realRun.registerEvent(&logDPP, 1);
 
     realRun.initialize();
 

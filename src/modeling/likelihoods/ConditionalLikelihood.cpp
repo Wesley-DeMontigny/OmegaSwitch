@@ -4,8 +4,7 @@
 
 ConditionalLikelihood::ConditionalLikelihood(Alignment* aln, int nR) : numNodes(aln->getNumTaxa() * 2), numRates(nR) {
     numChar = aln->getNumChar();
-    stateSpace = aln->getStateSpace();
-    int width = numNodes*numChar*stateSpace*numRates;
+    int width = numNodes*numChar*122*numRates;
     condLikelihoods[0] = new double[2 * width];
     condLikelihoods[1] = condLikelihoods[0] + (width);
 
@@ -26,9 +25,10 @@ ConditionalLikelihood::ConditionalLikelihood(Alignment* aln, int nR) : numNodes(
 
                 unsigned long long int mask = 1;
                 bool assigned = false;
-                for(int j = 0; j < stateSpace; j++) {
+                for(int j = 0; j < 61; j++) {
                     if((mask & state) != 0){
-                        *p = 1.0;
+                        *p = 1.0; //Rate 1
+                        *(p + 61) = 1.0; //Rate 2
                         assigned = true;
                     }
                     mask <<= 1;
@@ -43,21 +43,6 @@ ConditionalLikelihood::ConditionalLikelihood(Alignment* aln, int nR) : numNodes(
     }
 }
 
-ConditionalLikelihood::ConditionalLikelihood(int nT, int nC, int nR, int s) : numNodes(nT * 2), stateSpace(s), numRates(nR), numChar(nC) {
-    int width = numNodes*numChar*stateSpace*numRates;
-    condLikelihoods[0] = new double[2 * width];
-    condLikelihoods[1] = condLikelihoods[0] + (width);
-
-    activeCLs = new int[numNodes];
-    for(int i = 0; i < numNodes; i++)
-        activeCLs[i] = 0;
-
-    for(int i = 0; i < width; i++){
-        condLikelihoods[0][i] = 0.0;
-        condLikelihoods[1][i] = 0.0;
-    }
-}
-
 ConditionalLikelihood::~ConditionalLikelihood(){
     delete [] condLikelihoods[0];
     delete activeCLs;
@@ -65,11 +50,11 @@ ConditionalLikelihood::~ConditionalLikelihood(){
 
 
 double* ConditionalLikelihood::operator()(int n, int s, int r){
-    return condLikelihoods[s] + n*numChar*stateSpace + (r*numNodes*numChar*stateSpace);
+    return condLikelihoods[s] + n*numChar*122 + (r*numNodes*numChar*122);
 }
 
 double* ConditionalLikelihood::operator[](int n){
-    return condLikelihoods[activeCLs[n]] + n*numChar*stateSpace;
+    return condLikelihoods[activeCLs[n]] + n*numChar*122;
 }
 
 void ConditionalLikelihood::flipCL(int n){

@@ -15,8 +15,9 @@ DirichletProcessPrior::DirichletProcessPrior(int size, double a) : alpha(a), num
 
         // If new category
         if(total > randomVal){
-            //Category newCat = {Probability::Exponential::rv(&rng, 1), 1, {i}};
-            Category newCat = {Probability::Exponential::rv(&rng, 1)/Probability::Exponential::rv(&rng, 1), 1, {i}};
+            Category newCat = {Probability::Exponential::rv(&rng, 1)/Probability::Exponential::rv(&rng, 1),
+                               Probability::Exponential::rv(&rng, 1)/Probability::Exponential::rv(&rng, 1),
+                               1, {i}};
             currentCategories.push_back(newCat);
             continue;
         }
@@ -54,28 +55,28 @@ void DirichletProcessPrior::removeCategory(int index){
     currentCategories.erase(currentCategories.begin() + index);
 }
 
-void DirichletProcessPrior::addCategory(double value){
+void DirichletProcessPrior::addCategory(double value1, double value2){
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
-    Category newCat = {value, 0, {}};
+    Category newCat = {value1, value2, 0, {}};
     currentCategories.push_back(newCat);
 }
 
-void DirichletProcessPrior::setCategoryValue(int index, double value){
-    currentCategories[index].value = value;
+void DirichletProcessPrior::setCategoryOmega1(int index, double value){
+    currentCategories[index].omega1 = value;
 }
 
-double DirichletProcessPrior::getCategoryValue(int index){
-    return currentCategories[index].value;
+void DirichletProcessPrior::setCategoryOmega2(int index, double value){
+    currentCategories[index].omega2 = value;
 }
 
-std::vector<double> DirichletProcessPrior::getCategoryValues(){
-    std::vector<double> returnVec;
 
-    for(Category &c : currentCategories)
-        returnVec.push_back(c.value);
+double DirichletProcessPrior::getCategoryOmega1(int index){
+    return currentCategories[index].omega1;
+}
 
-    return returnVec;
+double DirichletProcessPrior::getCategoryOmega2(int index){
+    return currentCategories[index].omega2;
 }
 
 int DirichletProcessPrior::unassignMember(int member){
@@ -144,9 +145,10 @@ void DirichletProcessPrior::regenerate() {
                 assignments[m] = i;
         
         currentLnPrior = 0.0;
-        for(int& c : assignments)
-            currentLnPrior += -2 * std::log(1.0 + currentCategories[c].value); // ExpRatio
-            //currentLnPrior += Probability::Exponential::lnPdf(1, currentCategories[c].value);
+        for(int& c : assignments){
+            currentLnPrior += -2 * std::log(1.0 + currentCategories[c].omega1);
+            currentLnPrior += -2 * std::log(1.0 + currentCategories[c].omega2);
+        }
     }
 }
 

@@ -2,27 +2,21 @@
 #include "TransitionProbability.hpp"
 #include "core/Math.hpp"
 
-/* This constructor builds a time-reversible transition matrix to describe
-   evolutionary substitutions along a phylogenetic tree for discrete characters.
-   Such a model is often used to describe substitutions for DNA or amino acid data
-   but it works equally well for other characters with discrete states. */
-TransitionProbability::TransitionProbability(const int nn, const int nC, const Matrix<double> &qMat)
+TransitionProbability::TransitionProbability(const int nn, const int nC)
     : ceigValExp(0), eigens(0), eigValExp(0), isComplex(false), isOldComplex(false),
-	  numStates(qMat.dim1()), numNodes(nn), numCats(nC) {
+	  numStates(122), numNodes(nn), numCats(nC) {
 
-	// Initialize
-	numStates = qMat.dim1();
 	initializeProbabilityBuffer();
 
 	// Allocate space for variables that hold Q
-	Q    = Matrix<double>(numStates, numStates, 0.0);
+	Q  = Matrix<double>(numStates, numStates, 0.0);
 	pi = std::vector<double>(numStates, 0.0);
 
 	ceigValExp = new std::complex<double>[numStates];
 	eigens = new EigenSystem(Q);
 	eigValExp = new double[numStates];
 	
-	updateQ(qMat, 0);
+	updateQ(Q, 0);
 	accept();
 }
 

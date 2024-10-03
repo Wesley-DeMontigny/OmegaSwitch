@@ -47,7 +47,7 @@
 class TransitionProbability {
 
 	public:
-                                TransitionProbability(const int nn, const int nC, const Matrix<double>& qMat);
+                                TransitionProbability(const int nn, const int nC);
                                ~TransitionProbability ();                                                                                     //!< destructor
         Matrix<double>*         operator()(int s, int r, int n) { return probs[s][r*numNodes + n]; }
         int                     getNumStates(void) { return numStates; }

@@ -11,9 +11,17 @@ double MoveScaleDPPCategory::update(){
     int randomCategory = (int)(rng.uniformRv() * dpp->getNumCategories());
 
     double scale = std::exp(delta * (rng.uniformRv() - 0.5));
-    double newV = dpp->getCategoryValue(randomCategory) * scale;
+    
+    bool omega1 = rng.uniformRv() > 0.5;
 
-    dpp->setCategoryValue(randomCategory, newV);
+    if(omega1) {
+        double newV = dpp->getCategoryOmega1(randomCategory) * scale;
+        dpp->setCategoryOmega1(randomCategory, newV);
+    }
+    else {
+        double newV = dpp->getCategoryOmega2(randomCategory) * scale;
+        dpp->setCategoryOmega2(randomCategory, newV);
+    }
 
     dpp->dirty();
 

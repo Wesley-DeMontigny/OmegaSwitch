@@ -1,17 +1,14 @@
 #ifndef CODON_MULTI_MATRIX_HPP
 #define CODON_MULTI_MATRIX_HPP
-#include "RateMatrix.hpp"
 #include "core/Matrix.hpp"
 #include "core/Msg.hpp"
+#include "modeling/priors/DirichletProcessPrior.hpp"
 #include "modeling/parameters/BasicParameter.hpp"
 #include <set>
 
-class DirichletProcessPrior;
-
-class CodonMultiMatrix : public RateMatrix {
+class CodonMultiMatrix : public ModelNode {
     public:
-        CodonMultiMatrix(DirichletProcessPrior* o, BasicParameter<double>* k, std::vector<BasicParameter<double>*> pi);
-        Matrix<double> Q() {return Matrix<double>(61, 61, 0.0);}
+        CodonMultiMatrix(DirichletProcessPrior* d, BasicParameter<double>* k, BasicParameter<double>* r, std::vector<BasicParameter<double>*> pi);
         Matrix<double> Q(int index);
         std::vector<double> stationary();
         void accept();
@@ -19,13 +16,18 @@ class CodonMultiMatrix : public RateMatrix {
         void regenerate();
         std::string writeValue() {return "";}
     private:
+
         Matrix<double> currentQMatrix;
         Matrix<double> oldQMatrix;
-        DirichletProcessPrior* dNdS;
-        BasicParameter<double>* transitionTransversionRatio;
+
+        BasicParameter<double>* kParam;
+        DirichletProcessPrior* oParam;
+        BasicParameter<double>* rParam;
+
         std::set<std::pair<int, int>> nonsynonymous;
         std::set<std::pair<int, int>> valid;
         std::set<std::pair<int, int>> transition;
+
         std::vector<BasicParameter<double>*> stationaryDist;
         std::vector<double> returnStationary;
 };

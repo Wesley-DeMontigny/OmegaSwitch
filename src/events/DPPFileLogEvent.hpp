@@ -10,7 +10,7 @@ class PosteriorNode;
 class DPPFileLogEvent : public Event{
     public:
         DPPFileLogEvent(void)=delete;
-        DPPFileLogEvent(DirichletProcessPrior* d, PosteriorNode* p, std::string f, bool normalize=false);
+        DPPFileLogEvent(DirichletProcessPrior* d, PosteriorNode* p, std::string f);
         void initialize();
         void call(int iteration);
     private:

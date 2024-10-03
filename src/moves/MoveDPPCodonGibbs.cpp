@@ -28,13 +28,16 @@ double MoveDPPCodonGibbs::update(){
         dpp->popBackCategory(i);
     }
 
-    std::vector<double> newValues;
+    std::vector<double> omega1Vec;
+    std::vector<double> omega2Vec;
     double alphaSplit = std::log(dpp->getAlpha()/5);
 
     for(int i = 0; i < 5; i++){
-        double newVal = Probability::Exponential::rv(&rng, 1)/Probability::Exponential::rv(&rng, 1);
-        newValues.push_back(newVal);
-        dpp->addCategory(newVal);
+        double newOmega1 = Probability::Exponential::rv(&rng, 1)/Probability::Exponential::rv(&rng, 1);
+        double newOmega2 = Probability::Exponential::rv(&rng, 1)/Probability::Exponential::rv(&rng, 1);
+        omega1Vec.push_back(newOmega1);
+        omega2Vec.push_back(newOmega2);
+        dpp->addCategory(newOmega1, newOmega2);
         dpp->assignMember(currentMember, numCats);
         conditionalL.push_back(likelihood->regenerateAtSite(i, numCats, true) + alphaSplit);
         dpp->popBackCategory(numCats);
@@ -62,7 +65,7 @@ double MoveDPPCodonGibbs::update(){
                 likelihood->getTransitionProbability()->deleteQ(numCats); //Remove extra
             }
             else {
-                dpp->addCategory(newValues[i - numCats]);
+                dpp->addCategory(omega1Vec[i - numCats], omega2Vec[i - numCats]);
                 dpp->assignMember(currentMember, numCats);
             }
             break;

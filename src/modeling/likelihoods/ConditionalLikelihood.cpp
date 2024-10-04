@@ -34,6 +34,7 @@ ConditionalLikelihood::ConditionalLikelihood(Alignment* aln, int nR) : numNodes(
                     mask <<= 1;
                     p++;
                 }
+                p += 61;
 
                 if(assigned == false){
                     Msg::error("Never assigned a conditional value at (" + std::to_string(index) + ", " + std::to_string(i) + ")! This has state value " + std::to_string(state));

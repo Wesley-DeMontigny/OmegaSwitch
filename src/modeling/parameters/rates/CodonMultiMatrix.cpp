@@ -44,10 +44,10 @@ CodonMultiMatrix::CodonMultiMatrix(DirichletProcessPrior* o, BasicParameter<doub
         currentQMatrix(coord.first + 61, coord.second +  61) = returnStationary[coord.first];
         currentQMatrix(coord.second + 61, coord.first + 61) = returnStationary[coord.second];
 
-        currentQMatrix(coord.first, coord.second + 61) = rVal;
-        currentQMatrix(coord.first + 61, coord.second) = rVal;
-        currentQMatrix(coord.second, coord.first + 61) = rVal;
-        currentQMatrix(coord.second + 61, coord.first) = rVal;
+        currentQMatrix(coord.first, coord.first + 61) = rVal;
+        currentQMatrix(coord.first + 61, coord.first) = rVal;
+        currentQMatrix(coord.second, coord.second + 61) = rVal;
+        currentQMatrix(coord.second + 61, coord.second) = rVal;
     }
     for(auto coord : transition){
         currentQMatrix(coord.first, coord.second) *= ttR;
@@ -128,10 +128,10 @@ void CodonMultiMatrix::regenerate() {
             currentQMatrix(coord.first + 61, coord.second +  61) = returnStationary[coord.first];
             currentQMatrix(coord.second + 61, coord.first + 61) = returnStationary[coord.second];
 
-            currentQMatrix(coord.first, coord.second + 61) = rVal;
-            currentQMatrix(coord.first + 61, coord.second) = rVal;
-            currentQMatrix(coord.second, coord.first + 61) = rVal;
-            currentQMatrix(coord.second + 61, coord.first) = rVal;
+            currentQMatrix(coord.first, coord.first + 61) = rVal;
+            currentQMatrix(coord.first + 61, coord.first) = rVal;
+            currentQMatrix(coord.second, coord.second + 61) = rVal;
+            currentQMatrix(coord.second + 61, coord.second) = rVal;
         }
         for(auto coord : transition){
             currentQMatrix(coord.first, coord.second) *= ttR;
@@ -169,5 +169,6 @@ Matrix<double> CodonMultiMatrix::Q(int i) {
         }
         returnMatrix(i , i) = total * -1;
     }
+
     return returnMatrix;
 }

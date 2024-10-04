@@ -17,7 +17,7 @@ class PhyloCTMC : public LikelihoodNode{
         PhyloCTMC(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProcessPrior* d);
         ~PhyloCTMC();
         double lnLikelihood() {return currentLikelihood;}
-        double regenerateAtSite(int site, int category, bool update);
+        double regenerateIntoSiteBuffer(int site, int category, bool update);
         void regenerate();
         void accept();
         void reject();

@@ -204,11 +204,10 @@ void PhyloCTMC::regenerate(){
             for(int i = 0; i < stateSpace; i++){
                 like += pR[i]*f[i];
             }
+            if(like == 0)
+                std::cout << "ZERO" << std::endl;
+
             lnL += std::log(like);
-
-            if(std::log(like) == -1.0 * INFINITY)
-                break;
-
             pR += stateSpace;
         }
 
@@ -216,7 +215,7 @@ void PhyloCTMC::regenerate(){
     }
 }
 
-double PhyloCTMC::regenerateAtSite(int site, int category, bool update){
+double PhyloCTMC::regenerateIntoSiteBuffer(int site, int category, bool update){
     this->dirty();
 
     int numChar = aln->getNumChar();

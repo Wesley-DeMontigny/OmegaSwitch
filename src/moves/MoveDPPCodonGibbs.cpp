@@ -24,7 +24,7 @@ double MoveDPPCodonGibbs::update(){
 
     for(int i = 0; i < numCats; i++){
         dpp->assignMember(currentMember, i);
-        conditionalL.push_back(likelihood->regenerateAtSite(currentMember, i, false) + std::log(dpp->getCategorySize(i)));
+        conditionalL.push_back(likelihood->regenerateIntoSiteBuffer(currentMember, i, false) + std::log(dpp->getCategorySize(i)));
         dpp->popBackCategory(i);
     }
 
@@ -39,7 +39,7 @@ double MoveDPPCodonGibbs::update(){
         omega2Vec.push_back(newOmega2);
         dpp->addCategory(newOmega1, newOmega2);
         dpp->assignMember(currentMember, numCats);
-        conditionalL.push_back(likelihood->regenerateAtSite(i, numCats, true) + alphaSplit);
+        conditionalL.push_back(likelihood->regenerateIntoSiteBuffer(i, numCats, true) + alphaSplit);
         dpp->popBackCategory(numCats);
         
     }

@@ -72,9 +72,9 @@ int main(int argc, char* argv[]) {
     PhyloCTMC ctmc(&aln, &treeParam, &rateMatrix, &dpp);
 
     MoveDPPCodonGibbs moveDPP(&ctmc, &dpp);
-    //moveScheduler.registerMove(&moveDPP, 10.0);
+    moveScheduler.registerMove(&moveDPP, 10.0);
     MoveScaleDPPCategory moveCategories(&dpp);
-    //moveScheduler.registerMove(&moveCategories, 10.0);
+    moveScheduler.registerMove(&moveCategories, 10.0);
 
     MoveTreeLocal localMove(&treeParam);
     moveScheduler.registerMove(&localMove, 15.0);

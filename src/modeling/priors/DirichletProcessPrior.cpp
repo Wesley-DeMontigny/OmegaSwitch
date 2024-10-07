@@ -94,6 +94,7 @@ int DirichletProcessPrior::unassignMember(int member){
             }
         }
     }
+    return -2;
 }
 
 int DirichletProcessPrior::unassignMember(int member, int category){
@@ -109,6 +110,7 @@ int DirichletProcessPrior::unassignMember(int member, int category){
             return -1;
         }
     }
+    return -2;
 }
 
 int DirichletProcessPrior::popBackCategory(int category){

@@ -12,12 +12,11 @@ double MoveDPPCodonGibbs::update(){
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
+    int assignment = dpp->getAssinments()[currentMember];
     int deleted = dpp->unassignMember(currentMember); // This will also delete the group if empty
     if(deleted >= 0){
         likelihood->getTransitionProbability()->deleteQ(deleted);
     }
-
-    dpp->dirty();
 
     std::vector<double> conditionalL;
     int numCats = dpp->getNumCategories();
@@ -55,6 +54,7 @@ double MoveDPPCodonGibbs::update(){
     }
 
     double categoryDraw = total * rng.uniformRv();
+    int newAssignment = -1;
 
     total = 0.0;
     for(int i = 0; i < conditionalL.size(); i++){
@@ -62,15 +62,22 @@ double MoveDPPCodonGibbs::update(){
         if(total > categoryDraw){
             if(i < numCats) { //It already exists
                 dpp->assignMember(currentMember, i);
+                newAssignment = i;
                 likelihood->getTransitionProbability()->deleteQ(numCats); //Remove extra
             }
             else {
                 dpp->addCategory(omega1Vec[i - numCats], omega2Vec[i - numCats]);
+                newAssignment = numCats;
                 dpp->assignMember(currentMember, numCats);
             }
             break;
         }
     }
+
+    if(newAssignment != assignment){
+        dpp->dirty();
+    }
+    
 
     if(currentMember < dpp->getNumMembers() - 1)
         currentMember++;

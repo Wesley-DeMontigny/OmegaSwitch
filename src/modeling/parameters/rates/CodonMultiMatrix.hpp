@@ -9,7 +9,7 @@
 class CodonMultiMatrix : public ModelNode {
     public:
         CodonMultiMatrix(DirichletProcessPrior* d, BasicParameter<double>* k, BasicParameter<double>* r, std::vector<BasicParameter<double>*> pi);
-        Matrix<double> Q(int index);
+        Matrix<double> Q(double omega1, double omega2);
         std::vector<double> stationary();
         void accept();
         void reject();
@@ -21,7 +21,6 @@ class CodonMultiMatrix : public ModelNode {
         Matrix<double> oldQMatrix;
 
         BasicParameter<double>* kParam;
-        DirichletProcessPrior* oParam;
         BasicParameter<double>* rParam;
 
         std::set<std::pair<int, int>> nonsynonymous;

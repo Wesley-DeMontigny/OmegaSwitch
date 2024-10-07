@@ -37,6 +37,7 @@ class PhyloCTMC : public LikelihoodNode{
         TransitionProbability* transProb;
         TreeParameter* tree;
         DirichletProcessPrior* dpp;
+        void postOrderPrune();
 };
 
 #endif

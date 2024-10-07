@@ -20,14 +20,18 @@ PhyloCTMC::PhyloCTMC(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, Dirich
 
     TreeObject* activeT = tree->getTree();
     stateSpace = 122;
+    int numChar = aln->getNumChar();
+
     if(aln->getNumTaxa() != activeT->getNumTaxa())
         Msg::error("Expected " + std::to_string(aln->getNumTaxa()) + 
         "taxa in the tree, but found only " + std::to_string(activeT->getNumTaxa()));
     
     int numNodes = aln->getNumTaxa() * 2;
-    activeCL = new bool[2 * numNodes];
-    activeTP = new bool[2 * numNodes];
-    for(int i = 0; i < 2 * numNodes; i++){
+
+    int flagWidths = 2 * numNodes;
+    activeCL = new bool[flagWidths];
+    activeTP = new bool[flagWidths];
+    for(int i = 0; i < flagWidths; i++){
         activeCL[i] = false;
         activeTP[i] = false;
     }
@@ -65,7 +69,7 @@ PhyloCTMC::PhyloCTMC(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, Dirich
     tree->accept(); //Accept the tip changes into memory tree (if any happened)
 
     postOrder = new ConditionalLikelihood(aln, 1);
-    transProb = new TransitionProbability(numNodes, aln->getNumChar());
+    transProb = new TransitionProbability(numNodes, numChar);
 
     activeT->updateAll();
 }
@@ -94,6 +98,10 @@ void PhyloCTMC::accept() {
         rateMatrix->accept();
         rateMatrix->clean();
     }
+    if(dpp->isDirty()){
+        dpp->accept();
+        dpp->clean();
+    }
 
     transProb->accept();
 }
@@ -115,85 +123,97 @@ void PhyloCTMC::reject() {
         rateMatrix->reject();
         rateMatrix->clean();
     }
+    if(dpp->isDirty()){
+        dpp->reject();
+        dpp->clean();
+    }
 
     transProb->reject();
+}
+
+void PhyloCTMC::postOrderPrune(){
+
+    TreeObject* activeT = tree->getTree();
+    std::vector<Node*>&  poSeq = activeT->getPostOrderSeq();
+    std::vector<int> assignments = dpp->getAssinments();
+
+    int numCats = dpp->getNumCategories();
+    int numChar = aln->getNumChar();
+
+    for(Node* n : poSeq){
+        int nIndex = n->getIndex();
+        //Only update the conditional likelihoods if the node has changed
+        if(n->getNeedsTPUpdate() == true){
+            if(n != activeT->getRoot()){
+                activeTP[nIndex] ^= true;
+                double v = activeT->getBranchLength(n);
+                for(int i = 0; i < numCats; i++){
+                    transProb->setProbs(activeTP[nIndex], i, nIndex, v);
+                }
+            }
+            n->setNeedsTPUpdate(false);
+        }
+        if(n->getNeedsCLUpdate() == true || n->getNeedsTPUpdate() == true){
+            //Get memory address of the node we are looking at and pre-set all of the likelihoods at each site to be 1.0
+            activeCL[nIndex] ^= true;
+            double* pNN = (*postOrder)(nIndex, activeCL[nIndex], 0);
+            std::fill(pNN, pNN + (numChar* stateSpace), 1.0);
+
+            std::set<Node*>& nNeighbors = n->getNeighbors();
+            //Iterate over the descendents (usually only two)
+            for(Node* d : nNeighbors){
+                if(d != n->getAncestor()){
+                    int dIndex = d->getIndex();
+                    double* pN = pNN;
+                    double* pD = (*postOrder)(dIndex, activeCL[dIndex], 0);
+
+                    //Iterate over each of the characters and each of the potential states of our node
+                    for(int c = 0; c < numChar; c++){
+                        Matrix<double> P = *(*transProb)(activeTP[dIndex], assignments[c], dIndex);
+                        for(int i = 0; i < stateSpace; i++){
+                            //Sum up the products of the likelihoods from the CTMC (transitioning from the node's hypothetical state to another) and the conditional likelihood of the descendent states 
+                            double sum = 0.0;
+                            for(int j = 0; j < stateSpace; j++){
+                                sum += P(i, j) * pD[j];
+                            }
+                            //If this is the first time, set pN equal to the sum, otherwise multiply them
+                            (*pN) *= sum;
+                            //Move the memory address to the next character state
+                            pN++;
+                        }
+                        //Move the memory address to the next site
+                        pD+=stateSpace;
+                    }
+                }
+            }
+            //Note that we have updated the node
+            n->setNeedsCLUpdate(false);
+        }
+    }
 }
 
 void PhyloCTMC::regenerate(){
     tree->regenerate();
     rateMatrix->regenerate();
+    dpp->regenerate();
 
-    if(tree->isDirty() || rateMatrix->isDirty())
+    if(tree->isDirty() || rateMatrix->isDirty() || dpp->isDirty())
         this->dirty();
-
-    int numChar = aln->getNumChar();
 
     if(this->isDirty()){
         TreeObject* activeT = tree->getTree();
-
-        std::vector<Node*>&  poSeq = activeT->getPostOrderSeq();
-        std::vector<int> assignments = dpp->getAssinments();
         int numCats = dpp->getNumCategories();
 
-        if(rateMatrix->isDirty()){
+        if(rateMatrix->isDirty() || dpp->isDirty()){
             activeT->updateAll();
             for(int i = 0; i < numCats; i++){
-                transProb->updateQ(rateMatrix->Q(i), i);
+                transProb->updateQ(rateMatrix->Q(dpp->getCategoryOmega1(i), dpp->getCategoryOmega2(i)), i);
             }
         }
-
-        for(Node* n : poSeq){
-            int nIndex = n->getIndex();
-            //Only update the conditional likelihoods if the node has changed
-            if(n->getNeedsTPUpdate() == true){
-                if(n != activeT->getRoot()){
-                    activeTP[nIndex] ^= true;
-                    double v = activeT->getBranchLength(n);
-                    for(int i = 0; i < numCats; i++){
-                        transProb->setProbs(activeTP[nIndex], i, nIndex, v);
-                    }
-                }
-                n->setNeedsTPUpdate(false);
-            }
-            if(n->getNeedsCLUpdate() == true || n->getNeedsTPUpdate() == true){
-                //Get memory address of the node we are looking at and pre-set all of the likelihoods at each site to be 1.0
-                activeCL[nIndex] ^= true;
-                double* pNN = (*postOrder)(nIndex, activeCL[nIndex], 0);
-                std::fill(pNN, pNN + (numChar* stateSpace), 1.0);
-
-                std::set<Node*>& nNeighbors = n->getNeighbors();
-                //Iterate over the descendents (usually only two)
-                for(Node* d : nNeighbors){
-                    if(d != n->getAncestor()){
-                        int dIndex = d->getIndex();
-                        double* pN = pNN;
-                        double* pD = (*postOrder)(dIndex, activeCL[dIndex], 0);
-
-                        //Iterate over each of the characters and each of the potential states of our node
-                        for(int c = 0; c < numChar; c++){
-                            Matrix<double> P = *(*transProb)(activeTP[dIndex], assignments[c], dIndex);
-                            for(int i = 0; i < stateSpace; i++){
-                                //Sum up the products of the likelihoods from the CTMC (transitioning from the node's hypothetical state to another) and the conditional likelihood of the descendent states 
-                                double sum = 0.0;
-                                for(int j = 0; j < stateSpace; j++){
-                                    sum += P(i, j) * pD[j];
-                                }
-                                //If this is the first time, set pN equal to the sum, otherwise multiply them
-                                (*pN) *= sum;
-                                //Move the memory address to the next character state
-                                pN++;
-                            }
-                            //Move the memory address to the next site
-                            pD+=stateSpace;
-                        }
-                    }
-                }
-                //Note that we have updated the node
-                n->setNeedsCLUpdate(false);
-            }
-        }
+        postOrderPrune();
 
         //Calculate the likelihood of the tree by summing up the likelihood at the root.
+        int numChar = aln->getNumChar();
         int rIndex = activeT->getRoot()->getIndex();
         double* pR = (*postOrder)(rIndex, activeCL[rIndex], 0);
         std::vector<double> f = rateMatrix->stationary();
@@ -204,8 +224,6 @@ void PhyloCTMC::regenerate(){
             for(int i = 0; i < stateSpace; i++){
                 like += pR[i]*f[i];
             }
-            if(like == 0)
-                std::cout << "ZERO" << std::endl;
 
             lnL += std::log(like);
             pR += stateSpace;
@@ -224,7 +242,7 @@ double PhyloCTMC::regenerateIntoSiteBuffer(int site, int category, bool update){
 
     std::vector<Node*>&  poSeq = activeT->getPostOrderSeq();
     if(update)
-        transProb->updateQ(rateMatrix->Q(category), category);
+        transProb->updateQ(rateMatrix->Q(dpp->getCategoryOmega1(category), dpp->getCategoryOmega1(category)), category);
 
     for(Node* n : poSeq){
         int nIndex = n->getIndex();

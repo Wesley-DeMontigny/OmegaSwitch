@@ -33,13 +33,13 @@ class DirichletProcessPrior : public PriorNode {
         double getCategoryOmega1(int index);
         double getCategoryOmega2(int index);
         std::vector<Category> getCategories() {return currentCategories;}
+        Category getCategory(int index) {return currentCategories[index];}
 
         std::vector<int> getAssinments() { return assignments;}
         int unassignMember(int member);
         int unassignMember(int member, int category);
         int popBackCategory(int category);
         void assignMember(int member, int category);
-
 
         int getNumCategories(){return currentCategories.size();}
         int getNumMembers() {return numMembers;}

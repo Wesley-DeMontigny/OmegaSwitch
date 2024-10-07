@@ -104,15 +104,15 @@ int main(int argc, char* argv[]) {
     EventManager realRun;
     ScreenLogEvent screenLogger(loggables);
     realRun.registerEvent(&screenLogger, 1);
-    FileLogEvent fileLogger(loggables, "C:/Users/wescd/OneDrive/Documents/Code/Varying_Selectection_DPP/res/test_mcmc.log");
+    FileLogEvent fileLogger(loggables, "C:/Users/wescd/OneDrive/Documents/Code/Varying_Selection_DPP/res/test_mcmc.log");
     realRun.registerEvent(&fileLogger, 1);
     loggables.push_back(std::make_pair("Tree", &treeParam));
     loggables.erase(loggables.begin());
     loggables.erase(loggables.begin());
-    FileLogEvent treeLogger(loggables, "C:/Users/wescd/OneDrive/Documents/Code/Varying_Selectection_DPP/res/tree_trace.trees");
+    FileLogEvent treeLogger(loggables, "C:/Users/wescd/OneDrive/Documents/Code/Varying_Selection_DPP/res/tree_trace.trees");
     realRun.registerEvent(&treeLogger, 1);
 
-    DPPFileLogEvent logDPP(&dpp, &posterior, "C:/Users/wescd/OneDrive/Documents/Code/Varying_Selectection_DPP/res/dpp_sites.log");
+    DPPFileLogEvent logDPP(&dpp, &posterior, "C:/Users/wescd/OneDrive/Documents/Code/Varying_Selection_DPP/res/dpp_sites.log");
     realRun.registerEvent(&logDPP, 1);
 
     realRun.initialize();

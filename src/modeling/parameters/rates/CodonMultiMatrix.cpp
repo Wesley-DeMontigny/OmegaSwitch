@@ -3,8 +3,7 @@
 #include "modeling/priors/DirichletProcessPrior.hpp"
 
 CodonMultiMatrix::CodonMultiMatrix(DirichletProcessPrior* o, BasicParameter<double>* k, BasicParameter<double>* r, std::vector<BasicParameter<double>*> pi) : 
-                                   currentQMatrix(122, 122, 0.0), oParam(o), 
-                                   oldQMatrix(122, 122, 0.0), stationaryDist(pi), kParam(k), rParam(r) {
+                                   currentQMatrix(122, 122, 0.0), oldQMatrix(122, 122, 0.0), stationaryDist(pi), kParam(k), rParam(r) {
     
     std::vector<int> aaMap = {8, 11, 8, 11, 16, 16, 16, 16, 14, 15, 14, 15, 7, 7, 10, 7, 13, 6, 13, 6, 12, 12, 12, 12, 14, 14, 14, 14, 9, 9, 9, 9, 3, 2, 3, 2, 0, 0, 0, 0, 5, 5, 5, 5, 17, 17, 17, 17, 19, 19, 15, 15, 15, 15, 1, 18, 1, 9, 4, 9, 4};  
     std::vector<char*> codons = {"AAA", "AAC", "AAG", "AAT", "ACA", "ACC", "ACG", "ACT", "AGA", "AGC", "AGG", "AGT", "ATA", "ATC", "ATG", "ATT", "CAA", "CAC", "CAG", "CAT", "CCA", "CCC", "CCG", "CCT", "CGA", "CGC", "CGG", "CGT", "CTA", "CTC", "CTG", "CTT", "GAA", "GAC", "GAG", "GAT", "GCA", "GCC", "GCG", "GCT", "GGA", "GGC", "GGG", "GGT", "GTA", "GTC", "GTG", "GTT", "TAC", "TAT", "TCA", "TCC", "TCG", "TCT", "TGC", "TGG", "TGT", "TTA", "TTC", "TTG", "TTT"};
@@ -64,8 +63,6 @@ CodonMultiMatrix::CodonMultiMatrix(DirichletProcessPrior* o, BasicParameter<doub
 void CodonMultiMatrix::accept() {
     kParam->accept();
     kParam->clean();
-    oParam->accept();
-    oParam->clean();
     rParam->accept();
     rParam->clean();
 
@@ -80,8 +77,6 @@ void CodonMultiMatrix::accept() {
 void CodonMultiMatrix::reject() {
     kParam->reject();
     kParam->clean();
-    oParam->reject();
-    oParam->clean();
     rParam->reject();
     rParam->clean();
 
@@ -94,10 +89,10 @@ void CodonMultiMatrix::reject() {
 }
 
 void CodonMultiMatrix::regenerate() {
-    oParam->regenerate();
     kParam->regenerate();
+    rParam->regenerate();
 
-    if(oParam->isDirty() || kParam->isDirty())
+    if(rParam->isDirty() || kParam->isDirty())
         this->dirty();
 
     bool dirtyStationary =false;
@@ -119,26 +114,31 @@ void CodonMultiMatrix::regenerate() {
             }
         }
 
-        double rVal = rParam->getValue();
-
-        for(auto coord : valid){
-            currentQMatrix(coord.first, coord.second) = returnStationary[coord.first];
-            currentQMatrix(coord.second, coord.first) = returnStationary[coord.second];
-
-            currentQMatrix(coord.first + 61, coord.second +  61) = returnStationary[coord.first];
-            currentQMatrix(coord.second + 61, coord.first + 61) = returnStationary[coord.second];
-
-            currentQMatrix(coord.first, coord.first + 61) = rVal;
-            currentQMatrix(coord.first + 61, coord.first) = rVal;
-            currentQMatrix(coord.second, coord.second + 61) = rVal;
-            currentQMatrix(coord.second + 61, coord.second) = rVal;
+        if(rParam->isDirty()){
+            double rVal = rParam->getValue();
+            for(auto coord : valid){
+                currentQMatrix(coord.first, coord.first + 61) = rVal;
+                currentQMatrix(coord.first + 61, coord.first) = rVal;
+                currentQMatrix(coord.second, coord.second + 61) = rVal;
+                currentQMatrix(coord.second + 61, coord.second) = rVal;
+            }
         }
-        for(auto coord : transition){
-            currentQMatrix(coord.first, coord.second) *= ttR;
-            currentQMatrix(coord.second, coord.first) *= ttR;
 
-            currentQMatrix(coord.first + 61, coord.second + 61) *= ttR;
-            currentQMatrix(coord.second + 61, coord.first + 61) *= ttR;  
+        if(kParam->isDirty() || dirtyStationary){
+            for(auto coord : valid){
+                currentQMatrix(coord.first, coord.second) = returnStationary[coord.first];
+                currentQMatrix(coord.second, coord.first) = returnStationary[coord.second];
+
+                currentQMatrix(coord.first + 61, coord.second +  61) = returnStationary[coord.first];
+                currentQMatrix(coord.second + 61, coord.first + 61) = returnStationary[coord.second];
+            }
+            for(auto coord : transition){
+                currentQMatrix(coord.first, coord.second) *= ttR;
+                currentQMatrix(coord.second, coord.first) *= ttR;
+
+                currentQMatrix(coord.first + 61, coord.second + 61) *= ttR;
+                currentQMatrix(coord.second + 61, coord.first + 61) *= ttR;  
+            }
         }
     }
 }
@@ -147,17 +147,15 @@ std::vector<double> CodonMultiMatrix::stationary(){
     return returnStationary;
 }
 
-Matrix<double> CodonMultiMatrix::Q(int i) {
+Matrix<double> CodonMultiMatrix::Q(double omega1, double omega2) {
     Matrix<double> returnMatrix = currentQMatrix;
-    double ddR1 = oParam->getCategoryOmega1(i);
-    double ddR2 = oParam->getCategoryOmega2(i);
 
     for(auto coord : nonsynonymous){
-        returnMatrix(coord.first, coord.second) *= ddR1;
-        returnMatrix(coord.second, coord.first) *= ddR1; 
+        returnMatrix(coord.first, coord.second) *= omega1;
+        returnMatrix(coord.second, coord.first) *= omega1; 
 
-        returnMatrix(coord.first + 61, coord.second + 61) *= ddR2;
-        returnMatrix(coord.second + 61, coord.first + 61) *= ddR2; 
+        returnMatrix(coord.first + 61, coord.second + 61) *= omega2;
+        returnMatrix(coord.second + 61, coord.first + 61) *= omega2; 
     }
 
     for(int i = 0; i < 122; i++){

@@ -83,13 +83,7 @@ int main(int argc, char* argv[]) {
 
     Mcmc myMCMC(&posterior, &moveScheduler);
 
-    EventManager burnIn;
-    burnIn.registerEvent(&TuneEvent(&moveScheduler), 250);
-    burnIn.registerEvent(&IterationTrackerEvent(), 250);
-    burnIn.initialize();
-
-    std::cout << "Starting Burn-In" << std::endl;
-    //myMCMC.run(30000, &burnIn);
+    std::cout << "Starting Tuning Period..." << std::endl;
 
     std::vector<std::pair<std::string, ModelNode*>> loggables;
     loggables.push_back(std::make_pair("Tree Prior", &treePrior));
@@ -101,23 +95,31 @@ int main(int argc, char* argv[]) {
     loggables.push_back(std::make_pair("K", &k));
     loggables.push_back(std::make_pair("R", &r));
 
-    EventManager realRun;
     ScreenLogEvent screenLogger(loggables);
-    realRun.registerEvent(&screenLogger, 1);
     FileLogEvent fileLogger(loggables, "C:/Users/wescd/OneDrive/Documents/Code/Varying_Selection_DPP/res/test_mcmc.log");
-    realRun.registerEvent(&fileLogger, 1);
     loggables.push_back(std::make_pair("Tree", &treeParam));
     loggables.erase(loggables.begin());
     loggables.erase(loggables.begin());
     FileLogEvent treeLogger(loggables, "C:/Users/wescd/OneDrive/Documents/Code/Varying_Selection_DPP/res/tree_trace.trees");
-    realRun.registerEvent(&treeLogger, 1);
-
     DPPFileLogEvent logDPP(&dpp, &posterior, "C:/Users/wescd/OneDrive/Documents/Code/Varying_Selection_DPP/res/dpp_sites.log");
-    realRun.registerEvent(&logDPP, 1);
 
+
+    EventManager tuningPeriod;
+    tuningPeriod.registerEvent(&TuneEvent(&moveScheduler), 250);
+    tuningPeriod.registerEvent(&fileLogger, 10);
+    tuningPeriod.registerEvent(&screenLogger, 10);
+    tuningPeriod.registerEvent(&logDPP, 10);
+    tuningPeriod.registerEvent(&treeLogger, 10);
+    tuningPeriod.initialize();
+    myMCMC.run(50000, &tuningPeriod);
+
+    EventManager realRun;
+    realRun.registerEvent(&fileLogger, 10);
+    realRun.registerEvent(&screenLogger, 10);
+    realRun.registerEvent(&logDPP, 10);
+    realRun.registerEvent(&treeLogger, 10);
     realRun.initialize();
-
-    myMCMC.run(250000, &realRun);
+    myMCMC.run(500000, &realRun);
 
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::cout << "Time to complete = " << std::chrono::duration_cast<std::chrono::seconds>(end - begin).count() << "[s]" << std::endl;

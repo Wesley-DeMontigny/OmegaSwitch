@@ -8,7 +8,8 @@
 #include "moves/MoveBetaSimplex.hpp"
 #include "moves/MoveDPPCodonGibbs.hpp"
 #include "moves/MoveScaleDouble.hpp"
-#include "moves/MoveScaleDPPCategory.hpp"
+#include "moves/MoveScaleDPPOmega.hpp"
+#include "moves/MoveDPPBeta.hpp"
 #include "events/EventManager.hpp"
 #include "events/TuneEvent.hpp"
 #include "events/FileLogEvent.hpp"
@@ -57,13 +58,13 @@ int main(int argc, char* argv[]) {
     ExponentialRatioPrior kPrior(&k);
     kPrior.sample();
     MoveScaleDouble kMove(&k);
-    moveScheduler.registerMove(&kMove, 2.5);
+    moveScheduler.registerMove(&kMove, 5.0);
 
     BasicParameter<double> r(1.0);
     ExponentialRatioPrior rPrior(&r);
     rPrior.sample();
     MoveScaleDouble rMove(&r);
-    moveScheduler.registerMove(&rMove, 2.5);
+    moveScheduler.registerMove(&rMove, 5.0);
 
     DirichletProcessPrior dpp(aln.getNumChar(), 0.5);
 
@@ -73,8 +74,10 @@ int main(int argc, char* argv[]) {
 
     MoveDPPCodonGibbs moveDPP(&ctmc, &dpp);
     moveScheduler.registerMove(&moveDPP, 10.0);
-    MoveScaleDPPCategory moveCategories(&dpp);
-    moveScheduler.registerMove(&moveCategories, 10.0);
+    MoveScaleDPPOmega moveOmega(&dpp);
+    moveScheduler.registerMove(&moveOmega, 5.0);
+    MoveDPPBeta moveBeta(&dpp);
+    moveScheduler.registerMove(&moveBeta, 5.0);
 
     MoveTreeLocal localMove(&treeParam);
     moveScheduler.registerMove(&localMove, 15.0);
@@ -105,7 +108,7 @@ int main(int argc, char* argv[]) {
 
 
     EventManager tuningPeriod;
-    tuningPeriod.registerEvent(&TuneEvent(&moveScheduler), 250);
+    tuningPeriod.registerEvent(&TuneEvent(&moveScheduler), 2500);
     tuningPeriod.registerEvent(&fileLogger, 10);
     tuningPeriod.registerEvent(&screenLogger, 10);
     tuningPeriod.registerEvent(&logDPP, 10);

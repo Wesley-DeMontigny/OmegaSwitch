@@ -1,11 +1,11 @@
-#ifndef MOVE_SCALE_DPP_HPP
-#define MOVE_SCALE_DPP_HPP
+#ifndef MOVE_SCALE_DPP_OMEGA_HPP
+#define MOVE_SCALE_DPP_OMEGA_HPP
 #include "Move.hpp"
 #include "modeling/priors/DirichletProcessPrior.hpp"
 
-class MoveScaleDPPCategory : public Move {
+class MoveScaleDPPOmega : public Move {
     public:
-        MoveScaleDPPCategory(DirichletProcessPrior* d);
+        MoveScaleDPPOmega(DirichletProcessPrior* d);
         double update();
         void tune();
     private:

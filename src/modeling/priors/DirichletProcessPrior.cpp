@@ -16,7 +16,7 @@ DirichletProcessPrior::DirichletProcessPrior(int size, double a) : alpha(a), num
         // If new category
         if(total > randomVal){
             Category newCat = {Probability::Exponential::rv(&rng, 1)/Probability::Exponential::rv(&rng, 1),
-                               Probability::Exponential::rv(&rng, 1)/Probability::Exponential::rv(&rng, 1),
+                               Probability::Beta::rv(&rng, 2, 2),
                                1, {i}};
             currentCategories.push_back(newCat);
             continue;
@@ -62,21 +62,21 @@ void DirichletProcessPrior::addCategory(double value1, double value2){
     currentCategories.push_back(newCat);
 }
 
-void DirichletProcessPrior::setCategoryOmega1(int index, double value){
-    currentCategories[index].omega1 = value;
+void DirichletProcessPrior::setCategoryOmega(int index, double value){
+    currentCategories[index].omega = value;
 }
 
-void DirichletProcessPrior::setCategoryOmega2(int index, double value){
-    currentCategories[index].omega2 = value;
+void DirichletProcessPrior::setCategoryBeta(int index, double value){
+    currentCategories[index].beta = value;
 }
 
 
-double DirichletProcessPrior::getCategoryOmega1(int index){
-    return currentCategories[index].omega1;
+double DirichletProcessPrior::getCategoryOmega(int index){
+    return currentCategories[index].omega;
 }
 
-double DirichletProcessPrior::getCategoryOmega2(int index){
-    return currentCategories[index].omega2;
+double DirichletProcessPrior::getCategoryBeta(int index){
+    return currentCategories[index].beta;
 }
 
 int DirichletProcessPrior::unassignMember(int member){
@@ -148,8 +148,8 @@ void DirichletProcessPrior::regenerate() {
         
         currentLnPrior = 0.0;
         for(int& c : assignments){
-            currentLnPrior += -2 * std::log(1.0 + currentCategories[c].omega1);
-            currentLnPrior += -2 * std::log(1.0 + currentCategories[c].omega2);
+            currentLnPrior += -2 * std::log(1.0 + currentCategories[c].omega);
+            currentLnPrior += Probability::Beta::lnPdf(2, 2, currentCategories[c].beta);
         }
     }
 }

@@ -4,8 +4,8 @@
 #include "modeling/parameters/BasicParameter.hpp"
 
 struct Category {
-    double omega1;
-    double omega2;
+    double omega;
+    double beta;
     int size;
     std::vector<int> members;
 };
@@ -28,10 +28,10 @@ class DirichletProcessPrior : public PriorNode {
 
         int getCategorySize(int index);
         void addCategory(double value1, double value2);
-        void setCategoryOmega1(int index, double value);
-        void setCategoryOmega2(int index, double value);
-        double getCategoryOmega1(int index);
-        double getCategoryOmega2(int index);
+        void setCategoryOmega(int index, double value);
+        void setCategoryBeta(int index, double value);
+        double getCategoryOmega(int index);
+        double getCategoryBeta(int index);
         std::vector<Category> getCategories() {return currentCategories;}
         Category getCategory(int index) {return currentCategories[index];}
 

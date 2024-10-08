@@ -207,7 +207,9 @@ void PhyloCTMC::regenerate(){
         if(rateMatrix->isDirty() || dpp->isDirty()){
             activeT->updateAll();
             for(int i = 0; i < numCats; i++){
-                transProb->updateQ(rateMatrix->Q(dpp->getCategoryOmega1(i), dpp->getCategoryOmega2(i)), i);
+                double omega1 = dpp->getCategoryOmega(i);
+                double omega2 = omega1 * dpp->getCategoryBeta(i);
+                transProb->updateQ(rateMatrix->Q(omega1, omega2), i);
             }
         }
         postOrderPrune();
@@ -241,8 +243,11 @@ double PhyloCTMC::regenerateIntoSiteBuffer(int site, int category, bool update){
     TreeObject* activeT = tree->getTree();
 
     std::vector<Node*>&  poSeq = activeT->getPostOrderSeq();
-    if(update)
-        transProb->updateQ(rateMatrix->Q(dpp->getCategoryOmega1(category), dpp->getCategoryOmega1(category)), category);
+    if(update){
+        double omega1 = dpp->getCategoryOmega(category);
+        double omega2 = omega1 * dpp->getCategoryBeta(category);
+        transProb->updateQ(rateMatrix->Q(omega1, omega2), category);
+    }
 
     for(Node* n : poSeq){
         int nIndex = n->getIndex();

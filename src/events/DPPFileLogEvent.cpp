@@ -14,7 +14,7 @@ void DPPFileLogEvent::initialize() {
     fs << "Iteration\tPosterior\tCategories";
 
     for(int i = 0, len = dpp->getNumMembers(); i < len; i++)
-        fs << "\tDPP[" << i << ",1]" << "\tDPP[" << i << ",2]";
+        fs << "\tOmega[" << i << "]" << "\tBeta[" << i << "]";
     fs << "\n";
 
     fs.close();
@@ -30,7 +30,7 @@ void DPPFileLogEvent::call(int iteration) {
     std::vector<Category> categories = dpp->getCategories();
 
     for(int a : assignments)
-        fs << "\t" << categories[a].omega1 << "\t" << categories[a].omega2;
+        fs << "\t" << categories[a].omega << "\t" << categories[a].beta;
     fs << "\n";
 
     fs.close();

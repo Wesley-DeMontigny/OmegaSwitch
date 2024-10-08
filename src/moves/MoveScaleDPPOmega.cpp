@@ -1,11 +1,11 @@
-#include "MoveScaleDPPCategory.hpp"
+#include "MoveScaleDPPOmega.hpp"
 #include "core/RandomVariable.hpp"
 #include <iostream>
 #include <cmath>
 
-MoveScaleDPPCategory::MoveScaleDPPCategory(DirichletProcessPrior* d) : dpp(d), delta(0.25) {}
+MoveScaleDPPOmega::MoveScaleDPPOmega(DirichletProcessPrior* d) : dpp(d), delta(0.25) {}
 
-double MoveScaleDPPCategory::update(){
+double MoveScaleDPPOmega::update(){
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
     int randomCategory = (int)(rng.uniformRv() * dpp->getNumCategories());
@@ -14,21 +14,15 @@ double MoveScaleDPPCategory::update(){
     
     bool omega1 = rng.uniformRv() > 0.5;
 
-    if(omega1) {
-        double newV = dpp->getCategoryOmega1(randomCategory) * scale;
-        dpp->setCategoryOmega1(randomCategory, newV);
-    }
-    else {
-        double newV = dpp->getCategoryOmega2(randomCategory) * scale;
-        dpp->setCategoryOmega2(randomCategory, newV);
-    }
+    double newV = dpp->getCategoryOmega(randomCategory) * scale;
+    dpp->setCategoryOmega(randomCategory, newV);
 
     dpp->dirty();
 
     return scale;
 }
 
-void MoveScaleDPPCategory::tune(){
+void MoveScaleDPPOmega::tune(){
     double rate = (double)acceptedSinceTune/(double)countSinceTune;
 
     if ( rate > 0.44 ) {

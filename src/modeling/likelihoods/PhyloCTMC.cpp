@@ -26,7 +26,7 @@ PhyloCTMC::PhyloCTMC(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, Dirich
         Msg::error("Expected " + std::to_string(aln->getNumTaxa()) + 
         "taxa in the tree, but found only " + std::to_string(activeT->getNumTaxa()));
     
-    int numNodes = aln->getNumTaxa() * 2;
+    int numNodes = (aln->getNumTaxa() * 2) - 1;
 
     int flagWidths = 2 * numNodes;
     activeCL = new bool[flagWidths];
@@ -84,7 +84,7 @@ PhyloCTMC::~PhyloCTMC(){
 void PhyloCTMC::accept() {
     oldLikelihood = currentLikelihood;
 
-    int numNodes = aln->getNumTaxa() * 2;
+    int numNodes = (aln->getNumTaxa() * 2) - 1;
     for(int i = 0; i < numNodes; i++){
         activeCL[i + numNodes] = activeCL[i];
         activeTP[i + numNodes] = activeTP[i];
@@ -109,7 +109,7 @@ void PhyloCTMC::accept() {
 void PhyloCTMC::reject() {
     currentLikelihood = oldLikelihood;
 
-    int numNodes = aln->getNumTaxa() * 2;
+    int numNodes = (aln->getNumTaxa() * 2) - 1;
     for(int i = 0; i < numNodes; i++){
         activeCL[i] = activeCL[i + numNodes];
         activeTP[i] = activeTP[i + numNodes];

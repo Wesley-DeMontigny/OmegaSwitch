@@ -108,16 +108,6 @@ int main(int argc, char* argv[]) {
     FileLogEvent treeLogger(loggables, "C:/Users/wescd/OneDrive/Documents/Code/Varying_Selection_DPP/res/tree_trace.trees");
     DPPFileLogEvent logDPP(&dpp, &posterior, "C:/Users/wescd/OneDrive/Documents/Code/Varying_Selection_DPP/res/dpp_sites.log");
 
-
-    EventManager tuningPeriod;
-    tuningPeriod.registerEvent(&TuneEvent(&moveScheduler), 1000);
-    tuningPeriod.registerEvent(&fileLogger, 10);
-    tuningPeriod.registerEvent(&screenLogger, 10);
-    tuningPeriod.registerEvent(&logDPP, 10);
-    tuningPeriod.registerEvent(&treeLogger, 10);
-    tuningPeriod.initialize();
-    myMCMC.run(2500, &tuningPeriod);
-
     EventManager realRun;
     realRun.registerEvent(&fileLogger, 10);
     realRun.registerEvent(&screenLogger, 10);

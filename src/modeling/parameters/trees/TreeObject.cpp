@@ -18,7 +18,7 @@ TreeObject::TreeObject(int nt) : numTaxa(nt) {
 
     root = addNode();
     root->setName("Root");
-    for(int i = 0; i < 2; i++) {
+    for(int i = 0; i < 3; i++) {
         Node* p = addNode();
         p->setName("Taxon_" + std::to_string(i+1));
         p->setIsTip(true);
@@ -29,7 +29,7 @@ TreeObject::TreeObject(int nt) : numTaxa(nt) {
     }
 
     // build up the full tree by randomly adding branches to the existing tree
-    for(int i = 2; i < numTaxa; i++){
+    for(int i = 3; i < numTaxa; i++){
         Node* p = nullptr;
         do {
             p = nodes[(int)(rng.uniformRv() * nodes.size())];

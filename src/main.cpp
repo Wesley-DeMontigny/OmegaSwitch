@@ -23,6 +23,7 @@
 #include "modeling/likelihoods/PhyloCTMC.hpp"
 #include "modeling/priors/TreePrior.hpp"
 #include "modeling/priors/DirichletPrior.hpp"
+#include "modeling/priors/ExponentialPrior.hpp"
 #include "modeling/priors/DirichletProcessPrior.hpp"
 #include "modeling/priors/ExponentialRatioPrior.hpp"
 #include "modeling/PosteriorNode.hpp"
@@ -61,7 +62,8 @@ int main(int argc, char* argv[]) {
     moveScheduler.registerMove(&kMove, 5.0);
 
     BasicParameter<double> r(1.0);
-    ExponentialRatioPrior rPrior(&r);
+    BasicParameter<double> lambdaR(2.0);
+    ExponentialPrior rPrior(&lambdaR, &r);
     rPrior.sample();
     MoveScaleDouble rMove(&r);
     moveScheduler.registerMove(&rMove, 5.0);
@@ -73,14 +75,14 @@ int main(int argc, char* argv[]) {
     PhyloCTMC ctmc(&aln, &treeParam, &rateMatrix, &dpp);
 
     MoveDPPCodonGibbs moveDPP(&ctmc, &dpp);
-    moveScheduler.registerMove(&moveDPP, 10.0);
+    moveScheduler.registerMove(&moveDPP, 5.0);
     MoveScaleDPPOmega moveOmega(&dpp);
     moveScheduler.registerMove(&moveOmega, 5.0);
     MoveDPPBeta moveBeta(&dpp);
     moveScheduler.registerMove(&moveBeta, 5.0);
 
     MoveTreeLocal localMove(&treeParam);
-    moveScheduler.registerMove(&localMove, 15.0);
+    moveScheduler.registerMove(&localMove, 5.0);
 
     PosteriorNode posterior(&ctmc, {&treePrior, &kPrior, &rPrior, &dpp});
 
@@ -108,13 +110,13 @@ int main(int argc, char* argv[]) {
 
 
     EventManager tuningPeriod;
-    tuningPeriod.registerEvent(&TuneEvent(&moveScheduler), 2500);
+    tuningPeriod.registerEvent(&TuneEvent(&moveScheduler), 1000);
     tuningPeriod.registerEvent(&fileLogger, 10);
     tuningPeriod.registerEvent(&screenLogger, 10);
     tuningPeriod.registerEvent(&logDPP, 10);
     tuningPeriod.registerEvent(&treeLogger, 10);
     tuningPeriod.initialize();
-    myMCMC.run(50000, &tuningPeriod);
+    myMCMC.run(2500, &tuningPeriod);
 
     EventManager realRun;
     realRun.registerEvent(&fileLogger, 10);

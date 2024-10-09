@@ -51,6 +51,7 @@ class DirichletProcessPrior : public PriorNode {
         std::vector<Category> currentCategories;
         std::vector<Category> oldCategories;
         std::vector<int> assignments;
+        std::vector<int> oldAssignments;
         void removeCategory(int index);
 };
 

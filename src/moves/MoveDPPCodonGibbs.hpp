@@ -13,8 +13,6 @@ class MoveDPPCodonGibbs : public Move {
     private:
         PhyloCTMC* likelihood;
         DirichletProcessPrior* dpp;
-        int currentMember;
-
 };
 
 #endif

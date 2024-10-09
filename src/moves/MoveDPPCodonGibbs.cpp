@@ -6,11 +6,13 @@
 #include <cmath>
 #include <algorithm>
 
-MoveDPPCodonGibbs::MoveDPPCodonGibbs(PhyloCTMC* l, DirichletProcessPrior* d) : likelihood(l), dpp(d), currentMember(0) {}
+MoveDPPCodonGibbs::MoveDPPCodonGibbs(PhyloCTMC* l, DirichletProcessPrior* d) : likelihood(l), dpp(d) {}
   
 double MoveDPPCodonGibbs::update(){
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
+
+    int currentMember = (int)(rng.uniformRv() * dpp->getNumMembers());
 
     int assignment = dpp->getAssinments()[currentMember];
     int deleted = dpp->unassignMember(currentMember); // This will also delete the group if empty
@@ -77,12 +79,6 @@ double MoveDPPCodonGibbs::update(){
     if(newAssignment != assignment){
         dpp->dirty();
     }
-    
-
-    if(currentMember < dpp->getNumMembers() - 1)
-        currentMember++;
-    else
-        currentMember = 0;
 
     return INFINITY;
 }

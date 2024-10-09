@@ -16,7 +16,7 @@ DirichletProcessPrior::DirichletProcessPrior(int size, double a) : alpha(a), num
         // If new category
         if(total > randomVal){
             Category newCat = {Probability::Exponential::rv(&rng, 1)/Probability::Exponential::rv(&rng, 1),
-                               Probability::Beta::rv(&rng, 2, 2),
+                               Probability::Beta::rv(&rng, 1, 1),
                                1, {i}};
             currentCategories.push_back(newCat);
             continue;
@@ -132,11 +132,13 @@ void DirichletProcessPrior::assignMember(int member, int category){
 void DirichletProcessPrior::accept() {
     oldCategories = currentCategories;
     oldLnPrior = currentLnPrior;
+    oldAssignments = assignments;
 }
 
 void DirichletProcessPrior::reject() {
     currentCategories = oldCategories;
     currentLnPrior = oldLnPrior;
+    assignments = oldAssignments;
 }
 
 void DirichletProcessPrior::regenerate() {
@@ -149,7 +151,7 @@ void DirichletProcessPrior::regenerate() {
         currentLnPrior = 0.0;
         for(int& c : assignments){
             currentLnPrior += -2 * std::log(1.0 + currentCategories[c].omega);
-            currentLnPrior += Probability::Beta::lnPdf(2, 2, currentCategories[c].beta);
+            currentLnPrior += Probability::Beta::lnPdf(1, 1, currentCategories[c].beta);
         }
     }
 }

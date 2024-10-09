@@ -29,16 +29,16 @@ double MoveDPPCodonGibbs::update(){
         dpp->popBackCategory(i);
     }
 
-    std::vector<double> omega1Vec;
-    std::vector<double> omega2Vec;
+    std::vector<double> omegaVec;
+    std::vector<double> betaVec;
     double alphaSplit = std::log(dpp->getAlpha()/5);
 
     for(int i = 0; i < 5; i++){
-        double newOmega1 = Probability::Exponential::rv(&rng, 1)/Probability::Exponential::rv(&rng, 1);
-        double newOmega2 = Probability::Exponential::rv(&rng, 1)/Probability::Exponential::rv(&rng, 1);
-        omega1Vec.push_back(newOmega1);
-        omega2Vec.push_back(newOmega2);
-        dpp->addCategory(newOmega1, newOmega2);
+        double newOmega = Probability::Exponential::rv(&rng, 1)/Probability::Exponential::rv(&rng, 1);
+        double newBeta = Probability::Beta::rv(&rng, 1, 1);
+        omegaVec.push_back(newOmega);
+        betaVec.push_back(newBeta);
+        dpp->addCategory(newOmega, newBeta);
         dpp->assignMember(currentMember, numCats);
         conditionalL.push_back(likelihood->regenerateIntoSiteBuffer(i, numCats, true) + alphaSplit);
         dpp->popBackCategory(numCats);
@@ -68,7 +68,7 @@ double MoveDPPCodonGibbs::update(){
                 likelihood->getTransitionProbability()->deleteQ(numCats); //Remove extra
             }
             else {
-                dpp->addCategory(omega1Vec[i - numCats], omega2Vec[i - numCats]);
+                dpp->addCategory(omegaVec[i - numCats], betaVec[i - numCats]);
                 newAssignment = numCats;
                 dpp->assignMember(currentMember, numCats);
             }

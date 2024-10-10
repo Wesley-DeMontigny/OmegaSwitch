@@ -48,6 +48,7 @@ class DirichletProcessPrior : public PriorNode {
         double currentLnPrior;
         double alpha;
         int numMembers;
+        double denominator;
         std::vector<Category> currentCategories;
         std::vector<Category> oldCategories;
         std::vector<int> assignments;

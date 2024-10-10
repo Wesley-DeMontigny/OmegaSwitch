@@ -24,6 +24,8 @@ namespace Math {
     double  lnFactorial(int x);                                                                          //!< return ln(x!)
     double  lnGamma(double alp);                                                                         //!< return lnGamma(alp)
     int     transposeMatrix(const Matrix<double>& a, Matrix<double>& t);                             //!< transpose matrix
+    unsigned long stirlingFirst(int n, int k);
+    unsigned long lnStirlingFirst(int n, int k);
 }
 
 #endif

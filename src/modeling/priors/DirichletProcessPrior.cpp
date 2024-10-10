@@ -3,6 +3,7 @@
 #include "core/Probability.hpp"
 #include "core/Msg.hpp"
 #include <cmath>
+#include "core/Math.hpp"
 #include <iostream>
 
 DirichletProcessPrior::DirichletProcessPrior(int size, double a) : alpha(a), numMembers(size), currentLnPrior(0.0), oldLnPrior(0.0) {
@@ -36,6 +37,12 @@ DirichletProcessPrior::DirichletProcessPrior(int size, double a) : alpha(a), num
 
     for(int i = 0; i < numMembers; i++)
         assignments.push_back(-1);
+
+    denominator = 0.0;
+    double cp = alpha - 1;
+    for(int i = 1; i <= numMembers; i++){
+        denominator += std::log(cp + i);
+    }
 
     dirty();
     regenerate();
@@ -144,15 +151,22 @@ void DirichletProcessPrior::reject() {
 void DirichletProcessPrior::regenerate() {
 
     if(this->isDirty()){
-        for(int i = 0; i < currentCategories.size(); i++)
+        int numCats = currentCategories.size();
+        for(int i = 0; i < numCats; i++)
             for(int m : currentCategories[i].members)
                 assignments[m] = i;
         
-        currentLnPrior = 0.0;
-        for(int& c : assignments){
-            currentLnPrior += -2 * std::log(1.0 + currentCategories[c].omega);
-            currentLnPrior += Probability::Beta::lnPdf(1, 1, currentCategories[c].beta);
+        currentLnPrior = std::log(alpha) * numCats;
+        currentLnPrior += Math::lnStirlingFirst(numMembers, numCats);
+
+        for (int i = 0; i < numCats; ++i) {
+            currentLnPrior += Math::lnFactorial(currentCategories[i].size - 1);
+            
+            currentLnPrior += -2 * std::log(1.0 + currentCategories[i].omega);
+            currentLnPrior += Probability::Beta::lnPdf(1, 1, currentCategories[i].beta);
         }
+    
+        currentLnPrior -= denominator;
     }
 }
 

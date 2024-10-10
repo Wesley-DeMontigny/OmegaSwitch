@@ -75,7 +75,7 @@ int main(int argc, char* argv[]) {
     PhyloCTMC ctmc(&aln, &treeParam, &rateMatrix, &dpp);
 
     MoveDPPCodonGibbs moveDPP(&ctmc, &dpp);
-    moveScheduler.registerMove(&moveDPP, 5.0);
+    moveScheduler.registerMove(&moveDPP, 10.0);
     MoveScaleDPPOmega moveOmega(&dpp);
     moveScheduler.registerMove(&moveOmega, 5.0);
     MoveDPPBeta moveBeta(&dpp);
@@ -109,10 +109,10 @@ int main(int argc, char* argv[]) {
     DPPFileLogEvent logDPP(&dpp, &posterior, "C:/Users/wescd/OneDrive/Documents/Code/Varying_Selection_DPP/res/dpp_sites.log");
 
     EventManager realRun;
-    realRun.registerEvent(&fileLogger, 10);
+    realRun.registerEvent(&fileLogger, 100);
     realRun.registerEvent(&screenLogger, 10);
-    realRun.registerEvent(&logDPP, 10);
-    realRun.registerEvent(&treeLogger, 10);
+    realRun.registerEvent(&logDPP, 100);
+    realRun.registerEvent(&treeLogger, 100);
     realRun.initialize();
     myMCMC.run(500000, &realRun);
 

@@ -329,3 +329,22 @@ int Math::transposeMatrix(const Matrix<double> &a, Matrix<double> &t) {
 }
 
 
+unsigned long Math::stirlingFirst(int n, int k) {
+	unsigned long r = 0;
+	if (n == k)
+		return 1;
+	if (k == 1)
+		return Math::factorial(n-1);
+	if (n == 1 && k > 1)
+		return 0;
+	if (n > 0 && k == 0)
+		return 0;
+	if (k == n-1)
+		return (n*(n-1)/2);
+	r = stirlingFirst(n-1, k-1) + ((n-1)*stirlingFirst(n-1, k));
+	return r;
+}
+
+unsigned long Math::lnStirlingFirst(int n, int k) {
+	return std::log(stirlingFirst(n, k));
+}

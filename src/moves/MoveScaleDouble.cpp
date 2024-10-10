@@ -24,7 +24,7 @@ double MoveScaleDouble::update(){
     param[randomMember]->setValue(newV);
     param[randomMember]->dirty();
 
-    return scale;
+    return std::log(scale);
 }
 
 void MoveScaleDouble::tune(){

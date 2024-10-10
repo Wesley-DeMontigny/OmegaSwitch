@@ -115,7 +115,7 @@ double MoveTreeLocal::update(){
 
     param->dirty();
 
-    return std::pow(scale, 3);
+    return 3 * std::log(scale);
 }
 
 void MoveTreeLocal::tune(){

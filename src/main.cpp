@@ -88,8 +88,6 @@ int main(int argc, char* argv[]) {
 
     Mcmc myMCMC(&posterior, &moveScheduler);
 
-    std::cout << "Starting Tuning Period..." << std::endl;
-
     std::vector<std::pair<std::string, ModelNode*>> loggables;
     loggables.push_back(std::make_pair("Tree Prior", &treePrior));
     loggables.push_back(std::make_pair("K Prior", &kPrior));

@@ -19,7 +19,7 @@ double MoveScaleDPPOmega::update(){
 
     dpp->dirty();
 
-    return scale;
+    return std::log(scale);
 }
 
 void MoveScaleDPPOmega::tune(){

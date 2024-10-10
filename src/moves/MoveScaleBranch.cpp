@@ -39,7 +39,7 @@ double MoveScaleBranch::update(){
 
     param->dirty();
 
-    return scale;
+    return std::log(scale);
 }
 
 void MoveScaleBranch::tune(){

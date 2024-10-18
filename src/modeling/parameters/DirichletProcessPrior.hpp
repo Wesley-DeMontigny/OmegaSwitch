@@ -1,7 +1,8 @@
 #ifndef DIRICHLET_PROCESS_PRIOR_HPP
 #define DIRICHLET_PROCESS_PRIOR_HPP
-#include "PriorNode.hpp"
-#include "modeling/parameters/BasicParameter.hpp"
+#include "modeling/parameters/Parameter.hpp"
+
+class Model;
 
 struct Category {
     double omega;
@@ -10,28 +11,26 @@ struct Category {
     std::vector<int> members;
 };
 
-class DirichletProcessPrior : public PriorNode {
+class DirichletProcessPrior : public Parameter {
     public:
         DirichletProcessPrior(void)=delete;
-        DirichletProcessPrior(int size, double alpha);
+        DirichletProcessPrior(int size, double alpha, int numGibbs);
         ~DirichletProcessPrior(void);
+
+        void registerModel(Model* m) {model = m;}
         
         double lnPrior() {return currentLnPrior;}
-        void regenerate();
+        double update();
+
         void accept();
         void reject();
-        void sample();
-
-        std::string writeValue() {return std::to_string(currentLnPrior);}
         
         double getAlpha() {return alpha;}
 
         int getCategorySize(int index);
         void addCategory(double value1, double value2);
-        void setCategoryOmega(int index, double value);
-        void setCategoryBeta(int index, double value);
-        double getCategoryOmega(int index);
-        double getCategoryBeta(int index);
+        double getCategoryOmega(int index) {return currentCategories[index].omega;}
+        double getCategoryBeta(int index) {return currentCategories[index].beta;}
         std::vector<Category> getCategories() {return currentCategories;}
         Category getCategory(int index) {return currentCategories[index];}
 
@@ -44,10 +43,13 @@ class DirichletProcessPrior : public PriorNode {
         int getNumCategories(){return currentCategories.size();}
         int getNumMembers() {return numMembers;}
     protected:
+        void regeneratePrior();
+        Model* model;
         double oldLnPrior;
         double currentLnPrior;
         double alpha;
         int numMembers;
+        int numGibbsUpdate;
         double denominator;
         std::vector<Category> currentCategories;
         std::vector<Category> oldCategories;

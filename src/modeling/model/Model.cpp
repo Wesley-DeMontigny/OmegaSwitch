@@ -1,4 +1,4 @@
-#include "PhyloCTMC.hpp"
+#include "Model.hpp"
 #include "core/RandomVariable.hpp"
 #include "core/Alignment.hpp"
 #include "core/Msg.hpp"
@@ -7,20 +7,20 @@
 #include "modeling/parameters/trees/Node.hpp"
 #include "modeling/parameters/trees/TreeObject.hpp"
 #include "modeling/parameters/trees/TreeParameter.hpp"
-#include "modeling/parameters/rates/CodonMultiMatrix.hpp"
-#include "modeling/priors/DirichletProcessPrior.hpp"
+#include "modeling/parameters/CodonMultiMatrix.hpp"
+#include "modeling/parameters/DirichletProcessPrior.hpp"
 #include <cmath>
 #include <algorithm>
 #include <string>
 #include <iostream>
 
-PhyloCTMC::PhyloCTMC(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProcessPrior* d) : aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0), dpp(d) {
-
-    this->dirty();
+Model::Model(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProcessPrior* d) : aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0), dpp(d) {
 
     TreeObject* activeT = tree->getTree();
     stateSpace = 122;
     int numChar = aln->getNumChar();
+
+    dpp->registerModel(this);
 
     if(aln->getNumTaxa() != activeT->getNumTaxa())
         Msg::error("Expected " + std::to_string(aln->getNumTaxa()) + 
@@ -74,14 +74,14 @@ PhyloCTMC::PhyloCTMC(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, Dirich
     activeT->updateAll();
 }
 
-PhyloCTMC::~PhyloCTMC(){
+Model::~Model(){
     delete postOrder;
     delete transProb;
     delete [] activeCL;
     delete [] activeTP;
 }
 
-void PhyloCTMC::accept() {
+void Model::accept() {
     oldLikelihood = currentLikelihood;
 
     int numNodes = (aln->getNumTaxa() * 2) - 1;
@@ -106,7 +106,7 @@ void PhyloCTMC::accept() {
     transProb->accept();
 }
 
-void PhyloCTMC::reject() {
+void Model::reject() {
     currentLikelihood = oldLikelihood;
 
     int numNodes = (aln->getNumTaxa() * 2) - 1;
@@ -131,7 +131,11 @@ void PhyloCTMC::reject() {
     transProb->reject();
 }
 
-void PhyloCTMC::postOrderPrune(){
+double Model::lnPrior(){
+    return dpp->lnPrior() + tree->lnPrior() + rateMatrix->lnPrior();
+}
+
+void Model::postOrderPrune(){
 
     TreeObject* activeT = tree->getTree();
     std::vector<Node*>&  poSeq = activeT->getPostOrderSeq();
@@ -192,52 +196,42 @@ void PhyloCTMC::postOrderPrune(){
     }
 }
 
-void PhyloCTMC::regenerate(){
-    tree->regenerate();
-    rateMatrix->regenerate();
-    dpp->regenerate();
+void Model::regenerateLikelihood(){
+    TreeObject* activeT = tree->getTree();
+    int numCats = dpp->getNumCategories();
 
-    if(tree->isDirty() || rateMatrix->isDirty() || dpp->isDirty())
-        this->dirty();
-
-    if(this->isDirty()){
-        TreeObject* activeT = tree->getTree();
-        int numCats = dpp->getNumCategories();
-
-        if(rateMatrix->isDirty() || dpp->isDirty()){
-            activeT->updateAll();
-            for(int i = 0; i < numCats; i++){
-                double omega1 = dpp->getCategoryOmega(i);
-                double omega2 = omega1 * dpp->getCategoryBeta(i);
-                transProb->updateQ(rateMatrix->Q(omega1, omega2), i);
-            }
+    if(rateMatrix->isDirty() || dpp->isDirty()){
+        activeT->updateAll();
+        for(int i = 0; i < numCats; i++){
+            double omega1 = dpp->getCategoryOmega(i);
+            double omega2 = omega1 * dpp->getCategoryBeta(i);
+            transProb->updateQ(rateMatrix->Q(omega1, omega2), i);
         }
-        postOrderPrune();
-
-        //Calculate the likelihood of the tree by summing up the likelihood at the root.
-        int numChar = aln->getNumChar();
-        int rIndex = activeT->getRoot()->getIndex();
-        double* pR = (*postOrder)(rIndex, activeCL[rIndex], 0);
-        std::vector<double> f = rateMatrix->stationary();
-        double lnL = 0.0;
-
-        for(int c = 0; c < numChar; c++){
-            double like = 0.0;
-            for(int i = 0; i < stateSpace; i++){
-                like += pR[i]*f[i];
-            }
-
-            lnL += std::log(like);
-            pR += stateSpace;
-        }
-
-        currentLikelihood = lnL;
     }
+    postOrderPrune();
+
+    //Calculate the likelihood of the tree by summing up the likelihood at the root.
+    int numChar = aln->getNumChar();
+    int rIndex = activeT->getRoot()->getIndex();
+    double* pR = (*postOrder)(rIndex, activeCL[rIndex], 0);
+    std::vector<double> f = rateMatrix->getStationary();
+    double lnL = 0.0;
+
+    for(int c = 0; c < numChar; c++){
+        double like = 0.0;
+        for(int i = 0; i < stateSpace; i++){
+            like += pR[i]*f[i];
+        }
+
+        lnL += std::log(like);
+        pR += stateSpace;
+    }
+
+    currentLikelihood = lnL;
 }
 
-double PhyloCTMC::regenerateIntoSiteBuffer(int site, int category, bool update){
-    this->dirty();
-
+// ONLY DO THIS IF YOU CAN PROMISE IT WILL BE ACCEPTED!!
+void Model::forceRegenerate(int site, int category, bool update) {
     int numChar = aln->getNumChar();
 
     TreeObject* activeT = tree->getTree();
@@ -254,10 +248,10 @@ double PhyloCTMC::regenerateIntoSiteBuffer(int site, int category, bool update){
         
         if(n != activeT->getRoot()){
             double v = activeT->getBranchLength(n);
-            transProb->setProbs(activeTP[nIndex] ^ true, category, nIndex, v);
+            transProb->setProbs(activeTP[nIndex], category, nIndex, v);
         }
 
-        double* pNN = (*postOrder)(nIndex, activeCL[nIndex] ^ true, 0) + (site*stateSpace);
+        double* pNN = (*postOrder)(nIndex, activeCL[nIndex], 0) + (site*stateSpace);
         std::fill(pNN, pNN + stateSpace, 1.0);
 
         std::set<Node*>& nNeighbors = n->getNeighbors();
@@ -266,10 +260,10 @@ double PhyloCTMC::regenerateIntoSiteBuffer(int site, int category, bool update){
             if(d != n->getAncestor()){
                 int dIndex = d->getIndex();
                 double* pN = pNN;
-                double* pD = (*postOrder)(dIndex, activeCL[dIndex] ^ true, 0) + (site*stateSpace);
+                double* pD = (*postOrder)(dIndex, activeCL[dIndex], 0) + (site*stateSpace);
             
                 //Regenerate site specific likelihood
-                Matrix<double> P = *(*transProb)(activeTP[dIndex] ^ true, category, dIndex);
+                Matrix<double> P = *(*transProb)(activeTP[dIndex], category, dIndex);
                 for(int i = 0; i < stateSpace; i++){
                     //Sum up the products of the likelihoods from the CTMC (transitioning from the node's hypothetical state to another) and the conditional likelihood of the descendent states 
                     double sum = 0.0;
@@ -288,8 +282,83 @@ double PhyloCTMC::regenerateIntoSiteBuffer(int site, int category, bool update){
     //Calculate the likelihood of the tree by summing up the likelihood at the root.
     int rIndex = activeT->getRoot()->getIndex();
     double* pR = (*postOrder)(rIndex, activeCL[rIndex], 0);
-    double* pRSite = (*postOrder)(rIndex, activeCL[rIndex] ^ true, 0) + (site * stateSpace);
-    std::vector<double> f = rateMatrix->stationary();
+    double* pRSite = (*postOrder)(rIndex, activeCL[rIndex], 0) + (site * stateSpace);
+    std::vector<double> f = rateMatrix->getStationary();
+    double lnL = 0.0;
+
+    for(int c = 0; c < numChar; c++){
+        if(c != site){
+            double like = 0.0;
+            for(int i = 0; i < stateSpace; i++){
+                like += pR[i]*f[i];
+            }
+            lnL += std::log(like);
+            pR += stateSpace;
+        }
+        else{
+            double like = 0.0;
+            for(int i = 0; i < stateSpace; i++){
+                like += pRSite[i]*f[i];
+            }
+            lnL += std::log(like);
+        }
+    }
+}
+
+double Model::regenerateIntoLikelihoodBuffer(int site, int category, bool update){
+
+    int numChar = aln->getNumChar();
+
+    TreeObject* activeT = tree->getTree();
+
+    std::vector<Node*>&  poSeq = activeT->getPostOrderSeq();
+    if(update){
+        double omega1 = dpp->getCategoryOmega(category);
+        double omega2 = omega1 * dpp->getCategoryBeta(category);
+        transProb->updateQ(rateMatrix->Q(omega1, omega2), category);
+    }
+
+    for(Node* n : poSeq){
+        int nIndex = n->getIndex();
+        
+        if(n != activeT->getRoot()){
+            double v = activeT->getBranchLength(n);
+            transProb->setProbs(activeTP[nIndex], category, nIndex, v);
+        }
+
+        double* pNN = (*postOrder)(nIndex, activeCL[nIndex], 0) + (numChar*stateSpace);
+        std::fill(pNN, pNN + stateSpace, 1.0);
+
+        std::set<Node*>& nNeighbors = n->getNeighbors();
+
+        for(Node* d : nNeighbors){
+            if(d != n->getAncestor()){
+                int dIndex = d->getIndex();
+                double* pN = pNN;
+                double* pD = (*postOrder)(dIndex, activeCL[dIndex], 0) + (numChar*stateSpace);
+            
+                //Regenerate site specific likelihood
+                Matrix<double> P = *(*transProb)(activeTP[dIndex], category, dIndex);
+                for(int i = 0; i < stateSpace; i++){
+                    //Sum up the products of the likelihoods from the CTMC (transitioning from the node's hypothetical state to another) and the conditional likelihood of the descendent states 
+                    double sum = 0.0;
+                    for(int j = 0; j < stateSpace; j++){
+                        sum += P(i, j) * pD[j];
+                    }
+                    //If this is the first time, set pN equal to the sum, otherwise multiply them
+                    (*pN) *= sum;
+                    //Move the memory address to the next character state
+                    pN++;
+                }
+            }
+        }
+    }
+
+    //Calculate the likelihood of the tree by summing up the likelihood at the root.
+    int rIndex = activeT->getRoot()->getIndex();
+    double* pR = (*postOrder)(rIndex, activeCL[rIndex], 0);
+    double* pRSite = (*postOrder)(rIndex, activeCL[rIndex], 0) + (numChar * stateSpace);
+    std::vector<double> f = rateMatrix->getStationary();
     double lnL = 0.0;
 
     for(int c = 0; c < numChar; c++){
@@ -311,4 +380,52 @@ double PhyloCTMC::regenerateIntoSiteBuffer(int site, int category, bool update){
     }
 
     return lnL;
+}
+
+std::string Model::tabularOut(int i){
+    std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" +
+                               std::to_string(currentLikelihood) + "\t" + std::to_string(tree->lnPrior()) + "\t" +
+                               std::to_string(dpp->lnPrior()) + "\t" + std::to_string(rateMatrix->kPrior()) + "\t" +
+                               std::to_string(rateMatrix->rPrior());
+    if(rateMatrix->updatingStationary())
+        returnString += "\t" + std::to_string(rateMatrix->stationaryPrior());
+    returnString += "\t" + std::to_string(rateMatrix->getK()) + "\t" + std::to_string(rateMatrix->getR());
+    if(rateMatrix->updatingStationary()){
+        std::vector<double> stationary = rateMatrix->getStationary();
+        for(double i : stationary){
+            returnString += "\t" + std::to_string(i);
+        }
+    }
+
+    return returnString;
+}
+
+std::string Model::tabularHeader(){
+    std::string returnString = "Iteration\tPosterior\tLikelihood\tTree Prior\tDPP Prior\tK Prior\tR Prior";
+    if(rateMatrix->updatingStationary())
+        returnString += "\tPi Prior";
+    returnString += "\tK\tR";
+    if(rateMatrix->updatingStationary()){
+        for(int i = 0; i < 122; i++){
+            returnString += "\tPi[" + std::to_string(i) + "]";
+        }
+    }
+
+    return returnString;
+}
+
+std::string Model::treeOut(int i){
+    return "";
+}
+
+std::string Model::treeHeader(){
+    return "";
+}
+
+std::string Model::dppOut(int i){
+    return "";
+}
+
+std::string Model::dppHeader(){
+    return "";
 }

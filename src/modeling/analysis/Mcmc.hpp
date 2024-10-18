@@ -1,18 +1,20 @@
 #ifndef MCMC_HPP
 #define MCMC_HPP
+#include <vector>
 
-class PosteriorNode;
+class Model;
+class Parameter;
 class MoveScheduler;
 class EventManager;
 
 class Mcmc{
     public:
         Mcmc(void)=delete;
-        Mcmc(PosteriorNode* pN, MoveScheduler* mS);
-        void run(int numCycles, EventManager* e);
+        Mcmc(Model* m, MoveScheduler* mS);
+        void run(int numCycles, int screenIterations, int fileIterations);
     private:
         MoveScheduler* moveScheduler;
-        PosteriorNode* posterior;
+        Model* model;
 };
 
 #endif

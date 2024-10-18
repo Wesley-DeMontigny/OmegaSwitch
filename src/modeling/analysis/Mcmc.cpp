@@ -1,43 +1,44 @@
 #include "Mcmc.hpp"
 #include "core/RandomVariable.hpp"
-#include "modeling/PosteriorNode.hpp"
-#include "moves/MoveScheduler.hpp"
-#include "moves/Move.hpp"
-#include "events/EventManager.hpp"
+#include "MoveScheduler.hpp"
+#include "modeling/model/Model.hpp"
+#include "modeling/parameters/Parameter.hpp"
 #include <cmath>
 #include <iostream>
 
-Mcmc::Mcmc(PosteriorNode* pN, MoveScheduler* mS) : posterior(pN), moveScheduler(mS) {   }
+Mcmc::Mcmc(Model* m, MoveScheduler* mS) : model(m), moveScheduler(mS) {   }
 
-void Mcmc::run(int numCycles, EventManager* e){
+void Mcmc::run(int numCycles, int screenIterations, int fileIterations){
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
-    posterior->regenerate();
-    posterior->accept();
-    posterior->clean();
-    double currentLnPosterior = posterior->lnPosterior();
+    model->regenerateLikelihood();
+    model->accept();
 
+    double currentLnPosterior = model->lnLikelihood() + model->lnPrior();
+
+    std::cout << model->tabularHeader() << std::endl;
     for(int n = 1; n <= numCycles; n++){
-        Move* m = moveScheduler->getMove();
-        double lnProposalRatio = m->update();
-        posterior->regenerate();
-        double newLnPosterior = posterior->lnPosterior();
+        double lnProposalRatio = moveScheduler->updateRandom();
+        model->regenerateLikelihood();
+
+        double newLnPosterior = model->lnLikelihood() + model->lnPrior();
 
         double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
         double lnR = lnProposalRatio + lnPosteriorRatio;
 
         if(std::log(rng.uniformRv()) < lnR){
-            m->markAccepted();
-            posterior->accept();
-            posterior->clean();
+            model->accept();
             currentLnPosterior = newLnPosterior;
         }
         else{
-            m->markRejected();
-            posterior->reject();
-            posterior->clean();
+            model->reject();
         }
 
-        e->call(n);
+        if(n % screenIterations == 0){
+            std::cout << model->tabularOut(n) << std::endl;
+        }
+        if(n % fileIterations == 0){
+
+        }
     }
 }

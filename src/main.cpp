@@ -1,34 +1,12 @@
 #include "core/RandomVariable.hpp"
 #include "core/Alignment.hpp"
-#include "moves/MoveScheduler.hpp"
-#include "moves/Move.hpp"
-#include "moves/MoveTreeLocal.hpp"
-#include "moves/MoveScaleBranch.hpp"
-#include "moves/MoveTreeNNI.hpp"
-#include "moves/MoveBetaSimplex.hpp"
-#include "moves/MoveDPPCodonGibbs.hpp"
-#include "moves/MoveScaleDouble.hpp"
-#include "moves/MoveScaleDPPOmega.hpp"
-#include "moves/MoveDPPBeta.hpp"
-#include "events/EventManager.hpp"
-#include "events/TuneEvent.hpp"
-#include "events/FileLogEvent.hpp"
-#include "events/ScreenLogEvent.hpp"
-#include "events/IterationTrackerEvent.hpp"
-#include "events/DPPFileLogEvent.hpp"
+#include "modeling/analysis/MoveScheduler.hpp"
 #include "ncl/nxscharactersblock.h"
 #include "modeling/parameters/trees/TreeParameter.hpp"
-#include "modeling/parameters/rates/CodonMultiMatrix.hpp"
-#include "modeling/parameters/BasicParameter.hpp"
-#include "modeling/likelihoods/PhyloCTMC.hpp"
-#include "modeling/priors/TreePrior.hpp"
-#include "modeling/priors/DirichletPrior.hpp"
-#include "modeling/priors/ExponentialPrior.hpp"
-#include "modeling/priors/DirichletProcessPrior.hpp"
-#include "modeling/priors/ExponentialRatioPrior.hpp"
-#include "modeling/PosteriorNode.hpp"
+#include "modeling/parameters/CodonMultiMatrix.hpp"
+#include "modeling/model/Model.hpp"
+#include "modeling/parameters/DirichletProcessPrior.hpp"
 #include "modeling/analysis/Mcmc.hpp"
-#include "modeling/priors/GammaPrior.hpp"
 #include <chrono>
 
 int main(int argc, char* argv[]) {
@@ -41,84 +19,31 @@ int main(int argc, char* argv[]) {
     Alignment aln("C:/Users/wescd/OneDrive/Documents/Code/Varying_Selection_DPP/res/replicase.nex");
 
     //Purely empirical values right now.
-    std::vector<BasicParameter<double>*> stationaryDist;
+    std::vector<double> stationaryDist;
     for(double v : aln.getStateFrequencies()){
-        stationaryDist.push_back(new BasicParameter<double>(v/2));
+        stationaryDist.push_back(v/2);
     }
     for(double v : aln.getStateFrequencies()){
-        stationaryDist.push_back(new BasicParameter<double>(v/2));
+        stationaryDist.push_back(v/2);
     }
 
-    TreeParameter treeParam(&aln);
-    TreePrior treePrior(&treeParam);
-    BasicParameter<double> lambda(10.0);
-    treePrior.setExponentialBranchPrior(&lambda);
-    treePrior.sample();
+    TreeParameter treeParam(&aln, 10.0);
+    moveScheduler.registerParam(&treeParam, 20.0);
 
-    BasicParameter<double> k(1.0);
-    ExponentialRatioPrior kPrior(&k);
-    kPrior.sample();
-    MoveScaleDouble kMove(&k);
-    moveScheduler.registerMove(&kMove, 5.0);
+    DirichletProcessPrior dpp(aln.getNumChar(), 0.5, 5);
+    moveScheduler.registerParam(&dpp, 10.0);
 
-    BasicParameter<double> r(1.0);
-    BasicParameter<double> lambdaR(2.0);
-    ExponentialPrior rPrior(&lambdaR, &r);
-    rPrior.sample();
-    MoveScaleDouble rMove(&r);
-    moveScheduler.registerMove(&rMove, 5.0);
+    CodonMultiMatrix rateMatrix(2.0, stationaryDist, false);
+    moveScheduler.registerParam(&rateMatrix, 10.0);
 
-    DirichletProcessPrior dpp(aln.getNumChar(), 0.5);
+    Model model(&aln, &treeParam, &rateMatrix, &dpp);
 
-    CodonMultiMatrix rateMatrix(&dpp, &k, &r, stationaryDist);
+    Mcmc myMCMC(&model, &moveScheduler);
 
-    PhyloCTMC ctmc(&aln, &treeParam, &rateMatrix, &dpp);
-
-    MoveDPPCodonGibbs moveDPP(&ctmc, &dpp);
-    moveScheduler.registerMove(&moveDPP, 10.0);
-    MoveScaleDPPOmega moveOmega(&dpp);
-    moveScheduler.registerMove(&moveOmega, 5.0);
-    MoveDPPBeta moveBeta(&dpp);
-    moveScheduler.registerMove(&moveBeta, 5.0);
-
-    MoveTreeLocal localMove(&treeParam);
-    moveScheduler.registerMove(&localMove, 5.0);
-
-    PosteriorNode posterior(&ctmc, {&treePrior, &kPrior, &rPrior, &dpp});
-
-    Mcmc myMCMC(&posterior, &moveScheduler);
-
-    std::vector<std::pair<std::string, ModelNode*>> loggables;
-    loggables.push_back(std::make_pair("Tree Prior", &treePrior));
-    loggables.push_back(std::make_pair("K Prior", &kPrior));
-    loggables.push_back(std::make_pair("R Prior", &rPrior));
-    loggables.push_back(std::make_pair("DPP Prior", &dpp));
-    loggables.push_back(std::make_pair("Likelihood", &ctmc));
-    loggables.push_back(std::make_pair("Posterior", &posterior));
-    loggables.push_back(std::make_pair("K", &k));
-    loggables.push_back(std::make_pair("R", &r));
-
-    ScreenLogEvent screenLogger(loggables);
-    FileLogEvent fileLogger(loggables, "C:/Users/wescd/OneDrive/Documents/Code/Varying_Selection_DPP/res/test_mcmc.log");
-    loggables.push_back(std::make_pair("Tree", &treeParam));
-    loggables.erase(loggables.begin());
-    loggables.erase(loggables.begin());
-    FileLogEvent treeLogger(loggables, "C:/Users/wescd/OneDrive/Documents/Code/Varying_Selection_DPP/res/tree_trace.trees");
-    DPPFileLogEvent logDPP(&dpp, &posterior, "C:/Users/wescd/OneDrive/Documents/Code/Varying_Selection_DPP/res/dpp_sites.log");
-
-    EventManager realRun;
-    realRun.registerEvent(&fileLogger, 100);
-    realRun.registerEvent(&screenLogger, 10);
-    realRun.registerEvent(&logDPP, 100);
-    realRun.registerEvent(&treeLogger, 100);
-    realRun.initialize();
-    myMCMC.run(500000, &realRun);
+    myMCMC.run(500000, 1, 1);
 
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::cout << "Time to complete = " << std::chrono::duration_cast<std::chrono::seconds>(end - begin).count() << "[s]" << std::endl;
 
     std::cout << treeParam.getTree()->getNewick() << std::endl;
-
-    for(BasicParameter<double>* f : stationaryDist)
-        delete f;
 }

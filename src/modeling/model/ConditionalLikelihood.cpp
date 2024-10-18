@@ -3,7 +3,7 @@
 #include "core/Msg.hpp"
 
 ConditionalLikelihood::ConditionalLikelihood(Alignment* aln, int nR) : numNodes((aln->getNumTaxa() * 2) - 1), numRates(nR), stateSpace(122) {
-    numChar = aln->getNumChar();
+    numChar = aln->getNumChar() + 1; //Add 1 for a buffer
     int width = numNodes*numChar*stateSpace*numRates;
     condLikelihoods[0] = new double[2 * width];
     condLikelihoods[1] = condLikelihoods[0] + (width);
@@ -37,7 +37,8 @@ ConditionalLikelihood::ConditionalLikelihood(Alignment* aln, int nR) : numNodes(
                 p += 61;
 
                 if(assigned == false){
-                    Msg::error("Never assigned a conditional value at (" + std::to_string(index) + ", " + std::to_string(i) + ")! This has state value " + std::to_string(state));
+                    if(i != numChar - 1)
+                        Msg::error("Never assigned a conditional value at (" + std::to_string(index) + ", " + std::to_string(i) + ")! This has state value " + std::to_string(state));
                 }
             }
         }

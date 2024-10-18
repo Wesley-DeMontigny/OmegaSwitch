@@ -1,6 +1,5 @@
 #ifndef PHYLO_CTMC_HPP
 #define PHYLO_CTMC_HPP
-#include "modeling/likelihoods/LikelihoodNode.hpp"
 #include "modeling/parameters/trees/TreeParameter.hpp"
 
 class ConditionalLikelihood;
@@ -11,19 +10,25 @@ class RateMatrix;
 class CodonMultiMatrix;
 class DirichletProcessPrior;
 
-class PhyloCTMC : public LikelihoodNode{
+class Model {
     public:
-        PhyloCTMC(void) = delete;
-        PhyloCTMC(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProcessPrior* d);
-        ~PhyloCTMC();
+        Model(void) = delete;
+        Model(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProcessPrior* d);
+        ~Model();
         double lnLikelihood() {return currentLikelihood;}
-        double regenerateIntoSiteBuffer(int site, int category, bool update);
-        void regenerate();
+        double lnPrior();
+        double regenerateIntoLikelihoodBuffer(int site, int category, bool update);
+        void forceRegenerate(int site, int category, bool update);
+        void regenerateLikelihood();
+        TransitionProbability* getTransitionProbability() { return transProb; }
         void accept();
         void reject();
-        TransitionProbability* getTransitionProbability() {return transProb;}
-        ConditionalLikelihood* getPostOrderL() {return postOrder;}
-        std::string writeValue() {return std::to_string(currentLikelihood);}
+        std::string tabularOut(int i);
+        std::string tabularHeader();
+        std::string treeOut(int i);
+        std::string treeHeader();
+        std::string dppOut(int i);
+        std::string dppHeader();
     protected:
         double oldLikelihood;
         double currentLikelihood;

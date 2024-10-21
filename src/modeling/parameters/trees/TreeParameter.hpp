@@ -9,19 +9,21 @@ class TreeParameter : public Parameter{
         TreeParameter(void)=delete;
         TreeParameter(Alignment* aln, double lambda);
         ~TreeParameter();
-        TreeParameter& operator=(const TreeParameter& t);
         TreeObject* getTree(){return trees[0];}
-        const TreeObject* getTreeConst() const {return trees[0];}
-        std::vector<double> getBranchLengths();
 
         void accept();
         void reject();
 
         double update();
+        void tune();
         double lnPrior();
 
-        std::string writeNewick() {trees[0]->getNewick();}
+        std::string writeNewick() {return trees[0]->getNewick();}
     private:
+        int moveChoice;
+        int localCount;
+        int localAcceptCount;
+        double localDelta;
         double lambda;
         double currentPrior;
         double oldPrior;

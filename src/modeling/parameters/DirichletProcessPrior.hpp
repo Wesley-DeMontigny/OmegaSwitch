@@ -21,6 +21,7 @@ class DirichletProcessPrior : public Parameter {
         
         double lnPrior() {return currentLnPrior;}
         double update();
+        void tune();
 
         void accept();
         void reject();
@@ -48,6 +49,15 @@ class DirichletProcessPrior : public Parameter {
         double oldLnPrior;
         double currentLnPrior;
         double alpha;
+
+        int moveChoice;
+        int omegaCount;
+        int omegaAcceptCount;
+        double omegaDelta;
+        int betaCount;
+        int betaAcceptCount;
+        double betaAlpha;
+
         int numMembers;
         int numGibbsUpdate;
         double denominator;

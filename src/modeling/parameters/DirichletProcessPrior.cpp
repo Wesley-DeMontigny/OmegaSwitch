@@ -8,8 +8,11 @@
 #include "core/Math.hpp"
 #include <iostream>
 
-DirichletProcessPrior::DirichletProcessPrior(int size, double a, int numGibbs) : alpha(a), numMembers(size), currentLnPrior(0.0), 
-                                                                                 oldLnPrior(0.0), numGibbsUpdate(numGibbs), model(nullptr) {
+DirichletProcessPrior::DirichletProcessPrior(int size, double a, int numGibbs) : 
+                                             alpha(a), numMembers(size), currentLnPrior(0.0), 
+                                             oldLnPrior(0.0), numGibbsUpdate(numGibbs), model(nullptr),
+                                             moveChoice(-1), omegaCount(0), omegaAcceptCount(0), omegaDelta(std::log(4.0)),
+                                             betaCount(0), betaAcceptCount(0), betaAlpha(1.0) {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
     //The expected category number can be roughly computed as n = a * ln(1 + c/a)
@@ -146,12 +149,24 @@ void DirichletProcessPrior::accept() {
     oldCategories = currentCategories;
     oldLnPrior = currentLnPrior;
     oldAssignments = assignments;
+
+    if(moveChoice != -1){
+        if(moveChoice == 0){
+            betaAcceptCount += 1;
+        }
+        else if(moveChoice == 1){
+            omegaAcceptCount += 1;
+        }
+        moveChoice = -1;
+    }
 }
 
 void DirichletProcessPrior::reject() {
     currentCategories = oldCategories;
     currentLnPrior = oldLnPrior;
     assignments = oldAssignments;
+
+    moveChoice = -1;
 }
 
 double DirichletProcessPrior::update() {
@@ -160,11 +175,14 @@ double DirichletProcessPrior::update() {
     double hastings = 0.0;
 
     if(randomMove < 0.33) { // Beta Simplex on Random Beta
+        moveChoice = 0;
+        betaCount += 1;
+
         int randomCategory = (int)(rng.uniformRv() * currentCategories.size());
         double betaVal = currentCategories[randomCategory].beta;
 
-        double a = alpha + 1.0;
-        double b = (alpha / betaVal) - a + 2.0;
+        double a = betaAlpha + 1.0;
+        double b = (betaAlpha / betaVal) - a + 2.0;
         double newVal = Probability::Beta::rv(&rng, a, b);
 
         currentCategories[randomCategory].beta = newVal;
@@ -172,8 +190,8 @@ double DirichletProcessPrior::update() {
         double scalingFactor = (1.0 - newVal)/(1.0 - betaVal);
 
         double forward = Probability::Beta::lnPdf(a, b, newVal);
-        double newA = alpha + 1.0;
-        double newB = (alpha / newVal) - a + 2.0;
+        double newA = betaAlpha + 1.0;
+        double newB = (betaAlpha / newVal) - a + 2.0;
         double backward = Probability::Beta::lnPdf(newA, newB, betaVal);
         
         hastings = backward - forward;
@@ -183,10 +201,12 @@ double DirichletProcessPrior::update() {
         this->dirty();
     }
     else if(randomMove < 0.66) { // Scale Random Omega
-        double delta = std::log(4);
+        moveChoice = 1;
+        omegaCount += 1;
+
         int randomCategory = (int)(rng.uniformRv() * currentCategories.size());
 
-        double scale = std::exp(delta * (rng.uniformRv() - 0.5));
+        double scale = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
         currentCategories[randomCategory].omega *= scale;
 
         hastings = std::log(scale);
@@ -275,4 +295,29 @@ double DirichletProcessPrior::update() {
     }
 
     return hastings;
+}
+
+void DirichletProcessPrior::tune(){
+    double betaRate = (double)betaAcceptCount/(double)betaCount;
+
+    if ( betaRate > 0.44 ) {
+        betaAlpha *= (1.0 + ((betaRate-0.44)/0.766));
+    }
+    else {
+        betaAlpha /= (2.0 - betaRate/0.44);
+    }
+    betaAcceptCount = 0;
+    betaCount = 0;
+
+
+    double omegaRate = (double)omegaAcceptCount/(double)omegaCount;
+
+    if ( omegaRate > 0.44 ) {
+        omegaDelta *= (1.0 + ((omegaRate-0.44)/0.766));
+    }
+    else {
+        omegaDelta /= (2.0 - omegaRate/0.44);
+    }
+    omegaAcceptCount = 0;
+    omegaCount = 0;
 }

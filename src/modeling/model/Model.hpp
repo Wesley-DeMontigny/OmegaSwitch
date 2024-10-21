@@ -23,6 +23,7 @@ class Model {
         TransitionProbability* getTransitionProbability() { return transProb; }
         void accept();
         void reject();
+        void tuneMoves();
         std::string tabularOut(int i);
         std::string tabularHeader();
         std::string treeOut(int i);

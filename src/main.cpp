@@ -40,10 +40,9 @@ int main(int argc, char* argv[]) {
 
     Mcmc myMCMC(&model, &moveScheduler);
 
-    myMCMC.run(500000, 1, 1);
+    myMCMC.burnin(25000, 10, 5000);
+    myMCMC.run(500000, 10, 100);
 
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::cout << "Time to complete = " << std::chrono::duration_cast<std::chrono::seconds>(end - begin).count() << "[s]" << std::endl;
-
-    std::cout << treeParam.getTree()->getNewick() << std::endl;
 }

@@ -382,6 +382,12 @@ double Model::regenerateIntoLikelihoodBuffer(int site, int category, bool update
     return lnL;
 }
 
+void Model::tuneMoves(){
+    dpp->tune();
+    tree->tune();
+    rateMatrix->tune();
+}
+
 std::string Model::tabularOut(int i){
     std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" +
                                std::to_string(currentLikelihood) + "\t" + std::to_string(tree->lnPrior()) + "\t" +
@@ -415,17 +421,28 @@ std::string Model::tabularHeader(){
 }
 
 std::string Model::treeOut(int i){
-    return "";
+    return std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" + tree->writeNewick();
 }
 
 std::string Model::treeHeader(){
-    return "";
+    return "Iteration\tPosterior\tTree";
 }
 
 std::string Model::dppOut(int i){
-    return "";
+    std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t";
+    std::vector<Category> categories = dpp->getCategories();
+    std::vector<int> assignments = dpp->getAssinments();
+    for(int c : assignments){
+        returnString += "\t" + std::to_string(categories[c].omega) + "\t" + std::to_string(categories[c].beta);
+    }
+
+    return returnString;
 }
 
 std::string Model::dppHeader(){
-    return "";
+    std::string returnString = "Iteration\tPosterior\tCategoryCount";
+    for(int i = 0, len = aln->getNumChar(); i < len; i++)
+        returnString += "\tOmega[" + std::to_string(i) + "]" + "\tBeta[" + std::to_string(i) + "]";
+
+    return returnString;
 }

@@ -11,6 +11,7 @@ class Mcmc{
     public:
         Mcmc(void)=delete;
         Mcmc(Model* m, MoveScheduler* mS);
+        void burnin(int numCycles, int screenIterations, int tuningIterations);
         void run(int numCycles, int screenIterations, int fileIterations);
     private:
         MoveScheduler* moveScheduler;

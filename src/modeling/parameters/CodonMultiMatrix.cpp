@@ -7,7 +7,9 @@ CodonMultiMatrix::CodonMultiMatrix(double rL, std::vector<double> pi, bool updat
                                    currentQMatrix(122, 122, 0.0), oldQMatrix(122, 122, 0.0), 
                                    currentStationary(pi), oldStationary(pi), currentRPrior(0.0), oldRPrior(0.0),
                                    rLambda(rL), currentKPrior(0.0), oldKPrior(0.0), currentStationaryPrior(0.0), 
-                                   oldStationaryPrior(0.0), updateStationary(updatePi) {
+                                   oldStationaryPrior(0.0), updateStationary(updatePi), moveChoice(-1), rCount(0),
+                                   kCount(0), stationaryCount(0), rAcceptCount(0), kAcceptCount(0), stationaryAcceptCount(0),
+                                   rDelta(std::log(4)), kDelta(std::log(4)), stationaryAlpha(1.0) {
     
     std::vector<int> aaMap = {8, 11, 8, 11, 16, 16, 16, 16, 14, 15, 14, 15, 7, 7, 10, 7, 13, 6, 13, 6, 12, 12, 12, 12, 14, 14, 14, 14, 9, 9, 9, 9, 3, 2, 3, 2, 0, 0, 0, 0, 5, 5, 5, 5, 17, 17, 17, 17, 19, 19, 15, 15, 15, 15, 1, 18, 1, 9, 4, 9, 4};  
     std::vector<char*> codons = {"AAA", "AAC", "AAG", "AAT", "ACA", "ACC", "ACG", "ACT", "AGA", "AGC", "AGG", "AGT", "ATA", "ATC", "ATG", "ATT", "CAA", "CAC", "CAG", "CAT", "CCA", "CCC", "CCG", "CCT", "CGA", "CGC", "CGG", "CGT", "CTA", "CTC", "CTG", "CTT", "GAA", "GAC", "GAG", "GAT", "GCA", "GCC", "GCG", "GCT", "GGA", "GGC", "GGG", "GGT", "GTA", "GTC", "GTG", "GTT", "TAC", "TAT", "TCA", "TCC", "TCG", "TCT", "TGC", "TGG", "TGT", "TTA", "TTC", "TTG", "TTT"};
@@ -89,6 +91,19 @@ void CodonMultiMatrix::accept() {
         oldStationary = currentStationary;
         oldStationaryPrior = currentStationaryPrior;
     }
+
+    if(moveChoice != -1){
+        if(moveChoice == 0){
+            rAcceptCount += 1;
+        }
+        else if(moveChoice == 1){
+            kAcceptCount += 1;
+        }
+        else if(moveChoice == 2){
+            stationaryAcceptCount += 1;
+        }
+        moveChoice = -1;
+    }
 }
 
 void CodonMultiMatrix::reject() {
@@ -103,6 +118,8 @@ void CodonMultiMatrix::reject() {
         currentStationary = oldStationary;
         currentStationaryPrior = oldStationaryPrior;
     }
+
+    moveChoice = -1;
 }
 
 double CodonMultiMatrix::lnPrior() {
@@ -125,9 +142,9 @@ double CodonMultiMatrix::update() {
     while(updateStationary == false && randomMove >= 0.66);
 
     if(randomMove < 0.33) { // Scale R
-        double delta = std::log(4);
-
-        double scale = std::exp(delta * (rng.uniformRv() - 0.5));
+        moveChoice = 0;
+        rCount += 1;
+        double scale = std::exp(rDelta * (rng.uniformRv() - 0.5));
         currentR *= scale;
 
         this->dirty();
@@ -145,9 +162,9 @@ double CodonMultiMatrix::update() {
 
     }
     else if(randomMove < 0.66) { // Scale K
-        double delta = std::log(4);
-
-        double scale = std::exp(delta * (rng.uniformRv() - 0.5));
+        moveChoice = 1;
+        kCount += 1;
+        double scale = std::exp(kDelta * (rng.uniformRv() - 0.5));
         currentK *= scale;
 
         this->dirty();
@@ -173,14 +190,15 @@ double CodonMultiMatrix::update() {
 
     }
     else { // Beta simplex on the stationary
+        moveChoice = 2;
+        stationaryCount += 1;
         int paramNum = currentStationary.size();
         int i = (int)(rng.uniformRv() * paramNum);
-        double alpha = 1.0;
 
         double pVal = currentStationary[i];
 
-        double a = alpha + 1.0;
-        double b = (alpha / pVal) - a + 2.0;
+        double a = stationaryAlpha + 1.0;
+        double b = (stationaryAlpha / pVal) - a + 2.0;
         double newVal = Probability::Beta::rv(&rng, a, b);
 
         currentStationary[i] = newVal;
@@ -205,8 +223,8 @@ double CodonMultiMatrix::update() {
 
         // The probability of getting our new value
         double forward = Probability::Beta::lnPdf(a, b, newVal);
-        double newA = alpha + 1.0;
-        double newB = (alpha / newVal) - a + 2.0;
+        double newA = stationaryAlpha + 1.0;
+        double newB = (stationaryAlpha / newVal) - a + 2.0;
         // The probability of getting our old value in the future
         double backward = Probability::Beta::lnPdf(newA, newB, pVal);
         
@@ -263,4 +281,41 @@ Matrix<double> CodonMultiMatrix::Q(double omega1, double omega2) {
     }
 
     return returnMatrix;
+}
+
+void CodonMultiMatrix::tune(){
+    double rRate = (double)rAcceptCount/(double)rCount;
+
+    if ( rRate > 0.44 ) {
+        rDelta *= (1.0 + ((rRate-0.44)/0.766));
+    }
+    else {
+        rDelta /= (2.0 - rRate/0.44);
+    }
+    rAcceptCount = 0;
+    rCount = 0;
+
+    double kRate = (double)kAcceptCount/(double)kCount;
+
+    if ( kRate > 0.44 ) {
+        kDelta *= (1.0 + ((kRate-0.44)/0.766));
+    }
+    else {
+        kDelta /= (2.0 - kRate/0.44);
+    }
+    kAcceptCount = 0;
+    kCount = 0;
+
+    if(updateStationary){
+        double stationaryRate = (double)stationaryAcceptCount/(double)stationaryCount;
+
+        if ( stationaryRate > 0.44 ) {
+            stationaryAlpha *= (1.0 + ((stationaryRate-0.44)/0.766));
+        }
+        else {
+            stationaryAlpha /= (2.0 - stationaryRate/0.44);
+        }
+        stationaryAcceptCount = 0;
+        stationaryCount = 0;
+    }
 }

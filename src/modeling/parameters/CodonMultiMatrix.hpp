@@ -14,6 +14,7 @@ class CodonMultiMatrix : public Parameter {
         void accept();
         void reject();
         double update();
+        void tune();
         double lnPrior();
         double kPrior() {return currentKPrior;}
         double rPrior() {return currentRPrior;}
@@ -25,6 +26,17 @@ class CodonMultiMatrix : public Parameter {
     private:
         Matrix<double> currentQMatrix;
         Matrix<double> oldQMatrix;
+
+        int moveChoice;
+        int rCount;
+        int rAcceptCount;
+        double rDelta;
+        int kCount;
+        int kAcceptCount;
+        double kDelta;
+        int stationaryCount;
+        int stationaryAcceptCount;
+        double stationaryAlpha;
 
         double currentK;
         double oldK;

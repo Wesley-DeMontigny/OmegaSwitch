@@ -4,7 +4,9 @@
 #include "core/Probability.hpp"
 #include "Node.hpp"
 
-TreeParameter::TreeParameter(Alignment* aln, double l) : lambda(l), currentPrior(0.0), oldPrior(0.0) {
+TreeParameter::TreeParameter(Alignment* aln, double l) : lambda(l), currentPrior(0.0), oldPrior(0.0), 
+                                                         localDelta(std::log(4.0)), moveChoice(-1), 
+                                                         localCount(0), localAcceptCount(0) {
     trees[0] = new TreeObject(aln);
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
@@ -33,29 +35,21 @@ TreeParameter::~TreeParameter(){
     delete trees[1]; 
 }
 
-TreeParameter& TreeParameter::operator=(const TreeParameter& t){
-    if(this == &t)
-        return *this;
-
-    const TreeObject* activeTree = t.getTreeConst();
-    *trees[0] = *activeTree;
-    *trees[1] = *activeTree;
-
-    return *this;
-}
-
 void TreeParameter::accept(){
     *trees[1] = *trees[0];
     oldPrior = currentPrior;
+
+    if(moveChoice == 0){
+        localAcceptCount += 1;
+        moveChoice = -1;
+    }
 }
 
 void TreeParameter::reject(){
     *trees[0] = *trees[1];
     currentPrior = oldPrior;
-}
 
-std::vector<double> TreeParameter::getBranchLengths(){
-    return trees[0]->getBranchLengths();
+    moveChoice = -1;
 }
 
 
@@ -67,10 +61,11 @@ double TreeParameter::update() {
 
     //Local Move
     if(randomMove < 0.33){
+        moveChoice = 0;
+        localCount += 1;
         TreeObject* tree = trees[0];
         std::vector<Node*> nodes = tree->getPostOrderSeq();
         Node* root = tree->getRoot();
-        double delta = std::log(4.0);
 
         Node* u = nullptr;
         do{
@@ -87,7 +82,7 @@ double TreeParameter::update() {
         neighbors2.erase(u);//Don't select u
         Node* c = Node::chooseNodeFromSet(neighbors2);
 
-        double scale = std::exp(delta * (rng.uniformRv() - 0.5));
+        double scale = std::exp(localDelta * (rng.uniformRv() - 0.5));
 
         double paths[3];
         paths[0] = tree->getBranchLength(u) * scale;
@@ -162,7 +157,7 @@ double TreeParameter::update() {
 
         hastings = 3 * std::log(scale);
     }
-    else if(randomMove < 0.66) { //NNI
+    else { //NNI
         TreeObject* tree = trees[0];
         std::vector<Node*> nodes = tree->getPostOrderSeq();
         Node* root = tree->getRoot();
@@ -226,39 +221,6 @@ double TreeParameter::update() {
 
         hastings = 0.0;
     }
-    else { //Scale Branch
-        TreeObject* tree = trees[0];
-        std::vector<Node*> nodes = tree->getPostOrderSeq();
-        double delta = std::log(4.0);
-
-        Node* root = tree->getRoot();        
-
-        Node* p = nullptr;
-        do{
-            p = nodes[(int)(rng.uniformRv() * nodes.size())];
-        }
-        while(p == root);
-
-        double currentV = tree->getBranchLength(p);
-        double scale = std::exp(delta * (rng.uniformRv() - 0.5));
-        double newV = currentV * scale;
-        tree->setBranchLength(p, newV);
-        p->setNeedsTPUpdate(true);
-
-        Node* q = p;
-        do{
-            if(q->getIsTip() == false)//The conditional likelihoods at the tips should never change
-                q->setNeedsCLUpdate(true);
-            
-            q = q->getAncestor();
-        } 
-        while(q != root);
-        root->setNeedsCLUpdate(true);
-
-        this->dirty();
-
-        hastings = std::log(scale);
-    }
 
     std::vector<double> values = trees[0]->getBranchLengths();
     double totalLength = 0.0;
@@ -268,6 +230,19 @@ double TreeParameter::update() {
     currentPrior = Probability::Gamma::lnPdf(values.size(), lambda, totalLength);
 
     return hastings;
+}
+
+void TreeParameter::tune() {
+    double rate = (double)localAcceptCount/(double)localCount;
+
+    if ( rate > 0.44 ) {
+        localDelta *= (1.0 + ((rate-0.44)/0.766));
+    }
+    else {
+        localDelta /= (2.0 - rate/0.44);
+    }
+    localAcceptCount = 0;
+    localCount = 0;
 }
 
 double TreeParameter::lnPrior() {

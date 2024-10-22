@@ -35,39 +35,6 @@ Model::Model(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProce
         activeCL[i] = false;
         activeTP[i] = false;
     }
-
-    //We need to do some setting to make sure the alignment and tree match
-    std::vector<std::string> taxaNames = aln->getTaxaNames();
-    bool randomAssign = false;
-    for(Node* n : activeT->getTips()){
-        bool found = false;
-        std::string name = n->getName();
-        for(int i = 0; i < taxaNames.size(); i++){
-            if(name == taxaNames[i]){
-                found=true;
-                n->setIndex(i);
-                break;
-            }
-        }
-
-        if(found == false){
-            Msg::warning("Expected to find a sequence named " + name + "! Assigning indices and names randomly.");
-            randomAssign = true;
-            break;
-        }
-    }
-
-    //Set the tips randomly if the tips are not properly named
-    if(randomAssign == true){
-        std::vector<Node*> tips = activeT->getTips();
-        for(int i = 0; i < taxaNames.size(); i++){
-            tips[i]->setIndex(i);
-            tips[i]->setName(taxaNames[i]);
-        }
-    }
-
-    tree->accept(); //Accept the tip changes into memory tree (if any happened)
-
     postOrder = new ConditionalLikelihood(aln, 1);
     transProb = new TransitionProbability(numNodes, numChar);
 

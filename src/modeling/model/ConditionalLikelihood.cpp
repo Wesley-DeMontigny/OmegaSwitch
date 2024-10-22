@@ -37,7 +37,7 @@ ConditionalLikelihood::ConditionalLikelihood(Alignment* aln, int nR) : numNodes(
                 p += 61;
 
                 if(assigned == false){
-                    if(i != numChar - 1)
+                    if(i < aln->getNumChar())
                         Msg::error("Never assigned a conditional value at (" + std::to_string(index) + ", " + std::to_string(i) + ")! This has state value " + std::to_string(state));
                 }
             }
@@ -53,10 +53,6 @@ ConditionalLikelihood::~ConditionalLikelihood(){
 
 double* ConditionalLikelihood::operator()(int n, int s, int r){
     return condLikelihoods[s] + n*numChar*stateSpace + (r*numNodes*numChar*stateSpace);
-}
-
-double* ConditionalLikelihood::operator[](int n){
-    return condLikelihoods[activeCLs[n]] + n*numChar*stateSpace;
 }
 
 void ConditionalLikelihood::flipCL(int n){

@@ -32,7 +32,6 @@ void Mcmc::burnin(int numCycles, int screenIterations, int tuningIterations){
         if(std::log(rng.uniformRv()) < lnR){
             model->accept();
             currentLnPosterior = newLnPosterior;
-            std::cout << "Accepted!" << std::endl;
         }
         else{
             model->reject();

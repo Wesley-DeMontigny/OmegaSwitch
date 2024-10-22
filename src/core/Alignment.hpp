@@ -2,7 +2,6 @@
 #define ALIGNMENT_HPP
 #include <string>
 #include "ncl/nxsmultiformat.h"
-#include "Matrix.hpp"
 
 class Alignment{
     public:
@@ -13,7 +12,6 @@ class Alignment{
         unsigned long long int**    getMatrix() {return matrix;}
         int                         getNumChar() {return numChar;}
         int                         getNumTaxa() {return numTaxa;}
-        Matrix<double>              getPairwiseIdentities();
         int                         getStateSpace() {return stateSpace;}
         std::vector<std::string>    getTaxaNames() {return taxaNames;}
         std::vector<double>         getStateFrequencies() {return frequencies;}

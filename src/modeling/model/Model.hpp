@@ -15,26 +15,32 @@ class Model {
         Model(void) = delete;
         Model(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProcessPrior* d);
         ~Model();
+
+
         double lnLikelihood() {return currentLikelihood;}
         double lnPrior();
-        double regenerateIntoLikelihoodBuffer(int site, int category, bool update);
-        void forceRegenerate(int site, int category, bool update);
         void regenerateLikelihood();
+        void regenerateLikelihood(int site, int category, bool update);
+
         TransitionProbability* getTransitionProbability() { return transProb; }
+        ConditionalLikelihood* getConditionalLikelihood() { return postOrder; }
+
         void accept();
         void reject();
         void tuneMoves();
-        std::string tabularOut(int i);
+
         std::string tabularHeader();
-        std::string treeOut(int i);
+        std::string tabularOut(int i);
         std::string treeHeader();
-        std::string dppOut(int i);
+        std::string treeOut(int i);
         std::string dppHeader();
+        std::string dppOut(int i);
     protected:
         double oldLikelihood;
         double currentLikelihood;
     private:
         int stateSpace;
+        int numChar;
         bool* activeTP;
         bool* activeCL;
         CodonMultiMatrix* rateMatrix;
@@ -43,7 +49,6 @@ class Model {
         TransitionProbability* transProb;
         TreeParameter* tree;
         DirichletProcessPrior* dpp;
-        void postOrderPrune();
 };
 
 #endif

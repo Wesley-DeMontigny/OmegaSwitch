@@ -1,6 +1,7 @@
 #ifndef DIRICHLET_PROCESS_PRIOR_HPP
 #define DIRICHLET_PROCESS_PRIOR_HPP
 #include "modeling/parameters/Parameter.hpp"
+#include <map>
 
 class Model;
 
@@ -9,6 +10,7 @@ struct Category {
     double beta;
     int size;
     std::vector<int> members;
+    bool dirty;
 };
 
 class DirichletProcessPrior : public Parameter {
@@ -65,6 +67,7 @@ class DirichletProcessPrior : public Parameter {
         std::vector<Category> oldCategories;
         std::vector<int> assignments;
         std::vector<int> oldAssignments;
+
         void removeCategory(int index);
 };
 

@@ -93,13 +93,13 @@ void Mcmc::run(int numCycles, int screenIterations, int fileIterations){
             std::cout << model->tabularOut(n) << std::endl;
         }
         if(n % fileIterations == 0){
-            fs.open(analysisLog, std::fstream::out);
+            fs.open(analysisLog, std::fstream::app);
             fs << model->tabularOut(n);
             fs.close();
-            fs.open(treeLog, std::fstream::out);
+            fs.open(treeLog, std::fstream::app);
             fs << model->treeOut(n);
             fs.close();
-            fs.open(dppLog, std::fstream::out);
+            fs.open(dppLog, std::fstream::app);
             fs << model->dppOut(n);
             fs.close();
         }

@@ -9,7 +9,7 @@ CodonMultiMatrix::CodonMultiMatrix(double rL, std::vector<double> pi, bool updat
                                    rLambda(rL), currentKPrior(0.0), oldKPrior(0.0), currentStationaryPrior(0.0), 
                                    oldStationaryPrior(0.0), updateStationary(updatePi), moveChoice(-1), rCount(0),
                                    kCount(0), stationaryCount(0), rAcceptCount(0), kAcceptCount(0), stationaryAcceptCount(0),
-                                   rDelta(std::log(4)), kDelta(std::log(4)), stationaryAlpha(1.0) {
+                                   rDelta(std::log(2)), kDelta(std::log(2)), stationaryAlpha(1.0) {
     
     std::vector<int> aaMap = {8, 11, 8, 11, 16, 16, 16, 16, 14, 15, 14, 15, 7, 7, 10, 7, 13, 6, 13, 6, 12, 12, 12, 12, 14, 14, 14, 14, 9, 9, 9, 9, 3, 2, 3, 2, 0, 0, 0, 0, 5, 5, 5, 5, 17, 17, 17, 17, 19, 19, 15, 15, 15, 15, 1, 18, 1, 9, 4, 9, 4};  
     std::vector<char*> codons = {"AAA", "AAC", "AAG", "AAT", "ACA", "ACC", "ACG", "ACT", "AGA", "AGC", "AGG", "AGT", "ATA", "ATC", "ATG", "ATT", "CAA", "CAC", "CAG", "CAT", "CCA", "CCC", "CCG", "CCT", "CGA", "CGC", "CGG", "CGT", "CTA", "CTC", "CTG", "CTT", "GAA", "GAC", "GAG", "GAT", "GCA", "GCC", "GCG", "GCT", "GGA", "GGC", "GGG", "GGT", "GTA", "GTC", "GTG", "GTT", "TAC", "TAT", "TCA", "TCC", "TCG", "TCT", "TGC", "TGG", "TGT", "TTA", "TTC", "TTG", "TTT"};
@@ -38,12 +38,12 @@ CodonMultiMatrix::CodonMultiMatrix(double rL, std::vector<double> pi, bool updat
     }
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
-    currentR = Probability::Exponential::rv(&rng, rLambda);
+    currentR = 1;
     oldR = currentR;
     currentRPrior = Probability::Exponential::lnPdf(rLambda, currentR);
     oldRPrior = currentRPrior;
 
-    currentK = (Probability::Exponential::rv(&rng, 1)/Probability::Exponential::rv(&rng, 1));
+    currentK = 1;
     oldK = currentK;
     currentKPrior = -2 * std::log(1.0 + currentK);
     oldKPrior = currentKPrior;
@@ -174,20 +174,11 @@ double CodonMultiMatrix::update() {
         hastings = std::log(scale);
 
         for(auto coord : transition){
-            currentQMatrix(coord.first, coord.second) = currentStationary[coord.first];
-            currentQMatrix(coord.second, coord.first) = currentStationary[coord.second];
-            currentQMatrix(coord.first + 61, coord.second +  61) = currentStationary[coord.first];
-            currentQMatrix(coord.second + 61, coord.first + 61) = currentStationary[coord.second];
-
-            currentQMatrix(coord.first, coord.second) *= currentK;
-            currentQMatrix(coord.second, coord.first) *= currentK;
-
-            currentQMatrix(coord.first + 61, coord.second + 61) *= currentK;
-            currentQMatrix(coord.second + 61, coord.first + 61) *= currentK;  
+            currentQMatrix(coord.first, coord.second) = currentStationary[coord.first] * currentK;
+            currentQMatrix(coord.second, coord.first) = currentStationary[coord.second] * currentK;
+            currentQMatrix(coord.first + 61, coord.second +  61) = currentStationary[coord.first] * currentK;
+            currentQMatrix(coord.second + 61, coord.first + 61) = currentStationary[coord.second] * currentK;
         }
-
-        currentKPrior = -2 * std::log(1.0 + currentK);
-
     }
     else { // Beta simplex on the stationary
         moveChoice = 2;

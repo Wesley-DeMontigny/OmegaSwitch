@@ -17,6 +17,7 @@ int main(int argc, char* argv[]) {
     MoveScheduler moveScheduler;
 
     Alignment aln("C:/Users/wescd/OneDrive/Documents/Code/Varying_Selection_DPP/res/replicase.nex");
+    std::cout << "Initializing model..." << std::endl;
 
     //Purely empirical values right now.
     std::vector<double> stationaryDist;
@@ -28,20 +29,20 @@ int main(int argc, char* argv[]) {
     }
 
     TreeParameter treeParam(&aln, 10.0);
-    moveScheduler.registerParam(&treeParam, 20.0);
+    moveScheduler.registerParam(&treeParam, 1);
 
-    DirichletProcessPrior dpp(aln.getNumChar(), 0.5, 5);
-    moveScheduler.registerParam(&dpp, 10.0);
+    DirichletProcessPrior dpp(aln.getNumChar(), 0.5, 1);
+    moveScheduler.registerParam(&dpp, 7.5);
 
     CodonMultiMatrix rateMatrix(2.0, stationaryDist, false);
-    moveScheduler.registerParam(&rateMatrix, 10.0);
+    moveScheduler.registerParam(&rateMatrix, 1000000);
 
     Model model(&aln, &treeParam, &rateMatrix, &dpp);
 
     Mcmc myMCMC(&model, &moveScheduler);
 
-    myMCMC.burnin(25000, 10, 5000);
-    myMCMC.run(500000, 10, 100);
+    //myMCMC.burnin(2500, 10, 500);
+    myMCMC.run(500000, 1, 100);
 
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::cout << "Time to complete = " << std::chrono::duration_cast<std::chrono::seconds>(end - begin).count() << "[s]" << std::endl;

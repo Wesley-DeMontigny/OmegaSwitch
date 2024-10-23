@@ -393,7 +393,7 @@ void TreeObject::updateAll(){
     for(Node* n : nodes){
         if(n->getIsTip() == false)
             n->setNeedsCLUpdate(true);
-            n->setNeedsTPUpdate(true);
+        n->setNeedsTPUpdate(true);
     }
 }
 

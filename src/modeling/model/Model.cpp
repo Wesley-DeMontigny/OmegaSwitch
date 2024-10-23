@@ -14,11 +14,11 @@
 #include <string>
 #include <iostream>
 
-Model::Model(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProcessPrior* d) : aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0), dpp(d) {
+Model::Model(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProcessPrior* d) : aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0), dpp(d), numChar(0) {
 
     TreeObject* activeT = tree->getTree();
     stateSpace = 122;
-    int numChar = aln->getNumChar();
+    numChar = aln->getNumChar();
 
     dpp->registerModel(this);
 
@@ -102,14 +102,32 @@ double Model::lnPrior(){
     return dpp->lnPrior() + tree->lnPrior() + rateMatrix->lnPrior();
 }
 
-void Model::postOrderPrune(){
-
+void Model::regenerateLikelihood(){
     TreeObject* activeT = tree->getTree();
+
     std::vector<Node*>&  poSeq = activeT->getPostOrderSeq();
     std::vector<int> assignments = dpp->getAssinments();
-
+    std::vector<Category> categories = dpp->getCategories();
     int numCats = dpp->getNumCategories();
-    int numChar = aln->getNumChar();
+
+    if(rateMatrix->isDirty()){
+        activeT->updateAll();
+        for(int i = 0; i < numCats; i++){
+            double omega1 = categories[i].omega;
+            double omega2 = omega1 * categories[i].beta;
+            transProb->updateQ(rateMatrix->Q(omega1, omega2), i);
+        }
+    }
+    else if(dpp->isDirty()){
+        activeT->updateAll();
+        for(int i = 0; i < numCats; i++){
+            if(categories[i].dirty){
+                double omega1 = categories[i].omega;
+                double omega2 = omega1 * categories[i].beta;
+                transProb->updateQ(rateMatrix->Q(omega1, omega2), i);
+            }
+        }
+    }
 
     for(Node* n : poSeq){
         int nIndex = n->getIndex();
@@ -124,7 +142,7 @@ void Model::postOrderPrune(){
             }
             n->setNeedsTPUpdate(false);
         }
-        if(n->getNeedsCLUpdate() == true || n->getNeedsTPUpdate() == true){
+        if(n->getNeedsCLUpdate() == true){
             //Get memory address of the node we are looking at and pre-set all of the likelihoods at each site to be 1.0
             activeCL[nIndex] ^= true;
             double* pNN = (*postOrder)(nIndex, activeCL[nIndex], 0);
@@ -142,43 +160,21 @@ void Model::postOrderPrune(){
                     for(int c = 0; c < numChar; c++){
                         Matrix<double> P = *(*transProb)(activeTP[dIndex], assignments[c], dIndex);
                         for(int i = 0; i < stateSpace; i++){
-                            //Sum up the products of the likelihoods from the CTMC (transitioning from the node's hypothetical state to another) and the conditional likelihood of the descendent states 
                             double sum = 0.0;
                             for(int j = 0; j < stateSpace; j++){
                                 sum += P(i, j) * pD[j];
                             }
-                            //If this is the first time, set pN equal to the sum, otherwise multiply them
                             (*pN) *= sum;
-                            //Move the memory address to the next character state
                             pN++;
                         }
-                        //Move the memory address to the next site
                         pD+=stateSpace;
                     }
                 }
             }
-            //Note that we have updated the node
             n->setNeedsCLUpdate(false);
         }
     }
-}
 
-void Model::regenerateLikelihood(){
-    TreeObject* activeT = tree->getTree();
-    int numCats = dpp->getNumCategories();
-
-    if(rateMatrix->isDirty() || dpp->isDirty()){
-        activeT->updateAll();
-        for(int i = 0; i < numCats; i++){
-            double omega1 = dpp->getCategoryOmega(i);
-            double omega2 = omega1 * dpp->getCategoryBeta(i);
-            transProb->updateQ(rateMatrix->Q(omega1, omega2), i);
-        }
-    }
-    postOrderPrune();
-
-    //Calculate the likelihood of the tree by summing up the likelihood at the root.
-    int numChar = aln->getNumChar();
     int rIndex = activeT->getRoot()->getIndex();
     double* pR = (*postOrder)(rIndex, activeCL[rIndex], 0);
     std::vector<double> f = rateMatrix->getStationary();
@@ -197,162 +193,90 @@ void Model::regenerateLikelihood(){
     currentLikelihood = lnL;
 }
 
-// ONLY DO THIS IF YOU CAN PROMISE IT WILL BE ACCEPTED!!
-void Model::forceRegenerate(int site, int category, bool update) {
-    int numChar = aln->getNumChar();
-
+void Model::regenerateLikelihood(int site, int category, bool update){
     TreeObject* activeT = tree->getTree();
 
     std::vector<Node*>&  poSeq = activeT->getPostOrderSeq();
+    std::vector<Category> categories = dpp->getCategories();
+
     if(update){
-        double omega1 = dpp->getCategoryOmega(category);
-        double omega2 = omega1 * dpp->getCategoryBeta(category);
+        double omega1 = categories[category].omega;
+        double omega2 = omega1 * categories[category].beta;
         transProb->updateQ(rateMatrix->Q(omega1, omega2), category);
     }
 
     for(Node* n : poSeq){
         int nIndex = n->getIndex();
-        
-        if(n != activeT->getRoot()){
-            double v = activeT->getBranchLength(n);
-            transProb->setProbs(activeTP[nIndex], category, nIndex, v);
+
+        if(update){
+            if(n != activeT->getRoot()){
+                double v = activeT->getBranchLength(n);
+                transProb->setProbs(activeTP[nIndex], category, nIndex, v);
+            }
         }
 
-        double* pNN = (*postOrder)(nIndex, activeCL[nIndex], 0) + (site*stateSpace);
-        std::fill(pNN, pNN + stateSpace, 1.0);
+        if(n->getIsTip() == false){
+            double* pNN = (*postOrder)(nIndex, activeCL[nIndex], 0) + site*stateSpace;
+            std::fill(pNN, pNN + stateSpace, 1.0);
 
-        std::set<Node*>& nNeighbors = n->getNeighbors();
+            std::set<Node*>& nNeighbors = n->getNeighbors();
 
-        for(Node* d : nNeighbors){
-            if(d != n->getAncestor()){
-                int dIndex = d->getIndex();
-                double* pN = pNN;
-                double* pD = (*postOrder)(dIndex, activeCL[dIndex], 0) + (site*stateSpace);
-            
-                //Regenerate site specific likelihood
-                Matrix<double> P = *(*transProb)(activeTP[dIndex], category, dIndex);
-                for(int i = 0; i < stateSpace; i++){
-                    //Sum up the products of the likelihoods from the CTMC (transitioning from the node's hypothetical state to another) and the conditional likelihood of the descendent states 
-                    double sum = 0.0;
-                    for(int j = 0; j < stateSpace; j++){
-                        sum += P(i, j) * pD[j];
+            for(Node* d : nNeighbors){
+                if(d != n->getAncestor()){
+                    int dIndex = d->getIndex();
+                    double* pN = pNN;
+                    double* pD = (*postOrder)(dIndex, activeCL[dIndex], 0) + site*stateSpace;
+
+                    Matrix<double> P = *(*transProb)(activeTP[dIndex], category, dIndex);
+                    for(int i = 0; i < stateSpace; i++){
+                        double sum = 0.0;
+                        for(int j = 0; j < stateSpace; j++){
+                            sum += P(i, j) * pD[j];
+                        }
+                        (*pN) *= sum;
+                        pN++;
                     }
-                    //If this is the first time, set pN equal to the sum, otherwise multiply them
-                    (*pN) *= sum;
-                    //Move the memory address to the next character state
-                    pN++;
                 }
             }
         }
     }
 
-    //Calculate the likelihood of the tree by summing up the likelihood at the root.
     int rIndex = activeT->getRoot()->getIndex();
     double* pR = (*postOrder)(rIndex, activeCL[rIndex], 0);
-    double* pRSite = (*postOrder)(rIndex, activeCL[rIndex], 0) + (site * stateSpace);
     std::vector<double> f = rateMatrix->getStationary();
     double lnL = 0.0;
 
     for(int c = 0; c < numChar; c++){
-        if(c != site){
-            double like = 0.0;
-            for(int i = 0; i < stateSpace; i++){
-                like += pR[i]*f[i];
-            }
-            lnL += std::log(like);
-            pR += stateSpace;
+        double like = 0.0;
+        for(int i = 0; i < stateSpace; i++){
+            like += pR[i]*f[i];
         }
-        else{
-            double like = 0.0;
-            for(int i = 0; i < stateSpace; i++){
-                like += pRSite[i]*f[i];
-            }
-            lnL += std::log(like);
-        }
-    }
-}
 
-double Model::regenerateIntoLikelihoodBuffer(int site, int category, bool update){
-
-    int numChar = aln->getNumChar();
-
-    TreeObject* activeT = tree->getTree();
-
-    std::vector<Node*>&  poSeq = activeT->getPostOrderSeq();
-    if(update){
-        double omega1 = dpp->getCategoryOmega(category);
-        double omega2 = omega1 * dpp->getCategoryBeta(category);
-        transProb->updateQ(rateMatrix->Q(omega1, omega2), category);
+        lnL += std::log(like);
+        pR += stateSpace;
     }
 
-    for(Node* n : poSeq){
-        int nIndex = n->getIndex();
-        
-        if(n != activeT->getRoot()){
-            double v = activeT->getBranchLength(n);
-            transProb->setProbs(activeTP[nIndex], category, nIndex, v);
-        }
-
-        double* pNN = (*postOrder)(nIndex, activeCL[nIndex], 0) + (numChar*stateSpace);
-        std::fill(pNN, pNN + stateSpace, 1.0);
-
-        std::set<Node*>& nNeighbors = n->getNeighbors();
-
-        for(Node* d : nNeighbors){
-            if(d != n->getAncestor()){
-                int dIndex = d->getIndex();
-                double* pN = pNN;
-                double* pD = (*postOrder)(dIndex, activeCL[dIndex], 0) + (numChar*stateSpace);
-            
-                //Regenerate site specific likelihood
-                Matrix<double> P = *(*transProb)(activeTP[dIndex], category, dIndex);
-                for(int i = 0; i < stateSpace; i++){
-                    //Sum up the products of the likelihoods from the CTMC (transitioning from the node's hypothetical state to another) and the conditional likelihood of the descendent states 
-                    double sum = 0.0;
-                    for(int j = 0; j < stateSpace; j++){
-                        sum += P(i, j) * pD[j];
-                    }
-                    //If this is the first time, set pN equal to the sum, otherwise multiply them
-                    (*pN) *= sum;
-                    //Move the memory address to the next character state
-                    pN++;
-                }
-            }
-        }
-    }
-
-    //Calculate the likelihood of the tree by summing up the likelihood at the root.
-    int rIndex = activeT->getRoot()->getIndex();
-    double* pR = (*postOrder)(rIndex, activeCL[rIndex], 0);
-    double* pRSite = (*postOrder)(rIndex, activeCL[rIndex], 0) + (numChar * stateSpace);
-    std::vector<double> f = rateMatrix->getStationary();
-    double lnL = 0.0;
-
-    for(int c = 0; c < numChar; c++){
-        if(c != site){
-            double like = 0.0;
-            for(int i = 0; i < stateSpace; i++){
-                like += pR[i]*f[i];
-            }
-            lnL += std::log(like);
-            pR += stateSpace;
-        }
-        else{
-            double like = 0.0;
-            for(int i = 0; i < stateSpace; i++){
-                like += pRSite[i]*f[i];
-            }
-            lnL += std::log(like);
-        }
-    }
-
-    return lnL;
+    currentLikelihood = lnL;
 }
 
 void Model::tuneMoves(){
     dpp->tune();
     tree->tune();
     rateMatrix->tune();
+}
+
+std::string Model::tabularHeader(){
+    std::string returnString = "Iteration\tPosterior\tLikelihood\tTree Prior\tDPP Prior\tK Prior\tR Prior";
+    if(rateMatrix->updatingStationary())
+        returnString += "\tPi Prior";
+    returnString += "\tK\tR";
+    if(rateMatrix->updatingStationary()){
+        for(int i = 0; i < 122; i++){
+            returnString += "\tPi[" + std::to_string(i) + "]";
+        }
+    }
+
+    return returnString;
 }
 
 std::string Model::tabularOut(int i){
@@ -373,26 +297,20 @@ std::string Model::tabularOut(int i){
     return returnString;
 }
 
-std::string Model::tabularHeader(){
-    std::string returnString = "Iteration\tPosterior\tLikelihood\tTree Prior\tDPP Prior\tK Prior\tR Prior";
-    if(rateMatrix->updatingStationary())
-        returnString += "\tPi Prior";
-    returnString += "\tK\tR";
-    if(rateMatrix->updatingStationary()){
-        for(int i = 0; i < 122; i++){
-            returnString += "\tPi[" + std::to_string(i) + "]";
-        }
-    }
-
-    return returnString;
+std::string Model::treeHeader(){
+    return "Iteration\tPosterior\tTree";
 }
 
 std::string Model::treeOut(int i){
     return std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" + tree->writeNewick();
 }
 
-std::string Model::treeHeader(){
-    return "Iteration\tPosterior\tTree";
+std::string Model::dppHeader(){
+    std::string returnString = "Iteration\tPosterior\tCategoryCount";
+    for(int i = 0; i < numChar; i++)
+        returnString += "\tOmega[" + std::to_string(i) + "]" + "\tBeta[" + std::to_string(i) + "]";
+
+    return returnString;
 }
 
 std::string Model::dppOut(int i){
@@ -402,14 +320,6 @@ std::string Model::dppOut(int i){
     for(int c : assignments){
         returnString += "\t" + std::to_string(categories[c].omega) + "\t" + std::to_string(categories[c].beta);
     }
-
-    return returnString;
-}
-
-std::string Model::dppHeader(){
-    std::string returnString = "Iteration\tPosterior\tCategoryCount";
-    for(int i = 0, len = aln->getNumChar(); i < len; i++)
-        returnString += "\tOmega[" + std::to_string(i) + "]" + "\tBeta[" + std::to_string(i) + "]";
 
     return returnString;
 }

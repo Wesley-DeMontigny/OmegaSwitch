@@ -11,13 +11,14 @@ class TransitionProbability {
 
 	public:
                                 TransitionProbability(const int nn, const int nC);
-                               ~TransitionProbability ();                                                                                     //!< destructor
+                               ~TransitionProbability ();
         Matrix<double>*         operator()(int s, int r, int n) { return probs[s][r*numNodes + n]; }
         int                     getNumStates(void) { return numStates; }
         int                     getNumMatrices(void) {return isComplex.size();}
         void                    accept(void);          
         void                    reject(void);                                                                                   
-        void                    setProbs(const int state, const int r, const int node, const double v);                                     //!< calculate transition probabilities (P) for length v and store it
+        void                    setProbs(const int state, const int r, const int node, const double v);
+        void                    pullProbs(const int state, const int r, const int node, const double v);
         void                    updateQ(Matrix<double>& Q, const int index);
         void                    deleteQ(const int index);
         void                    popQ();

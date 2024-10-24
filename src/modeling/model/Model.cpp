@@ -133,11 +133,22 @@ void Model::regenerateLikelihood(){
         int nIndex = n->getIndex();
         //Only update the conditional likelihoods if the node has changed
         if(n->getNeedsTPUpdate() == true){
-            if(n != activeT->getRoot()){
-                activeTP[nIndex] ^= true;
-                double v = activeT->getBranchLength(n);
-                for(int i = 0; i < numCats; i++){
-                    transProb->setProbs(activeTP[nIndex], i, nIndex, v);
+            if(n != activeT->getRoot()) {
+                if(!dpp->isDirty()) {
+                    activeTP[nIndex] ^= true;
+                    double v = activeT->getBranchLength(n);
+                    for(int i = 0; i < numCats; i++)
+                        transProb->setProbs(activeTP[nIndex], i, nIndex, v);
+                }
+                else {
+                    activeTP[nIndex] ^= true;
+                    double v = activeT->getBranchLength(n);
+                    for(int i = 0; i < numCats; i++){
+                        if(categories[i].dirty)
+                            transProb->setProbs(activeTP[nIndex], i, nIndex, v);
+                        else
+                            transProb->pullProbs(activeTP[nIndex], i, nIndex, v);
+                    }
                 }
             }
             n->setNeedsTPUpdate(false);

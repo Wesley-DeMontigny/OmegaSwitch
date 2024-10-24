@@ -1,5 +1,6 @@
 #include "core/RandomVariable.hpp"
 #include "core/Alignment.hpp"
+#include "core/Settings.hpp"
 #include "modeling/analysis/MoveScheduler.hpp"
 #include "ncl/nxscharactersblock.h"
 #include "modeling/parameters/trees/TreeParameter.hpp"
@@ -16,10 +17,11 @@ int main(int argc, char* argv[]) {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
     MoveScheduler moveScheduler;
 
-    Alignment aln("C:/Users/wescd/OneDrive/Documents/Code/Varying_Selection_DPP/res/replicase.nex");
+    Settings settings(argc, argv);
+
+    Alignment aln(settings.nexusInput);
     std::cout << "Initializing model..." << std::endl;
 
-    //Purely empirical values right now.
     std::vector<double> stationaryDist;
     for(double v : aln.getStateFrequencies()){
         stationaryDist.push_back(v/2);
@@ -28,22 +30,22 @@ int main(int argc, char* argv[]) {
         stationaryDist.push_back(v/2);
     }
 
-    TreeParameter treeParam(&aln, 10.0);
-    moveScheduler.registerParam(&treeParam, 10);
+    TreeParameter treeParam(&aln, settings.treeLengthLambda);
+    moveScheduler.registerParam(&treeParam, settings.treeWeight);
 
-    DirichletProcessPrior dpp(aln.getNumChar(), 0.5, 10);
-    moveScheduler.registerParam(&dpp, 5);
+    DirichletProcessPrior dpp(aln.getNumChar(), settings.dppAlpha, settings.omegaLambda, settings.numGibbsUpdate);
+    moveScheduler.registerParam(&dpp, settings.dppWeight);
 
-    CodonMultiMatrix rateMatrix(2.0, stationaryDist, false);
-    moveScheduler.registerParam(&rateMatrix, 10);
+    CodonMultiMatrix rateMatrix(settings.rLambda, settings.kLambda, stationaryDist, settings.updateStationary);
+    moveScheduler.registerParam(&rateMatrix, settings.rateMatrixWeight);
 
     Model model(&aln, &treeParam, &rateMatrix, &dpp);
 
-    Mcmc myMCMC(&model, &moveScheduler);
+    Mcmc myMCMC(&model, &moveScheduler, settings);
 
-    myMCMC.burnin(10000, 10, 500);
-    myMCMC.run(100000, 10, 100);
+    myMCMC.burnin();
+    myMCMC.run();
 
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    std::cout << "Time to complete = " << std::chrono::duration_cast<std::chrono::seconds>(end - begin).count() << "[s]" << std::endl;
+    std::cout << "Analysis was completed in " << std::chrono::duration_cast<std::chrono::minutes>(end - begin).count() << "[m]" << std::endl;
 }

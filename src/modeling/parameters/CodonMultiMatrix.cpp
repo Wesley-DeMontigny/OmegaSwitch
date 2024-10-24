@@ -3,10 +3,10 @@
 #include "core/RandomVariable.hpp"
 #include "core/Probability.hpp"
 
-CodonMultiMatrix::CodonMultiMatrix(double rL, std::vector<double> pi, bool updatePi) : 
+CodonMultiMatrix::CodonMultiMatrix(double rL, double kL, std::vector<double> pi, bool updatePi) : 
                                    currentQMatrix(122, 122, 0.0), oldQMatrix(122, 122, 0.0), 
                                    currentStationary(pi), oldStationary(pi), currentRPrior(0.0), oldRPrior(0.0),
-                                   rLambda(rL), currentKPrior(0.0), oldKPrior(0.0), currentStationaryPrior(0.0), 
+                                   rLambda(rL), kLambda(kL), currentKPrior(0.0), oldKPrior(0.0), currentStationaryPrior(0.0), 
                                    oldStationaryPrior(0.0), updateStationary(updatePi), moveChoice(-1), rCount(0),
                                    kCount(0), stationaryCount(0), rAcceptCount(0), kAcceptCount(0), stationaryAcceptCount(0),
                                    rDelta(std::log(2)), kDelta(std::log(2)), stationaryAlpha(1.0) {
@@ -42,14 +42,14 @@ CodonMultiMatrix::CodonMultiMatrix(double rL, std::vector<double> pi, bool updat
     }
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
-    currentR = 1;
+    currentR = Probability::Exponential::rv(&rng, rLambda);;
     oldR = currentR;
     currentRPrior = Probability::Exponential::lnPdf(rLambda, currentR);
     oldRPrior = currentRPrior;
 
-    currentK = 1;
+    currentK = Probability::Exponential::rv(&rng, kLambda);
     oldK = currentK;
-    currentKPrior = -2 * std::log(1.0 + currentK);
+    currentKPrior = Probability::Exponential::lnPdf(kLambda, currentK);
     oldKPrior = currentKPrior;
 
     if(updateStationary){
@@ -171,7 +171,7 @@ double CodonMultiMatrix::update() {
 
         this->dirty();
 
-        currentKPrior = -2 * std::log(1.0 + currentK);
+        currentKPrior = Probability::Exponential::rv(&rng, kLambda);;;
 
         hastings = std::log(scale);
 

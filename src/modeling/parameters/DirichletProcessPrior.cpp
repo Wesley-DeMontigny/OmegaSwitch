@@ -9,8 +9,8 @@
 #include <iostream>
 #include <algorithm>
 
-DirichletProcessPrior::DirichletProcessPrior(int size, double a, int numGibbs) : 
-                                             alpha(a), numMembers(size), currentLnPrior(0.0), 
+DirichletProcessPrior::DirichletProcessPrior(int size, double a, double oL, int numGibbs) : 
+                                             alpha(a), omegaLambda(oL), numMembers(size), currentLnPrior(0.0), 
                                              oldLnPrior(0.0), numGibbsUpdate(numGibbs), model(nullptr),
                                              moveChoice(-1), omegaCount(0), omegaAcceptCount(0), omegaDelta(std::log(2)),
                                              betaCount(0), betaAcceptCount(0), betaAlpha(1.0) {
@@ -23,7 +23,7 @@ DirichletProcessPrior::DirichletProcessPrior(int size, double a, int numGibbs) :
 
         // If new category
         if(total > randomVal){
-            Category newCat = {Probability::Exponential::rv(&rng, 1)/Probability::Exponential::rv(&rng, 1),
+            Category newCat = {Probability::Exponential::rv(&rng, omegaLambda),
                                Probability::Beta::rv(&rng, 1, 1),
                                1, {i}, true};
             currentCategories.push_back(newCat);
@@ -73,7 +73,7 @@ void DirichletProcessPrior::regeneratePrior(){
 
     for (int i = 0; i < numCats; ++i) {
         currentLnPrior += Math::lnFactorial(currentCategories[i].size - 1);
-        currentLnPrior += -2 * std::log(1.0 + currentCategories[i].omega);
+        currentLnPrior += Probability::Exponential::lnPdf(omegaLambda, currentCategories[i].omega);
         currentLnPrior += Probability::Beta::lnPdf(1, 1, currentCategories[i].beta);
     }
 
@@ -243,7 +243,7 @@ double DirichletProcessPrior::update() {
 
             addCategory(0, 0);
             for(int i = 0; i < 5; i++){
-                double newOmega = Probability::Exponential::rv(&rng, 1)/Probability::Exponential::rv(&rng, 1);
+                double newOmega = Probability::Exponential::rv(&rng, omegaLambda);
                 double newBeta = Probability::Beta::rv(&rng, 1, 1);
                 currentCategories[numCats].omega = newOmega;
                 currentCategories[numCats].beta = newBeta;

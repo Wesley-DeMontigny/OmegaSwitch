@@ -3,13 +3,23 @@
 #include "MoveScheduler.hpp"
 #include "modeling/model/Model.hpp"
 #include "modeling/parameters/Parameter.hpp"
+#include "core/Settings.hpp"
 #include <cmath>
 #include <iostream>
 #include <fstream>
 
-Mcmc::Mcmc(Model* m, MoveScheduler* mS) : model(m), moveScheduler(mS) {   }
+Mcmc::Mcmc(Model* m, MoveScheduler* mS, Settings& s) : model(m), moveScheduler(mS) { 
+    numIter = s.numIterations;
+    numBurnIn = s.burnInIterations;
+    printFreq = s.printFrequency;
+    tuneFreq = s.tuneFrequency;
+    sampleFreq = s.sampleFrequency;
+    analysisLog = s.mcmcOutput;
+    treeLog = s.treeOutput;
+    dppLog = s.dppOutput;
+}
 
-void Mcmc::burnin(int numCycles, int screenIterations, int tuningIterations){
+void Mcmc::burnin(){
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
     model->regenerateLikelihood();
@@ -17,11 +27,11 @@ void Mcmc::burnin(int numCycles, int screenIterations, int tuningIterations){
 
     double currentLnPosterior = model->lnLikelihood() + model->lnPrior();
 
-    for(int n = 1; n <= numCycles; n++){
-        if(n % screenIterations == 0){
+    for(int n = 1; n <= numBurnIn; n++){
+        if(n % printFreq == 0){
             std::cout << "Burn-in Iteration " << n << ": " << currentLnPosterior << std::endl;
         }
-        if(n % tuningIterations == 0){
+        if(n % tuneFreq == 0){
             model->tuneMoves();
         }
 
@@ -43,7 +53,7 @@ void Mcmc::burnin(int numCycles, int screenIterations, int tuningIterations){
     }
 }
 
-void Mcmc::run(int numCycles, int screenIterations, int fileIterations){
+void Mcmc::run(){
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
     model->regenerateLikelihood();
@@ -54,9 +64,6 @@ void Mcmc::run(int numCycles, int screenIterations, int fileIterations){
     std::string tabularHeader = model->tabularHeader();
     std::cout << tabularHeader;
 
-    std::string analysisLog = "C:/Users/wescd/OneDrive/Documents/Code/Varying_Selection_DPP/res/analysis.log";
-    std::string treeLog = "C:/Users/wescd/OneDrive/Documents/Code/Varying_Selection_DPP/res/trees.log";
-    std::string dppLog = "C:/Users/wescd/OneDrive/Documents/Code/Varying_Selection_DPP/res/dpp.log";
     std::fstream fs;
     fs.open(analysisLog, std::fstream::out);
     fs << tabularHeader;
@@ -71,11 +78,11 @@ void Mcmc::run(int numCycles, int screenIterations, int fileIterations){
     fs.close();
     fs.clear();
 
-    for(int n = 1; n <= numCycles; n++){
-        if(n % screenIterations == 0){
+    for(int n = 1; n <= numIter; n++){
+        if(n % printFreq == 0){
             std::cout << model->tabularOut(n);
         }
-        if(n % fileIterations == 0){
+        if(n % sampleFreq == 0){
             fs.open(analysisLog, std::fstream::app);
             fs << model->tabularOut(n);
             fs.close();

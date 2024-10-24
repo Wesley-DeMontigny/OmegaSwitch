@@ -8,7 +8,7 @@
 
 class CodonMultiMatrix : public Parameter {
     public:
-        CodonMultiMatrix(double rL, std::vector<double> pi, bool updatePi=false);
+        CodonMultiMatrix(double rL, double kL, std::vector<double> pi, bool updatePi=false);
         Matrix<double> Q(double omega1, double omega2);
         std::vector<double> stationary();
         void accept();
@@ -38,6 +38,7 @@ class CodonMultiMatrix : public Parameter {
         int stationaryAcceptCount;
         double stationaryAlpha;
 
+        double kLambda;
         double currentK;
         double oldK;
         double currentKPrior;

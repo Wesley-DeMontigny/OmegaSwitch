@@ -16,7 +16,7 @@ struct Category {
 class DirichletProcessPrior : public Parameter {
     public:
         DirichletProcessPrior(void)=delete;
-        DirichletProcessPrior(int size, double alpha, int numGibbs);
+        DirichletProcessPrior(int size, double alpha, double oL, int numGibbs);
         ~DirichletProcessPrior(void);
 
         void registerModel(Model* m) {model = m;}
@@ -51,6 +51,7 @@ class DirichletProcessPrior : public Parameter {
         double oldLnPrior;
         double currentLnPrior;
         double alpha;
+        double omegaLambda;
 
         int moveChoice;
         int omegaCount;

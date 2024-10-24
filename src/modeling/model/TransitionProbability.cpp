@@ -117,14 +117,23 @@ void TransitionProbability::reject(void) {
 	}
 }
 
-
-/* This function returns transition probabilities in the Matrix P */
 void TransitionProbability::setProbs(const int state, const int rate, const int node, const double v) {
 	Matrix<double> P = *(probs[state][rate*numNodes + node]);
 	if (!isComplex[rate])
 		tiProbsEigens(v, P, rate);
 	else
 		tiProbsComplexEigens(v, P, rate);
+}
+
+void TransitionProbability::pullProbs(const int state, const int rate, const int node, const double v) {
+	Matrix<double> P = *(probs[state][rate*numNodes + node]);
+	Matrix<double> P2 = *(probs[state ^ true][rate*numNodes + node]);
+
+	for (int i=0; i<numStates; i++) {
+		for (int j=0; j<numStates; j++) {
+			P(i,j) = P2(i,j);
+		}
+	}
 }
 
 /* This function calculates transition probabilities using

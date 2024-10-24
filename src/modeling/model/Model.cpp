@@ -143,22 +143,22 @@ void Model::regenerateLikelihood(){
             n->setNeedsTPUpdate(false);
         }
         if(n->getNeedsCLUpdate() == true){
-            //Get memory address of the node we are looking at and pre-set all of the likelihoods at each site to be 1.0
             activeCL[nIndex] ^= true;
             double* pNN = (*postOrder)(nIndex, activeCL[nIndex], 0);
-            std::fill(pNN, pNN + (numChar* stateSpace), 1.0);
+            std::fill(pNN, pNN + (numChar * stateSpace), 1.0);
 
             std::set<Node*>& nNeighbors = n->getNeighbors();
-            //Iterate over the descendents (usually only two)
             for(Node* d : nNeighbors){
                 if(d != n->getAncestor()){
                     int dIndex = d->getIndex();
                     double* pN = pNN;
                     double* pD = (*postOrder)(dIndex, activeCL[dIndex], 0);
 
-                    //Iterate over each of the characters and each of the potential states of our node
+                    std::vector<Matrix<double>> transProbMatrices;
+                    for(int cat = 0; cat < numCats; cat++)
+                        transProbMatrices.push_back(*(*transProb)(activeTP[dIndex], cat, dIndex));
                     for(int c = 0; c < numChar; c++){
-                        Matrix<double> P = *(*transProb)(activeTP[dIndex], assignments[c], dIndex);
+                        Matrix<double> P = transProbMatrices[assignments[c]];
                         for(int i = 0; i < stateSpace; i++){
                             double sum = 0.0;
                             for(int j = 0; j < stateSpace; j++){
@@ -276,7 +276,7 @@ std::string Model::tabularHeader(){
         }
     }
 
-    return returnString;
+    return returnString + "\n";
 }
 
 std::string Model::tabularOut(int i){
@@ -294,15 +294,15 @@ std::string Model::tabularOut(int i){
         }
     }
 
-    return returnString;
+    return returnString + "\n";
 }
 
 std::string Model::treeHeader(){
-    return "Iteration\tPosterior\tTree";
+    return "Iteration\tPosterior\tTree\n";
 }
 
 std::string Model::treeOut(int i){
-    return std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" + tree->writeNewick();
+    return std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" + tree->writeNewick() + "\n";
 }
 
 std::string Model::dppHeader(){
@@ -310,16 +310,17 @@ std::string Model::dppHeader(){
     for(int i = 0; i < numChar; i++)
         returnString += "\tOmega[" + std::to_string(i) + "]" + "\tBeta[" + std::to_string(i) + "]";
 
-    return returnString;
+    return returnString + "\n";
 }
 
 std::string Model::dppOut(int i){
     std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t";
     std::vector<Category> categories = dpp->getCategories();
+    returnString += std::to_string(categories.size());
     std::vector<int> assignments = dpp->getAssinments();
     for(int c : assignments){
         returnString += "\t" + std::to_string(categories[c].omega) + "\t" + std::to_string(categories[c].beta);
     }
 
-    return returnString;
+    return returnString + "\n";
 }

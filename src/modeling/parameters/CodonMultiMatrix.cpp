@@ -18,6 +18,7 @@ CodonMultiMatrix::CodonMultiMatrix(double rL, std::vector<double> pi, bool updat
     for(int i = 0; i < 61; i++){
         for(int j = i + 1; j < 61; j++){
             int mismatch = 0;
+            bool isTransition = false;
             for(int k = 0; k < 3; k++){
                 if(codons[i][k] != codons[j][k]){
                     mismatch++;
@@ -26,13 +27,16 @@ CodonMultiMatrix::CodonMultiMatrix(double rL, std::vector<double> pi, bool updat
                     }
                     if((codons[i][k] == 'A' && codons[j][k] == 'G') || (codons[i][k] == 'G' && codons[j][k] == 'A') || 
                        (codons[i][k] == 'T' && codons[j][k] == 'C') || (codons[i][k] == 'C' && codons[j][k] == 'T'))
-                        transition.insert(std::make_pair(i, j));
+                        isTransition = true;
                 }
             }
             if(mismatch == 1){
-                valid.insert(std::make_pair(i, j));
+                auto pair = std::make_pair(i, j);
+                valid.insert(pair);
                 if(aaMap[i] != aaMap[j])
-                    nonsynonymous.insert(std::make_pair(i, j));
+                    nonsynonymous.insert(pair);
+                if(isTransition)
+                    transition.insert(pair);
             }
         }
     }
@@ -57,20 +61,19 @@ CodonMultiMatrix::CodonMultiMatrix(double rL, std::vector<double> pi, bool updat
     }
 
     for(auto coord : valid){
-        currentQMatrix(coord.first, coord.second) = currentStationary[coord.first];
-        currentQMatrix(coord.second, coord.first) = currentStationary[coord.second];
-        currentQMatrix(coord.first + 61, coord.second +  61) = currentStationary[coord.first];
-        currentQMatrix(coord.second + 61, coord.first + 61) = currentStationary[coord.second];
+        currentQMatrix(coord.first, coord.second) = currentStationary[coord.second];
+        currentQMatrix(coord.second, coord.first) = currentStationary[coord.first];
+        currentQMatrix(coord.first + 61, coord.second +  61) = currentStationary[coord.second + 61];
+        currentQMatrix(coord.second + 61, coord.first + 61) = currentStationary[coord.first + 61];
 
-        currentQMatrix(coord.first, coord.first + 61) = currentR * currentStationary[coord.first];
+        currentQMatrix(coord.first, coord.first + 61) = currentR * currentStationary[coord.first + 61];
         currentQMatrix(coord.first + 61, coord.first) = currentR * currentStationary[coord.first];
-        currentQMatrix(coord.second, coord.second + 61) = currentR * currentStationary[coord.second];
+        currentQMatrix(coord.second, coord.second + 61) = currentR * currentStationary[coord.second + 61];
         currentQMatrix(coord.second + 61, coord.second) = currentR * currentStationary[coord.second];
     }
     for(auto coord : transition){
         currentQMatrix(coord.first, coord.second) *= currentK;
         currentQMatrix(coord.second, coord.first) *= currentK;
-
         currentQMatrix(coord.first + 61, coord.second + 61) *= currentK;
         currentQMatrix(coord.second + 61, coord.first + 61) *= currentK;  
     }
@@ -154,12 +157,11 @@ double CodonMultiMatrix::update() {
         hastings = std::log(scale);
 
         for(auto coord : valid){
-            currentQMatrix(coord.first, coord.first + 61) = currentR * currentStationary[coord.first];
+            currentQMatrix(coord.first, coord.first + 61) = currentR * currentStationary[coord.first + 61];
             currentQMatrix(coord.first + 61, coord.first) = currentR * currentStationary[coord.first];
-            currentQMatrix(coord.second, coord.second + 61) = currentR * currentStationary[coord.second];
+            currentQMatrix(coord.second, coord.second + 61) = currentR * currentStationary[coord.second + 61];
             currentQMatrix(coord.second + 61, coord.second) = currentR * currentStationary[coord.second];
         }
-
     }
     else if(randomMove < 0.66) { // Scale K
         moveChoice = 1;
@@ -174,10 +176,10 @@ double CodonMultiMatrix::update() {
         hastings = std::log(scale);
 
         for(auto coord : transition){
-            currentQMatrix(coord.first, coord.second) = currentStationary[coord.first] * currentK;
-            currentQMatrix(coord.second, coord.first) = currentStationary[coord.second] * currentK;
-            currentQMatrix(coord.first + 61, coord.second +  61) = currentStationary[coord.first] * currentK;
-            currentQMatrix(coord.second + 61, coord.first + 61) = currentStationary[coord.second] * currentK;
+            currentQMatrix(coord.first, coord.second) = currentStationary[coord.second] * currentK;
+            currentQMatrix(coord.second, coord.first) = currentStationary[coord.first] * currentK;
+            currentQMatrix(coord.first + 61, coord.second + 61) = currentStationary[coord.second + 61] * currentK;
+            currentQMatrix(coord.second + 61, coord.first + 61) = currentStationary[coord.first + 61] * currentK;  
         }
     }
     else { // Beta simplex on the stationary
@@ -225,33 +227,32 @@ double CodonMultiMatrix::update() {
 
         this->dirty();
 
-        for(auto coord : valid){
-            currentQMatrix(coord.first, coord.second) = currentStationary[coord.first];
-            currentQMatrix(coord.second, coord.first) = currentStationary[coord.second];
-            currentQMatrix(coord.first + 61, coord.second +  61) = currentStationary[coord.first];
-            currentQMatrix(coord.second + 61, coord.first + 61) = currentStationary[coord.second];
+        currentStationaryPrior = Probability::Dirichlet::lnPdf(flatDirichlet, currentStationary);
 
-            currentQMatrix(coord.first, coord.first + 61) = currentR * currentStationary[coord.first];
+        for(auto coord : valid){
+            currentQMatrix(coord.first, coord.second) = currentStationary[coord.second];
+            currentQMatrix(coord.second, coord.first) = currentStationary[coord.first];
+            currentQMatrix(coord.first + 61, coord.second +  61) = currentStationary[coord.second + 61];
+            currentQMatrix(coord.second + 61, coord.first + 61) = currentStationary[coord.first + 61];
+
+            currentQMatrix(coord.first, coord.first + 61) = currentR * currentStationary[coord.first + 61];
             currentQMatrix(coord.first + 61, coord.first) = currentR * currentStationary[coord.first];
-            currentQMatrix(coord.second, coord.second + 61) = currentR * currentStationary[coord.second];
+            currentQMatrix(coord.second, coord.second + 61) = currentR * currentStationary[coord.second + 61];
             currentQMatrix(coord.second + 61, coord.second) = currentR * currentStationary[coord.second];
         }
         for(auto coord : transition){
             currentQMatrix(coord.first, coord.second) *= currentK;
             currentQMatrix(coord.second, coord.first) *= currentK;
-
             currentQMatrix(coord.first + 61, coord.second + 61) *= currentK;
             currentQMatrix(coord.second + 61, coord.first + 61) *= currentK;  
         }
-
-        currentStationaryPrior = Probability::Dirichlet::lnPdf(flatDirichlet, currentStationary);
     }
 
     return hastings;
 }
 
 Matrix<double> CodonMultiMatrix::Q(double omega1, double omega2) {
-    Matrix<double> returnMatrix = currentQMatrix;
+    Matrix<double> returnMatrix = currentQMatrix.copy();
 
     for(auto coord : nonsynonymous){
         returnMatrix(coord.first, coord.second) *= omega1;

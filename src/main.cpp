@@ -29,20 +29,20 @@ int main(int argc, char* argv[]) {
     }
 
     TreeParameter treeParam(&aln, 10.0);
-    moveScheduler.registerParam(&treeParam, 1);
+    moveScheduler.registerParam(&treeParam, 10);
 
-    DirichletProcessPrior dpp(aln.getNumChar(), 0.5, 1);
-    moveScheduler.registerParam(&dpp, 7.5);
+    DirichletProcessPrior dpp(aln.getNumChar(), 0.5, 10);
+    moveScheduler.registerParam(&dpp, 5);
 
     CodonMultiMatrix rateMatrix(2.0, stationaryDist, false);
-    moveScheduler.registerParam(&rateMatrix, 1000000);
+    moveScheduler.registerParam(&rateMatrix, 10);
 
     Model model(&aln, &treeParam, &rateMatrix, &dpp);
 
     Mcmc myMCMC(&model, &moveScheduler);
 
-    //myMCMC.burnin(2500, 10, 500);
-    myMCMC.run(500000, 1, 100);
+    myMCMC.burnin(10000, 10, 500);
+    myMCMC.run(100000, 10, 100);
 
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::cout << "Time to complete = " << std::chrono::duration_cast<std::chrono::seconds>(end - begin).count() << "[s]" << std::endl;

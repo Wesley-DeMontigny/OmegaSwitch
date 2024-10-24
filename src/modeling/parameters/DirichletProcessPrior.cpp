@@ -145,14 +145,6 @@ void DirichletProcessPrior::assignMember(int member, int category){
 }
 
 void DirichletProcessPrior::accept() {
-    for(int i = 0; i < currentCategories.size(); i++){
-        currentCategories[i].dirty = false;
-    }
-
-    oldCategories = currentCategories;
-    oldLnPrior = currentLnPrior;
-    oldAssignments = assignments;
-
     if(moveChoice != -1){
         if(moveChoice == 0){
             betaAcceptCount += 1;
@@ -160,8 +152,17 @@ void DirichletProcessPrior::accept() {
         else if(moveChoice == 1){
             omegaAcceptCount += 1;
         }
-        moveChoice = -1;
     }
+
+    moveChoice = -1;
+
+    for(int i = 0; i < currentCategories.size(); i++){
+        currentCategories[i].dirty = false;
+    }
+
+    oldCategories = currentCategories;
+    oldLnPrior = currentLnPrior;
+    oldAssignments = assignments;
 }
 
 void DirichletProcessPrior::reject() {
@@ -231,7 +232,6 @@ double DirichletProcessPrior::update() {
 
             std::vector<double> conditionalL;
             int numCats = currentCategories.size();
-
             for(int i = 0; i < numCats; i++){
                 model->regenerateLikelihood(randomMember, i, false);
                 conditionalL.push_back(model->lnLikelihood() + std::log(currentCategories[i].size));
@@ -273,19 +273,22 @@ double DirichletProcessPrior::update() {
                     if(i < numCats) { //It already exists
                         assignMember(randomMember, i);
                         model->getTransitionProbability()->deleteQ(numCats); //Remove extra
-                        assignments[randomMember] = i;
                         model->regenerateLikelihood(randomMember, i, false);
                     }
                     else {
                         addCategory(omegaVec[i - numCats], betaVec[i - numCats]);
                         assignMember(randomMember, numCats);
-                        assignments[randomMember] = numCats;
                         model->regenerateLikelihood(randomMember, numCats, true);
                     }
                     break;
                 }
             }
         }
+
+        int numCats = currentCategories.size();
+        for(int i = 0; i < numCats; i++)
+            for(int m : currentCategories[i].members)
+                assignments[m] = i;
     }
 
     regeneratePrior();

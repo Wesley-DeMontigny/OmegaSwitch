@@ -60,7 +60,7 @@ double TreeParameter::update() {
     double hastings = 0.0;
 
     //Local Move
-    if(randomMove < 0.33){
+    if(randomMove < 0.75){
         moveChoice = 0;
         localCount += 1;
         TreeObject* tree = trees[0];

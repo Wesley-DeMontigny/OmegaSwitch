@@ -190,10 +190,10 @@ void TransitionProbability::updateQ(Matrix<double>& Q, const int index) {
 
 	// Precalculate the product of the eigenvectors and their inverse
 	if (isComplex[index] == false) {
-			calcCijk(index);
+		calcCijk(index);
 	}
 	else {
-			calcComplexCijk(index);
+		calcComplexCijk(index);
 	}
 }
 

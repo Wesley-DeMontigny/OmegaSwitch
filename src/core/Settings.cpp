@@ -33,15 +33,17 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
     settings.push_back("-simulate");
     settings.push_back("1");
     settings.push_back("-omega1Vector");
-    settings.push_back("1,0.5");
+    settings.push_back("1.5,0.75");
+    settings.push_back("-numChar");
+    settings.push_back("250");
     settings.push_back("-omega2Vector");
     settings.push_back("0.5,0.25");
     settings.push_back("-kValue");
-    settings.push_back("1.0");
+    settings.push_back("2.5");
     settings.push_back("-rValue");
     settings.push_back("0.15");
-    settings.push_back("-scaleTree");
-    settings.push_back("3.5");
+    settings.push_back("-treeLambda");
+    settings.push_back("0.2");
 
     if (settings.size() == 0) {
         usage();
@@ -71,13 +73,13 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                 burnInIterations = stoi(settings[i]);
             else if (currentArg == "-tuneFreq")
                 tuneFrequency = stoi(settings[i]);
-            else if (currentArg == "-treeLamdba")
+            else if (currentArg == "-treeLambda")
                 treeLengthLambda = stod(settings[i]);
-            else if (currentArg == "-omegaLamdba")
+            else if (currentArg == "-omegaLambda")
                 omegaLambda = stod(settings[i]);
-            else if (currentArg == "-kLamdba")
+            else if (currentArg == "-kLambda")
                 kLambda = stod(settings[i]);
-            else if (currentArg == "-rLamdba")
+            else if (currentArg == "-rLambda")
                 rLambda = stod(settings[i]);
             else if (currentArg == "-dppAlpha")
                 dppAlpha = stod(settings[i]);
@@ -101,8 +103,6 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                 numChar = stoi(settings[i]);
             else if (currentArg == "-kValue")
                 kValue = stod(settings[i]);
-            else if (currentArg == "-scaleTree")
-                scaleTree = stod(settings[i]);
             else if (currentArg == "-rValue")
                 rValue = stod(settings[i]);
             else if (currentArg == "-omega1Vector"){
@@ -252,7 +252,6 @@ void Settings::usage(void) {
     std::cout << "   * -simulate          : Should this run be a simulation under the model (0/1)?" << std::endl;
     std::cout << "   * -numTaxa           : The number of taxa to simulate." << std::endl;
     std::cout << "   * -numChar           : The number of chararacters to simulate." << std::endl;
-    std::cout << "   * -scaleBranches     : Generate a random tree on a scaled uniform distribution." << std::endl;
     std::cout << "   * -omega1Vector      : The vector of omega 1 rate multipliers." << std::endl;
     std::cout << "   * -omega2Vector      : The vector of omega 2 rate multipliers." << std::endl;
     std::cout << "   * -asignmentVector   : The vector of category assignments." << std::endl;

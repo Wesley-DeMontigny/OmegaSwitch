@@ -2,7 +2,7 @@
 #include "core/Alignment.hpp"
 #include "core/Msg.hpp"
 
-ConditionalLikelihood::ConditionalLikelihood(Alignment* aln, int nR) : numNodes((aln->getNumTaxa() * 2) - 1), numRates(nR), stateSpace(122) {
+ConditionalLikelihood::ConditionalLikelihood(Alignment* aln, int nN, int nR) : numNodes(nN), numRates(nR), stateSpace(122) {
     numChar = aln->getNumChar();
     int width = numNodes*numChar*stateSpace*numRates;
     condLikelihoods[0] = new double[2 * width];

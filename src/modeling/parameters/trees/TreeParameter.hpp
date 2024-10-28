@@ -7,7 +7,7 @@
 class TreeParameter : public Parameter{
     public:
         TreeParameter(void)=delete;
-        TreeParameter(Alignment* aln, double lambda);
+        TreeParameter(Alignment* aln, std::string newick, double lambda);
         ~TreeParameter();
         TreeObject* getTree(){return trees[0];}
 
@@ -20,10 +20,11 @@ class TreeParameter : public Parameter{
 
         std::string writeNewick() {return trees[0]->getNewick();}
     private:
+        bool fixedTree;
         int moveChoice;
-        int localCount;
-        int localAcceptCount;
-        double localDelta;
+        int count;
+        int acceptCount;
+        double delta;
         double lambda;
         double currentPrior;
         double oldPrior;

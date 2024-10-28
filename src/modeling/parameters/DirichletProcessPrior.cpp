@@ -45,12 +45,7 @@ DirichletProcessPrior::DirichletProcessPrior(int size, double a, double oL, int 
     for(int i = 0; i < numMembers; i++)
         assignments.push_back(-1);
 
-    denominator = 0.0;
-    double cp = alpha - 1;
-    for(int i = 1; i <= numMembers; i++){
-        denominator += std::log(cp + i);
-    }
-
+    denominator = Math::lnGamma(numMembers - alpha);
 
     int numCats = currentCategories.size();
     for(int i = 0; i < numCats; i++)

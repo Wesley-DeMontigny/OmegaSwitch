@@ -26,6 +26,7 @@ class TreeObject {
         std::vector<double> getBranchLengths();
         std::string         getNewick() const;
         int                 getNumTaxa(){return numTaxa;}
+        int                 getNumNodes(){return nodes.size();}
         std::vector<Node*>& getPostOrderSeq() {return postOrderSeq;}
         Node*               getRoot() {return root;}
         std::vector<Node*>  getTips();

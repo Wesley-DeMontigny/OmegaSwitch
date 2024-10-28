@@ -26,7 +26,7 @@ Model::Model(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProce
         Msg::error("Expected " + std::to_string(aln->getNumTaxa()) + 
         "taxa in the tree, but found only " + std::to_string(activeT->getNumTaxa()));
     
-    int numNodes = (aln->getNumTaxa() * 2) - 1;
+    numNodes = tree->getTree()->getNumNodes();
 
     int flagWidths = 2 * numNodes;
     activeCL = new bool[flagWidths];
@@ -35,7 +35,7 @@ Model::Model(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProce
         activeCL[i] = false;
         activeTP[i] = false;
     }
-    postOrder = new ConditionalLikelihood(aln, 1);
+    postOrder = new ConditionalLikelihood(aln, numNodes, 1);
     transProb = new TransitionProbability(numNodes, numChar);
 
     activeT->updateAll();
@@ -51,7 +51,6 @@ Model::~Model(){
 void Model::accept() {
     oldLikelihood = currentLikelihood;
 
-    int numNodes = (aln->getNumTaxa() * 2) - 1;
     for(int i = 0; i < numNodes; i++){
         activeCL[i + numNodes] = activeCL[i];
         activeTP[i + numNodes] = activeTP[i];
@@ -76,7 +75,6 @@ void Model::accept() {
 void Model::reject() {
     currentLikelihood = oldLikelihood;
 
-    int numNodes = (aln->getNumTaxa() * 2) - 1;
     for(int i = 0; i < numNodes; i++){
         activeCL[i] = activeCL[i + numNodes];
         activeTP[i] = activeTP[i + numNodes];

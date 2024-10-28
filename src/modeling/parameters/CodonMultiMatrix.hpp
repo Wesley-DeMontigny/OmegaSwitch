@@ -6,9 +6,11 @@
 #include <set>
 #include <vector>
 
+class Settings;
+
 class CodonMultiMatrix : public Parameter {
     public:
-        CodonMultiMatrix(double rL, double kL, std::vector<double> pi, bool updatePi=false);
+        CodonMultiMatrix(Settings settings, std::vector<double> pi);
         Matrix<double> Q(double omega1, double omega2);
         std::vector<double> stationary();
         void accept();

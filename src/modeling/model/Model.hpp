@@ -41,6 +41,7 @@ class Model {
     private:
         int stateSpace;
         int numChar;
+        int numNodes;
         bool* activeTP;
         bool* activeCL;
         CodonMultiMatrix* rateMatrix;

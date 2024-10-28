@@ -2,18 +2,25 @@
 #include "core/RandomVariable.hpp"
 #include "TreeObject.hpp"
 #include "core/Probability.hpp"
+#include "core/Alignment.hpp"
 #include "Node.hpp"
 
-TreeParameter::TreeParameter(Alignment* aln, double l) : lambda(l), currentPrior(0.0), oldPrior(0.0), 
-                                                         localDelta(std::log(4.0)), moveChoice(-1), 
-                                                         localCount(0), localAcceptCount(0) {
-    trees[0] = new TreeObject(aln);
+TreeParameter::TreeParameter(Alignment* aln, std::string newick, double l) : lambda(l), currentPrior(0.0), oldPrior(0.0), 
+                                                         delta(std::log(4.0)), moveChoice(-1), 
+                                                         count(0), acceptCount(0) {
+    fixedTree = newick != "";
+    if(!fixedTree)
+        trees[0] = new TreeObject(aln);
+    else
+        trees[0] = new TreeObject(newick, aln->getTaxaNames());
 
-    RandomVariable& rng = RandomVariable::randomVariableInstance();
-    std::vector<Node*> nodes = trees[0]->getPostOrderSeq();
-    for(Node* n : nodes) {
-        if(n != trees[0]->getRoot()) {
-            trees[0]->setBranchLength(n, Probability::Exponential::rv(&rng, lambda));
+    if(!fixedTree){
+        RandomVariable& rng = RandomVariable::randomVariableInstance();
+        std::vector<Node*> nodes = trees[0]->getPostOrderSeq();
+        for(Node* n : nodes) {
+            if(n != trees[0]->getRoot()) {
+                trees[0]->setBranchLength(n, Probability::Exponential::rv(&rng, lambda));
+            }
         }
     }
 
@@ -40,7 +47,7 @@ void TreeParameter::accept(){
     oldPrior = currentPrior;
 
     if(moveChoice == 0){
-        localAcceptCount += 1;
+        acceptCount += 1;
         moveChoice = -1;
     }
 }
@@ -58,11 +65,10 @@ double TreeParameter::update() {
     double randomMove = rng.uniformRv();
 
     double hastings = 0.0;
-
-    //Local Move
-    if(randomMove < 0.75){
+    
+    if(!fixedTree){
         moveChoice = 0;
-        localCount += 1;
+        count += 1;
         TreeObject* tree = trees[0];
         std::vector<Node*> nodes = tree->getPostOrderSeq();
         Node* root = tree->getRoot();
@@ -82,7 +88,7 @@ double TreeParameter::update() {
         neighbors2.erase(u);//Don't select u
         Node* c = Node::chooseNodeFromSet(neighbors2);
 
-        double scale = std::exp(localDelta * (rng.uniformRv() - 0.5));
+        double scale = std::exp(delta * (rng.uniformRv() - 0.5));
 
         double paths[3];
         paths[0] = tree->getBranchLength(u) * scale;
@@ -157,69 +163,37 @@ double TreeParameter::update() {
 
         hastings = 3 * std::log(scale);
     }
-    else { //NNI
-        TreeObject* tree = trees[0];
-        std::vector<Node*> nodes = tree->getPostOrderSeq();
-        Node* root = tree->getRoot();
+    else {
+        moveChoice = 0;
+        count += 1;
+        std::vector<Node*> nodes = trees[0]->getPostOrderSeq();
+        Node* root = trees[0]->getRoot();
 
         Node* p = nullptr;
         do{
             p = nodes[(int)(rng.uniformRv() * nodes.size())];
         }
-        while(p == root || p->getIsTip() == true);
+        while(p == root);
 
-        Node* a = p->getAncestor();
+        double currentV = trees[0]->getBranchLength(p);
+        double scale = std::exp(delta * (rng.uniformRv() - 0.5));
+        double newV = currentV * scale;
+        trees[0]->setBranchLength(p, newV);
+        p->setNeedsTPUpdate(true);
 
-        std::set<Node*> neighbors1 = p->getNeighbors();
-        neighbors1.erase(a);//Exclude a
-        Node* n1 = Node::chooseNodeFromSet(neighbors1);
-
-        std::set<Node*> neighbors2 = a->getNeighbors();
-        neighbors2.erase(p);//Don't select p
-        Node* n2 = Node::chooseNodeFromSet(neighbors2);
-
-        n1->addNeighbor(a);
-        a->addNeighbor(n1);
-        n1->setAncestor(a);
-        
-        if(n2 != a->getAncestor()){
-            n2->addNeighbor(p);
-            p->addNeighbor(n2);
-            n2->setAncestor(p);
-        }
-        else{//If this isn't the case then we need to swap around the tree
-            n2->addNeighbor(p);
-            p->addNeighbor(n2);
-            p->setAncestor(n2);
-            a->setAncestor(p);
-        }
-
-        //Remove old connections
-        n1->removeNeighbor(p);
-        p->removeNeighbor(n1);
-        n2->removeNeighbor(a);
-        a->removeNeighbor(n2);
-
-        Node* q = nullptr;
-        if(n2 != a->getAncestor())
-            q = p;
-        else{
-            q = a;
-            a->setNeedsTPUpdate(true);//Because TP is defined as the branch going to the descendent...
-            p->setNeedsTPUpdate(true);//Flipping this internal branch causes a change in the TP!
-        }
-
+        Node* q = p;
         do{
-            q->setNeedsCLUpdate(true);
+            if(q->getIsTip() == false)//The conditional likelihoods at the tips should never change
+                q->setNeedsCLUpdate(true);
+            
             q = q->getAncestor();
-        }
+        } 
         while(q != root);
         root->setNeedsCLUpdate(true);
 
-        tree->initPostOrder();
         this->dirty();
 
-        hastings = 0.0;
+        hastings = std::log(scale);
     }
 
     std::vector<double> values = trees[0]->getBranchLengths();
@@ -233,16 +207,16 @@ double TreeParameter::update() {
 }
 
 void TreeParameter::tune() {
-    double rate = (double)localAcceptCount/(double)localCount;
+    double rate = (double)acceptCount/(double)count;
 
     if ( rate > 0.44 ) {
-        localDelta *= (1.0 + ((rate-0.44)/0.766));
+        delta *= (1.0 + ((rate-0.44)/0.766));
     }
     else {
-        localDelta /= (2.0 - rate/0.44);
+        delta /= (2.0 - rate/0.44);
     }
-    localAcceptCount = 0;
-    localCount = 0;
+    acceptCount = 0;
+    count = 0;
 }
 
 double TreeParameter::lnPrior() {

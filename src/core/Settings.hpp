@@ -1,6 +1,7 @@
 #ifndef SETTINGS_HPP
 #define SETTINGS_HPP
 #include <string>
+#include <vector>
 
 struct Settings {
                     Settings(void) = delete;
@@ -9,6 +10,7 @@ struct Settings {
     std::string     treeOutput;
     std::string     dppOutput;
     std::string     mcmcOutput;
+    std::string     fixedTree;
     int             numIterations;
     int             printFrequency;
     int             sampleFrequency;
@@ -25,8 +27,18 @@ struct Settings {
     double          dppWeight;
     double          treeWeight;
 
-    void usage();
-    void print();
+    bool            simulate;
+    int             numTaxa;
+    int             numChar;
+    double          kValue;
+    double          rValue;
+    double          scaleTree;
+    std::vector<int> assignmentVector;
+    std::vector<double> omega1Vector;
+    std::vector<double> omega2Vector;
+
+    void            usage();
+    void            print();
 };
 
 #endif

@@ -2,12 +2,13 @@
 #include "core/Matrix.hpp"
 #include "core/RandomVariable.hpp"
 #include "core/Probability.hpp"
+#include "core/Settings.hpp"
 
-CodonMultiMatrix::CodonMultiMatrix(double rL, double kL, std::vector<double> pi, bool updatePi) : 
+CodonMultiMatrix::CodonMultiMatrix(Settings settings, std::vector<double> pi) : 
                                    currentQMatrix(122, 122, 0.0), oldQMatrix(122, 122, 0.0), 
                                    currentStationary(pi), oldStationary(pi), currentRPrior(0.0), oldRPrior(0.0),
-                                   rLambda(rL), kLambda(kL), currentKPrior(0.0), oldKPrior(0.0), currentStationaryPrior(0.0), 
-                                   oldStationaryPrior(0.0), updateStationary(updatePi), moveChoice(-1), rCount(0),
+                                   rLambda(settings.rLambda), kLambda(settings.kLambda), currentKPrior(0.0), oldKPrior(0.0), currentStationaryPrior(0.0), 
+                                   oldStationaryPrior(0.0), updateStationary(settings.updateStationary), moveChoice(-1), rCount(0),
                                    kCount(0), stationaryCount(0), rAcceptCount(0), kAcceptCount(0), stationaryAcceptCount(0),
                                    rDelta(std::log(2)), kDelta(std::log(2)), stationaryAlpha(1.0) {
     
@@ -42,12 +43,19 @@ CodonMultiMatrix::CodonMultiMatrix(double rL, double kL, std::vector<double> pi,
     }
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
-    currentR = Probability::Exponential::rv(&rng, rLambda);;
+
+    if(settings.rValue == -1)
+        currentR = Probability::Exponential::rv(&rng, rLambda);
+    else
+        currentR = settings.rValue;
     oldR = currentR;
     currentRPrior = Probability::Exponential::lnPdf(rLambda, currentR);
     oldRPrior = currentRPrior;
 
-    currentK = Probability::Exponential::rv(&rng, kLambda);
+    if(settings.kValue == -1)
+        currentK = Probability::Exponential::rv(&rng, kLambda);
+    else
+        currentK = settings.kValue;
     oldK = currentK;
     currentKPrior = Probability::Exponential::lnPdf(kLambda, currentK);
     oldKPrior = currentKPrior;

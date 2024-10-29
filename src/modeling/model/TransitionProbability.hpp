@@ -19,7 +19,7 @@ class TransitionProbability {
         void                    reject(void);                                                                                   
         void                    setProbs(const int state, const int r, const int node, const double v);
         void                    pullProbs(const int state, const int r, const int node, const double v);
-        void                    updateQ(Matrix<double>& Q, const int index);
+        void                    updateQ(Matrix<double> Q, const int index);
         void                    deleteQ(const int index);
         void                    popQ();
 

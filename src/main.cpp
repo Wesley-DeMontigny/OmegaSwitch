@@ -48,7 +48,7 @@ int main(int argc, char* argv[]) {
 
         Mcmc myMCMC(&model, &moveScheduler, settings);
 
-        //myMCMC.burnin();
+        myMCMC.burnin();
         myMCMC.run();
 
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
@@ -190,8 +190,8 @@ int main(int argc, char* argv[]) {
             else {
                 int nIndex = n->getIndex();
                 int* pN = alignment + (numChar * n->getIndex());
-
-                std::cout << ">Taxa_" << nIndex << std::endl;;
+                
+                std::cout << ">" << n->getName() << std::endl;;
                 for (int c = 0; c < numChar; c++){
                     int cIndex = *pN;
                     if(cIndex < 61)

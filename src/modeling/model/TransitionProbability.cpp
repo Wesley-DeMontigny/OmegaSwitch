@@ -1,6 +1,7 @@
 #include <complex>
 #include "TransitionProbability.hpp"
 #include "core/Math.hpp"
+#include <cstring>
 
 TransitionProbability::TransitionProbability(const int nn, const int nC)
     : ceigValExp(0), eigens(0), eigValExp(0), isComplex(false), isOldComplex(false),
@@ -176,7 +177,7 @@ void TransitionProbability::tiProbsEigens(const double v, Matrix<double> &P, con
 		}
 }
 
-void TransitionProbability::updateQ(Matrix<double>& Q, const int index) {
+void TransitionProbability::updateQ(Matrix<double> Q, const int index) {
 	
 	double scaler = 0.0;
 	for (int i=0; i<numStates; i++)

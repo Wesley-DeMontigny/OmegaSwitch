@@ -6,56 +6,33 @@
 #include <cstdlib> 
 #include <cstring>
  
+// We need to forward declare some stuff
+template <class T>
+class Matrix;
 
-/*! 
- * MrBayes templated matrix type. We used the Template Numerical 
- * Toolkit (TNT) code as a model for this class. TNT is similar to the 
- * LAPACK matrix type. The TNT code comes with the following 
- * disclaimer: 
- *  
- * "Template Numerical Toolkit (TNT) 
- * 
- *    Mathematical and Computational Sciences Division 
- *    National Institute of Technology, 
- *    Gaithersburg, MD USA 
- * 
- * This software was developed at the National Institute of Standards and 
- * Technology (NIST) by employees of the Federal Government in the course 
- * of their official duties. Pursuant to title 17 Section 105 of the 
- * United States Code, this software is not subject to copyright protection 
- * and is in the public domain. NIST assumes no responsibility whatsoever for 
- * its use by other parties, and makes no guarantees, expressed or implied, 
- * about its quality, reliability, or any other characteristic." 
- * 
- * Storage corresponds to C (row-major) ordering. 
- * Elements are accessed via A[i][j] notation.  
- * 
- * Array assignment is by reference (i.e. shallow assignment). 
- * That is, B=A implies that the A and B point to the 
- * same matrix, so modifications to the elements of A 
- * will be reflected in B. If an independent copy 
- * is required, then B = A.copy() can be used.  Note 
- * that this facilitates returning matrices from functions 
- * without relying on compiler optimizations to eliminate 
- * extensive data copying. 
- * 
- * The indexing and layout of this matrix object makes 
- * it compatible with C and C++ algorithms that utilize 
- * the familiar C[i][j] notation.  This includes numerous 
- * textbooks, such as Numerical Recipes, and various 
- * public domain codes. 
- * 
- * This class employs its own garbage collection via 
- * the use of reference counts.  That is, whenever 
- * an internal array storage no longer has any references 
- * to it, it is destroyed. 
- * 
- * Note that the multiplication operator is overloaded to
- * do matrix multiplication rather than element-wise
- * multiplication.
- *
- * \brief Templated matrices and matrix operations 
- */ 
+template <class T> std::ostream& 	operator<<(std::ostream &s, const Matrix<T> &A);
+template <class T> std::istream& 	operator>>(std::istream &s, Matrix<T> &A);
+template <class T> Matrix<T> 		operator+(const Matrix<T> &A, const Matrix<T> &B);
+template <class T> Matrix<T> 		operator-(const Matrix<T> &A, const Matrix<T> &B);
+template <class T> Matrix<T> 		operator*(const Matrix<T> &A, const Matrix<T> &B);
+template <class T> Matrix<T> 		&operator+=(Matrix<T> &A, const Matrix<T> &B);
+template <class T> Matrix<T> 		&operator-=(Matrix<T> &A, const Matrix<T> &B);
+template <class T> Matrix<T> 		&operator*=(Matrix<T> &A, const Matrix<T> &B);
+template <class T> Matrix<T> 		operator+(const T &a, const Matrix<T> &B);
+template <class T> Matrix<T> 		operator-(const T &a, const Matrix<T> &B);
+template <class T> Matrix<T> 		operator*(const T &a, const Matrix<T> &B);
+template <class T> Matrix<T> 		operator/(const T &a, const Matrix<T> &B);
+template <class T> Matrix<T> 		operator+(const Matrix<T> &A, const T &b);
+template <class T> Matrix<T> 		operator-(const Matrix<T> &A, const T &b);
+template <class T> Matrix<T> 		operator*(const Matrix<T> &A, const T &b);
+template <class T> Matrix<T> 		operator/(const Matrix<T> &A, const T &b);
+template <class T> Matrix<T> 		&operator+=(Matrix<T> &A, const T &b);
+template <class T> Matrix<T> 		&operator-=(Matrix<T> &A, const T &b);
+template <class T> Matrix<T> 		&operator*=(Matrix<T> &A, const T &b);
+template <class T> Matrix<T> 		&operator/=(Matrix<T> &A, const T &b);
+
+
+
 template <class T> 
 class Matrix { 
  
@@ -72,26 +49,26 @@ public:
 		bool   			operator==(const Matrix &A) const;              //!< equality operator 
 		T&   			operator()(size_t r, size_t c) { return this->v[r*n + c]; }
 		const T&   		operator()(size_t r, size_t c) const { return this->v[r*n + c]; }
-		template <class T> friend std::ostream& 	operator<<(std::ostream &s, const Matrix<T> &A);  //!< operator << 
-		template <class T> friend std::istream& 	operator>>(std::istream &s, Matrix<T> &A);        //!< operator >> 
-		template <class T> friend Matrix<T> 		operator+(const Matrix<T> &A, const Matrix<T> &B);     //!< operator + 
-		template <class T> friend Matrix<T> 		operator-(const Matrix<T> &A, const Matrix<T> &B);     //!< operator - 
-		template <class T> friend Matrix<T> 		operator*(const Matrix<T> &A, const Matrix<T> &B);     //!< operator * (matrix multiplication) 
-		template <class T> friend Matrix<T> 		&operator+=(Matrix<T> &A, const Matrix<T> &B);   //!< operator += 
-		template <class T> friend Matrix<T> 		&operator-=(Matrix<T> &A, const Matrix<T> &B);   //!< operator -= 
-		template <class T> friend Matrix<T> 		&operator*=(Matrix<T> &A, const Matrix<T> &B);   //!< operator *= (matrix multiplication)
-		template <class T> friend Matrix<T> 		operator+(const T &a, const Matrix<T> &B);               //!< operator + for scalar + matrix 
-		template <class T> friend Matrix<T> 		operator-(const T &a, const Matrix<T> &B);               //!< operator - for scalar - matrix 
-		template <class T> friend Matrix<T> 		operator*(const T &a, const Matrix<T> &B);               //!< operator * for scalar * matrix 
-		template <class T> friend Matrix<T> 		operator/(const T &a, const Matrix<T> &B);               //!< operator / for scalar / matrix 
-		template <class T> friend Matrix<T> 		operator+(const Matrix<T> &A, const T &b);               //!< operator + for matrix + scalar 
-		template <class T> friend Matrix<T> 		operator-(const Matrix<T> &A, const T &b);               //!< operator - for matrix - scalar 
-		template <class T> friend Matrix<T> 		operator*(const Matrix<T> &A, const T &b);               //!< operator * for matrix * scalar 
-		template <class T> friend Matrix<T> 		operator/(const Matrix<T> &A, const T &b);               //!< operator / for matrix / scalar 
-		template <class T> friend Matrix<T> 		&operator+=(Matrix<T> &A, const T &b);             //!< operator += for scalar 
-		template <class T> friend Matrix<T> 		&operator-=(Matrix<T> &A, const T &b);             //!< operator -= for scalar 
-		template <class T> friend Matrix<T> 		&operator*=(Matrix<T> &A, const T &b);             //!< operator *= for scalar 
-		template <class T> friend Matrix<T> 		&operator/=(Matrix<T> &A, const T &b);             //!< operator /= for scalar 
+		friend std::ostream& 	operator<<<>(std::ostream &s, const Matrix<T> &A);  //!< operator << 
+		friend std::istream& 	operator>><>(std::istream &s, Matrix<T> &A);        //!< operator >> 
+		friend Matrix<T> 		operator+<>(const Matrix<T> &A, const Matrix<T> &B);     //!< operator + 
+		friend Matrix<T> 		operator-<>(const Matrix<T> &A, const Matrix<T> &B);     //!< operator - 
+		friend Matrix<T> 		operator*<>(const Matrix<T> &A, const Matrix<T> &B);     //!< operator * (matrix multiplication) 
+		friend Matrix<T> 		&operator+=<>(Matrix<T> &A, const Matrix<T> &B);   //!< operator += 
+		friend Matrix<T> 		&operator-=<>(Matrix<T> &A, const Matrix<T> &B);   //!< operator -= 
+		friend Matrix<T> 		&operator*=<>(Matrix<T> &A, const Matrix<T> &B);   //!< operator *= (matrix multiplication)
+		friend Matrix<T> 		operator+<>(const T &a, const Matrix<T> &B);               //!< operator + for scalar + matrix 
+		friend Matrix<T> 		operator-<>(const T &a, const Matrix<T> &B);               //!< operator - for scalar - matrix 
+		friend Matrix<T> 		operator*<>(const T &a, const Matrix<T> &B);               //!< operator * for scalar * matrix 
+		friend Matrix<T> 		operator/<>(const T &a, const Matrix<T> &B);               //!< operator / for scalar / matrix 
+		friend Matrix<T> 		operator+<>(const Matrix<T> &A, const T &b);               //!< operator + for matrix + scalar 
+		friend Matrix<T> 		operator-<>(const Matrix<T> &A, const T &b);               //!< operator - for matrix - scalar 
+		friend Matrix<T> 		operator*<>(const Matrix<T> &A, const T &b);               //!< operator * for matrix * scalar 
+		friend Matrix<T> 		operator/<>(const Matrix<T> &A, const T &b);               //!< operator / for matrix / scalar 
+		friend Matrix<T> 		&operator+=<>(Matrix<T> &A, const T &b);             //!< operator += for scalar 
+		friend Matrix<T> 		&operator-=<>(Matrix<T> &A, const T &b);             //!< operator -= for scalar 
+		friend Matrix<T> 		&operator*=<>(Matrix<T> &A, const T &b);             //!< operator *= for scalar 
+		friend Matrix<T> 		&operator/=<>(Matrix<T> &A, const T &b);             //!< operator /= for scalar 
 		inline Matrix   &ref(const Matrix &A);                          //!< creates a reference to another matrix (shallow copy) 
 		Matrix   		copy(void) const;                                 //!< creates a copy of another matrix (deep copy, with separate data elements) 
 		Matrix   		&inject(const Matrix &A);                       //!< copy the values of elements from one matrix to another 
@@ -302,7 +279,7 @@ bool Matrix<T>::operator==(const Matrix &A) const {
 		return false;
 	T* p1 = v;
 	T* p2 = A.v;
-	T* end = p1+(m*n)
+	T* end = p1+(m*n);
 	for (; p1<end; p1++, p2++) {
 		if (*p1 != *p2)
 			return false;

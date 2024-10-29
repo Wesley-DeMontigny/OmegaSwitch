@@ -4,6 +4,7 @@
 #include "core/Probability.hpp"
 #include "core/Alignment.hpp"
 #include "Node.hpp"
+#include <cmath>
 
 TreeParameter::TreeParameter(Alignment* aln, std::string newick, double l) : lambda(l), currentPrior(0.0), oldPrior(0.0), 
                                                          delta(std::log(4.0)), moveChoice(-1), 

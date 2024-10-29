@@ -186,6 +186,8 @@ void Settings::print(){
     std::cout << "   * -kLamdba           : " << kLambda << std::endl;
     std::cout << "   * -rLambda           : " << rLambda << std::endl;
     std::cout << "   * -dppAlpha          : " << dppAlpha << std::endl;
+    std::cout << "   * -kValue            : " << kValue << std::endl;
+    std::cout << "   * -rValue            : " << rValue << std::endl;
     std::cout << std::endl;
     
     std::cout << "Sampling Options:" << std::endl;

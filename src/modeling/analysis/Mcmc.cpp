@@ -64,37 +64,26 @@ void Mcmc::run(){
     std::string tabularHeader = model->tabularHeader();
     std::cout << tabularHeader;
 
-    std::fstream fs;
-    fs.open(analysisLog, std::fstream::out);
-    fs << tabularHeader;
-    fs.close();
-    fs.clear();
-    fs.open(treeLog, std::fstream::out);
-    fs << model->treeHeader();
-    fs.close();
-    fs.clear();
-    fs.open(dppLog, std::fstream::out);
-    fs << model->dppHeader();
-    fs.close();
-    fs.clear();
+    std::fstream fsAnalysis;
+    fsAnalysis.open(analysisLog, std::fstream::out);
+    fsAnalysis << tabularHeader;
+
+    std::fstream fsTree;
+    fsTree.open(treeLog, std::fstream::out);
+    fsTree << model->treeHeader();
+
+    std::fstream fsDPP;
+    fsDPP.open(dppLog, std::fstream::out);
+    fsDPP << model->dppHeader();
 
     for(int n = 1; n <= numIter; n++){
         if(n % printFreq == 0){
             std::cout << model->tabularOut(n);
         }
         if(n % sampleFreq == 0){
-            fs.open(analysisLog, std::fstream::app);
-            fs << model->tabularOut(n);
-            fs.close();
-            fs.clear();
-            fs.open(treeLog, std::fstream::app);
-            fs << model->treeOut(n);
-            fs.close();
-            fs.clear();
-            fs.open(dppLog, std::fstream::app);
-            fs << model->dppOut(n);
-            fs.close();
-            fs.clear();
+            fsAnalysis << model->tabularOut(n);
+            fsTree << model->treeOut(n);
+            fsDPP << model->dppOut(n);
         }
 
         double lnProposalRatio = moveScheduler->updateRandom();
@@ -113,4 +102,8 @@ void Mcmc::run(){
             model->reject();
         }
     }
+
+    fsAnalysis.close();
+    fsDPP.close();
+    fsTree.close();
 }

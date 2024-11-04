@@ -13,6 +13,8 @@
 #include <algorithm>
 #include <string>
 #include <iostream>
+#include <unordered_map>
+#include <chrono>
 
 Model::Model(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProcessPrior* d) : aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0), dpp(d), numChar(0) {
 
@@ -127,62 +129,76 @@ void Model::regenerateLikelihood(){
         }
     }
 
+    tf::Taskflow taskflow;
+    std::unordered_map<int, tf::Task> taskMap;
+
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     for(Node* n : poSeq){
-        int nIndex = n->getIndex();
-        //Only update the conditional likelihoods if the node has changed
-        if(n->getNeedsTPUpdate() == true){
-            if(n != activeT->getRoot()) {
-                if(!dpp->isDirty()) {
-                    activeTP[nIndex] ^= true;
-                    double v = activeT->getBranchLength(n);
-                    for(int i = 0; i < numCats; i++)
-                        transProb->setProbs(activeTP[nIndex], i, nIndex, v);
-                }
-                else {
-                    activeTP[nIndex] ^= true;
-                    double v = activeT->getBranchLength(n);
-                    for(int i = 0; i < numCats; i++){
-                        if(categories[i].dirty)
+        taskMap.insert(std::make_pair(n->getIndex(), taskflow.emplace([n, this, numCats, categories, assignments, activeT](){
+            int nIndex = n->getIndex();
+            if(n->getNeedsTPUpdate() == true){
+                if(n != activeT->getRoot()) {
+                    if(!dpp->isDirty()) {
+                        activeTP[nIndex] ^= true;
+                        double v = activeT->getBranchLength(n);
+                        for(int i = 0; i < numCats; i++)
                             transProb->setProbs(activeTP[nIndex], i, nIndex, v);
-                        else
-                            transProb->pullProbs(activeTP[nIndex], i, nIndex, v);
                     }
-                }
-            }
-            n->setNeedsTPUpdate(false);
-        }
-        if(n->getNeedsCLUpdate() == true){
-            activeCL[nIndex] ^= true;
-            double* pNN = (*postOrder)(nIndex, activeCL[nIndex], 0);
-            std::fill(pNN, pNN + (numChar * stateSpace), 1.0);
-
-            std::set<Node*>& nNeighbors = n->getNeighbors();
-            for(Node* d : nNeighbors){
-                if(d != n->getAncestor()){
-                    int dIndex = d->getIndex();
-                    double* pN = pNN;
-                    double* pD = (*postOrder)(dIndex, activeCL[dIndex], 0);
-
-                    std::vector<Matrix<double>> transProbMatrices;
-                    for(int cat = 0; cat < numCats; cat++)
-                        transProbMatrices.push_back(*(*transProb)(activeTP[dIndex], cat, dIndex));
-                    for(int c = 0; c < numChar; c++){
-                        Matrix<double> P = transProbMatrices[assignments[c]];
-                        for(int i = 0; i < stateSpace; i++){
-                            double sum = 0.0;
-                            for(int j = 0; j < stateSpace; j++){
-                                sum += P(i, j) * pD[j];
-                            }
-                            (*pN) *= sum;
-                            pN++;
+                    else {
+                        activeTP[nIndex] ^= true;
+                        double v = activeT->getBranchLength(n);
+                        for(int i = 0; i < numCats; i++){
+                            if(categories[i].dirty)
+                                transProb->setProbs(activeTP[nIndex], i, nIndex, v);
+                            else
+                                transProb->pullProbs(activeTP[nIndex], i, nIndex, v);
                         }
-                        pD+=stateSpace;
                     }
                 }
+                n->setNeedsTPUpdate(false);
             }
-            n->setNeedsCLUpdate(false);
-        }
+            if(n->getNeedsCLUpdate() == true){
+                activeCL[nIndex] ^= true;
+                double* pNN = (*postOrder)(nIndex, activeCL[nIndex], 0);
+                std::fill(pNN, pNN + (numChar * stateSpace), 1.0);
+
+                std::set<Node*>& nNeighbors = n->getNeighbors();
+                for(Node* d : nNeighbors){
+                    if(d != n->getAncestor()){
+                        int dIndex = d->getIndex();
+                        double* pN = pNN;
+                        double* pD = (*postOrder)(dIndex, activeCL[dIndex], 0);
+
+                        std::vector<Matrix<double>> transProbMatrices;
+                        for(int cat = 0; cat < numCats; cat++)
+                            transProbMatrices.push_back(*(*transProb)(activeTP[dIndex], cat, dIndex));
+                        for(int c = 0; c < numChar; c++){
+                            Matrix<double> P = transProbMatrices[assignments[c]];
+                            for(int i = 0; i < stateSpace; i++){
+                                double sum = 0.0;
+                                for(int j = 0; j < stateSpace; j++){
+                                    sum += P(i, j) * pD[j];
+                                }
+                                (*pN) *= sum;
+                                pN++;
+                            }
+                            pD+=stateSpace;
+                        }
+                    }
+                }
+                n->setNeedsCLUpdate(false);
+            }
+        })));
     }
+
+    for(Node* n : poSeq){
+        if(n != activeT->getRoot())
+            taskMap.at(n->getIndex()).precede(taskMap.at(n->getAncestor()->getIndex()));
+    }
+
+    executor.run(taskflow).wait();
+    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    std::cout << "Completed in " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
 
     int rIndex = activeT->getRoot()->getIndex();
     double* pR = (*postOrder)(rIndex, activeCL[rIndex], 0);

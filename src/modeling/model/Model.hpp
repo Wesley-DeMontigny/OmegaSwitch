@@ -1,6 +1,7 @@
 #ifndef PHYLO_CTMC_HPP
 #define PHYLO_CTMC_HPP
 #include "modeling/parameters/trees/TreeParameter.hpp"
+#include <taskflow/taskflow.hpp>
 
 class ConditionalLikelihood;
 class TransitionProbability;
@@ -19,6 +20,7 @@ class Model {
 
         double lnLikelihood() {return currentLikelihood;}
         double lnPrior();
+
         void regenerateLikelihood();
         void regenerateLikelihood(int site, int category, bool update);
 
@@ -44,6 +46,7 @@ class Model {
         int numNodes;
         bool* activeTP;
         bool* activeCL;
+        tf::Executor executor;
         CodonMultiMatrix* rateMatrix;
         Alignment* aln;
         ConditionalLikelihood* postOrder;

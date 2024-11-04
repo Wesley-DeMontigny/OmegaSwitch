@@ -4,8 +4,9 @@ project(Bayesian_Phylo)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-
 add_subdirectory(${PROJECT_SOURCE_DIR}/lib/ncl)
+
+add_subdirectory(${PROJECT_SOURCE_DIR}/lib/taskflow)
 
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
@@ -13,6 +14,6 @@ file(GLOB_RECURSE SOURCES "${PROJECT_SOURCE_DIR}/src/*.cpp")
 
 add_executable(main ${SOURCES})
 
-target_include_directories(main PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_include_directories(main PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_SOURCE_DIR}/lib/taskflow)
 
 target_link_libraries(main PRIVATE ncl_static)

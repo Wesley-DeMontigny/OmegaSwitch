@@ -24,6 +24,8 @@ class Model {
         void regenerateLikelihood();
         void regenerateLikelihood(int site, int category, bool update);
 
+        double testCategory(int site, int category, bool update);
+
         TransitionProbability* getTransitionProbability() { return transProb; }
         ConditionalLikelihood* getConditionalLikelihood() { return postOrder; }
 

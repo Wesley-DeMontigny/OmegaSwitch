@@ -48,6 +48,7 @@ int main(int argc, char* argv[]) {
 
         Mcmc myMCMC(&model, &moveScheduler, settings);
 
+        std::cout << "Starting MCMC!" << std::endl;
         myMCMC.burnin();
         myMCMC.run();
 
@@ -203,8 +204,6 @@ int main(int argc, char* argv[]) {
                 std::cout << std::endl;
             }
         }
-
-
 
         delete [] alignment;
     }

@@ -4,8 +4,7 @@
 #include <cstring>
 
 TransitionProbability::TransitionProbability(const int nn, const int nC)
-    : ceigValExp(0), eigens(0), eigValExp(0), isComplex(false), isOldComplex(false),
-	  numStates(122), numNodes(nn), numCats(nC) {
+    : numStates(122), numNodes(nn), numCats(nC) {
 
 	probs[0] = new Matrix<double>*[2*numNodes*numCats];
     probs[1] = probs[0] + numNodes;
@@ -17,10 +16,9 @@ TransitionProbability::TransitionProbability(const int nn, const int nC)
 
 	Matrix<double> Q(122, 122, 0.0);
 
-	ceigValExp = new std::complex<double>[numStates];
-	eigens = new EigenSystem(Q);
-	eigValExp = new double[numStates];
+	eigens = new EigenSystem(122);
 	
+	allocateQ(1);
 	updateQ(Q, 0);
 	accept();
 }
@@ -29,9 +27,7 @@ TransitionProbability::TransitionProbability(const int nn, const int nC)
    and eigensystem. */
 TransitionProbability::~TransitionProbability(void) {
 
-	delete [] ceigValExp;
 	delete eigens;
-	delete [] eigValExp;
 	
 	for(int i = 0; i < numNodes*numCats; i++) {
         delete probs[0][i];
@@ -41,54 +37,6 @@ TransitionProbability::~TransitionProbability(void) {
     delete [] probs[0];
 }
 
-/* This function precalculates the product of the eigenvectors and their
-   inverse for faster calculation of transition probabilities. The output
-   is a vector of precalculated values (c_ijk). The input is the eigenvector
-   matrix and the inverse of the eigenvector matrix. This function also
-   fetches the eigenvalues from the eigensystem and stores them in an array
-   of doubles in this class. */
-void TransitionProbability::calcCijk(int mIndex) {
-
-	// keep a copy of the eigenvalues
-	double* p = &(eigens->getRealEigenvalues()[0]);
-	double* q = rateEigen[mIndex].eigenvalue;
-	memcpy(q, p, numStates*sizeof(double));
-
-	// calculate c_ijk
-	Matrix<double> ev  = eigens->getEigenvectors();
-	Matrix<double> iev = eigens->getInverseEigenvectors();
-	double* pc = rateEigen[mIndex].c_ijk;
-	for (int i=0; i<numStates; i++)
-		for (int j=0; j<numStates; j++)
-			for (int k=0; k<numStates; k++)
-			 	*(pc++) = ev(i, k) * iev(k, j);
-}
-
-/* This function precalculates the product of the eigenvectors and their
-   inverse for faster calculation of transition probabilities when we have
-   at least one complex eigenvalue. The output is a vector of precalculated
-   complex values (cc_ijk). The input is the complex eigenvector matrix
-   and the inverse of the complex eigenvector matrix. This function also
-   fetches the real and imaginary eigenvalues from the eigensystem and stores
-   them in two arrays of double values (eigenvalues and ieigenvalues) in this
-   class. */
-void TransitionProbability::calcComplexCijk(int mIndex) {
-
-	// keep a copy of the complex eigenvalues
-	double* p = &(eigens->getRealEigenvalues()[0]);
-	double* q = &(eigens->getImagEigenvalues()[0]);
-	for (int i=0; i<numStates; i++)
-		complexRateEigen[mIndex].ceigenvalue[i] = std::complex<double>(*p++, *q++);
-
-	// calculate cc_ijk
-	Matrix<std::complex<double>> cev = eigens->getComplexEigenvectors();
-	Matrix<std::complex<double>> ciev = eigens->getComplexInverseEigenvectors();
-	std::complex<double>* pc = complexRateEigen[mIndex].cc_ijk;
-	for (int i=0; i<numStates; i++)
-		for (int j=0; j<numStates; j++)
-			for (int k=0; k<numStates; k++)
-			 	*(pc++) = cev(i, k) * ciev(k, j);
-}
 
 void TransitionProbability::accept(void) {
 	isOldComplex = isComplex;
@@ -140,9 +88,11 @@ void TransitionProbability::pullProbs(const int state, const int rate, const int
 /* This function calculates transition probabilities using
    complex eigenvalues and eigenvectors. */
 void TransitionProbability::tiProbsComplexEigens(const double v, Matrix<double>& P, const int mIndex) {
-	
+
+	std::vector<std::complex<double>> ceigValExp;
+
 	for (int s=0; s<numStates; s++)
-		ceigValExp[s] = exp(complexRateEigen[mIndex].ceigenvalue[s] * v);
+		ceigValExp.push_back(exp(complexRateEigen[mIndex].ceigenvalue[s] * v));
 
 	const std::complex<double>* ptr = complexRateEigen[mIndex].cc_ijk;
 	for (int i=0; i<numStates; i++)
@@ -161,8 +111,10 @@ void TransitionProbability::tiProbsComplexEigens(const double v, Matrix<double>&
    eigenvalues and eigenvectors. */
 void TransitionProbability::tiProbsEigens(const double v, Matrix<double> &P, const int mIndex) {
 	
+	std::vector<double> eigValExp;
+
 	for (int s=0; s<numStates; s++)
-		eigValExp[s] = exp(rateEigen[mIndex].eigenvalue[s] * v);
+		eigValExp.push_back(exp(rateEigen[mIndex].eigenvalue[s] * v));
 
 	double *ptr = rateEigen[mIndex].c_ijk;
 	for (int i=0; i<numStates; i++) 
@@ -177,6 +129,16 @@ void TransitionProbability::tiProbsEigens(const double v, Matrix<double> &P, con
 		}
 }
 
+void TransitionProbability::allocateQ(int size){
+	if(size > isComplex.size()) {
+		for(int i = 0, num = size - isComplex.size(); i < num; i++){
+			isComplex.push_back(false);
+			rateEigen.push_back(RateEigen(numStates));
+			complexRateEigen.push_back(ComplexRateEigen(numStates));
+		}
+	}
+}
+
 void TransitionProbability::updateQ(Matrix<double> Q, const int index) {
 	
 	double scaler = 0.0;
@@ -189,22 +151,7 @@ void TransitionProbability::updateQ(Matrix<double> Q, const int index) {
 		for (int j=0; j<numStates; j++)
 			Q(i, j) *= scaler;
 
-	eigens->update(Q);
-
-	// Do we need to make a new entry?
-	if(index >= isComplex.size()) {
-		isComplex.push_back(eigens->getIsComplex());
-		rateEigen.push_back(RateEigen(numStates));
-		complexRateEigen.push_back(ComplexRateEigen(numStates));
-	}
-
-	// Precalculate the product of the eigenvectors and their inverse
-	if (isComplex[index] == false) {
-		calcCijk(index);
-	}
-	else {
-		calcComplexCijk(index);
-	}
+	isComplex[index] = eigens->update(Q, rateEigen[index], complexRateEigen[index]);
 }
 
 // Be sure you want to delete!!
@@ -212,4 +159,12 @@ void TransitionProbability::deleteQ(const int index) {
 	isComplex.erase(isComplex.begin() + index);
 	rateEigen.erase(rateEigen.begin() + index);
 	complexRateEigen.erase(complexRateEigen.begin() + index);
+}
+
+void TransitionProbability::deleteNQ(const int count) {
+	for(int i = 0; i < count; i++){
+		isComplex.pop_back();
+		rateEigen.pop_back();
+		complexRateEigen.pop_back();
+	}
 }

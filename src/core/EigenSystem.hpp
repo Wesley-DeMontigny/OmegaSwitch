@@ -20,34 +20,23 @@ typedef std::complex<double> complexNum;
       Parlett, B.N., and C. Reinsch. 1969. Balancing a matrix for
          calculation of eigenvalues and eigenvectors. Numer.
          Math. 13:292-304. */
+
+struct RateEigen;
+struct ComplexRateEigen;
+
 class EigenSystem {
 
 	public:
-                                EigenSystem(const Matrix<double>& m);                                                                                  //!< construct the eigenvalue decomposition
+                                EigenSystem(int dim);                                                                                  //!< construct the eigenvalue decomposition
                                ~EigenSystem(void);                                                                                                       //!< destructor
-        double                  getDeterminant(void);                                                                                                    //!< return determinant
-        Matrix<double>&       getEigenvectors(void) { return eigenvectors; }                                                                           //!< return the eigenvector matrix
-        Matrix<double>&       getInverseEigenvectors(void) { return inverseEigenvectors; }                                                             //!< return the inverse eigenvector matrix
-        std::vector<double>&    getRealEigenvalues(void) { return realEigenvalues; }                                                                     //!< return the real parts of the eigenvalues
-        std::vector<double>&    getImagEigenvalues(void) { return imaginaryEigenvalues; }                                                                //!< return the imaginary parts of the eigenvalues
-        Matrix<complexNum>&      getComplexEigenvectors(void) { return complexEigenvectors; }                                                             //!< return the eigenvector matrix
-        Matrix<complexNum>&      getComplexInverseEigenvectors() { return complexInverseEigenvectors; }                                                   //!< return the inverse eigenvector matrix
-        bool                    getIsComplex(void) { return isComplex; }                                                                                 //!< returns 'true' if there are complex eigenvalues
-        int                     update(const Matrix<double>& m);                                                                                       //!< update the eigensystem for matrix m
+        double                  getDeterminant(std::vector<double> realEigenValues);                                                                                                    //!< return determinant
+        bool                    update(const Matrix<double>& m, RateEigen& eigens, ComplexRateEigen& complexEigens);                                                                                       //!< update the eigensystem for matrix m
 
     private:
         int                     n;                                                                                                                                         //!< row and column dimension (square matrix)
-        Matrix<double>        eigenvectors;                                                                                                            //!< matrix for internal storage of eigenvectors
-        Matrix<double>        inverseEigenvectors;                                                                                                     //!< matrix for internal storage of the inverse eigenvectors
-        Matrix<complexNum>       complexEigenvectors;                                                                                                     //!< matrix for internal storage of complex eigenvectors
-        Matrix<complexNum>       complexInverseEigenvectors;                                                                                              //!< matrix for internal storage of the inverse of the complex eigenvectors
-        std::vector<double>     realEigenvalues;                                                                                                         //!< vector for internal storage of the eigenvalues (real part)
-        std::vector<double>     imaginaryEigenvalues;                                                                                                    //!< vector for internal storage of the eigenvalues (imaginary part)
-        bool                    isComplex;                                                                                                               //!< flag whether there are complex eigenvalues
         void                    allocateComplexEigenvectors(void);                                                                                       //!< allocate space for complex eigenvectors
         void                    balance(Matrix<double>& A, std::vector<double>& scale, int* low, int* high);                                           //!< balances a matrix
         void                    balback(int low, int high, std::vector<double>& scale, Matrix<double>& eivec);                                         //!< reverses the balancing
-        bool                    checkForComplexEigenvalues(void);                                                                                        //!< returns 'true' if there are complex eigenvalues
         void                    complexLUBackSubstitution(Matrix<complexNum>& a, int *indx, std::vector<complexNum>& b);                                     //!< back-substitutes a complex LU-decomposed matrix
         int                     complexLUDecompose(Matrix<complexNum>& a, double *vv, int* indx, double* pd);                                             //!< calculates the LU-decomposition of a complex matrix
         void                    elmhes(int low, int high, Matrix<double>& a, std::vector<int>& perm);                                                  //!< reduces matrix to upper Hessenberg form

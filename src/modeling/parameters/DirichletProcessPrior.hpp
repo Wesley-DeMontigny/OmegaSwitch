@@ -1,6 +1,7 @@
 #ifndef DIRICHLET_PROCESS_PRIOR_HPP
 #define DIRICHLET_PROCESS_PRIOR_HPP
 #include "modeling/parameters/Parameter.hpp"
+#include <taskflow/taskflow.hpp>
 #include <map>
 
 class Model;
@@ -70,6 +71,8 @@ class DirichletProcessPrior : public Parameter {
         std::vector<int> oldAssignments;
 
         void removeCategory(int index);
+
+        tf::Executor executor;
 };
 
 #endif

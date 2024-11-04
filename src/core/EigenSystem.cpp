@@ -1,4 +1,5 @@
 #include "EigenSystem.hpp"
+#include "RateEigens.hpp"
 #include <cmath>
 #include <complex>
 #include <vector>
@@ -10,37 +11,10 @@
    the input matrix, and then stores it so that the components can be
    retrieved when needed. This constructor returns an empty Eigensystem
    if the input matrix is not square. */
-EigenSystem::EigenSystem(const Matrix<double>& m) : n(0), isComplex(false) {
-	
-	// check that the matrix, m, is square and return
-	// an empty eigensystem if it is not
-	if ( m.dim1() != m.dim2() )
-		return;
-	
-	// set the dimensions of the matrix
-	n = m.dim2();
-
-	// allocate and initialize components of eigensystem
-	// assuming it is going to be real and not complex
-	eigenvectors         = Matrix<double>(n, n, 0.0);
-	inverseEigenvectors  = Matrix<double>(n, n, 0.0);
-	realEigenvalues      = std::vector<double>(n, 0.0);
-	imaginaryEigenvalues = std::vector<double>(n, 0.0);
-
-	// calculate eigenvalues and eigenvectors for a real matrix
-	update (m);
-}
+EigenSystem::EigenSystem(int dim) : n(dim) { }
 
 EigenSystem::~EigenSystem(void) {
 	
-}
-
-/* Allocate space for complex eigenvectors */
-void EigenSystem::allocateComplexEigenvectors(void) {
-
-	/* allocate the complex eigenvector and inverse eigenvector matrices */
-	complexEigenvectors = Matrix<complexNum>(n,n);
-	complexInverseEigenvectors = Matrix<complexNum>(n,n);
 }
 
 /* This function balances the matrix A so that the rows with zero entries
@@ -203,21 +177,6 @@ void EigenSystem::balback(int low, int high, std::vector<double> &scale, Matrix<
 			eivec(k, j) = tempD;
 			}
 		}
-}
-
-/* Check if there are complex eigenvalues. */
-bool EigenSystem::checkForComplexEigenvalues(void) {
-
-	bool areThereComplexEigens = false;
-	for (int i=0; i<n; i++)
-		{
-		if (imaginaryEigenvalues[i] != 0.0)
-			{
-			areThereComplexEigens = true;
-			break;
-			}
-		}
-	return areThereComplexEigens;
 }
 
 /* Back substitute into complex LU-decomposed matrix. */
@@ -417,11 +376,11 @@ void EigenSystem::elmtrans(int low, int high, Matrix<double> &a, std::vector<int
 }
 
 /* Return the determinant */
-double EigenSystem::getDeterminant(void) {
+double EigenSystem::getDeterminant(std::vector<double> realEigenValues) {
 
 	double det = 1.0;
 	for (int i=0; i<n; i++) {
-		det *= realEigenvalues[i];
+		det *= realEigenValues[i];
 	}
 	return (det);
 }
@@ -918,49 +877,6 @@ int EigenSystem::hqr2(int low, int high, Matrix<double> &h, std::vector<double> 
 	return (0);
 }
 
-/* Initialize complex eigenvectors from the eigenvector
-   matrix, which is packed with the real and imaginary
-   parts of the eigenvectors as described for the hqr2
-   algorithm. */
-void EigenSystem::initializeComplexEigenvectors(void) {
-
-	// initialize the complex eigenvectors
-	for(int i=0; i<n; i++)
-        {
-		// real eigenvector
-		if (imaginaryEigenvalues[i] == 0.0)
-            {
-			for(int j=0; j<n; j++)
-                {
-				//complexEigenvectors(j, i) = (eigenvectors(j, i), 0.0);
-				complexEigenvectors(j, i).real(eigenvectors(j, i));
-                complexEigenvectors(j, i).imag(0.0);
-                }
-            }
-		// complex eigenvector with positive imaginary part
-		else if (imaginaryEigenvalues[i] > 0.0)
-            {
-			for (int j=0; j<n; j++)
-                {
-				//complexEigenvectors(j, i) = (eigenvectors(j, i), eigenvectors(j, i+1));
-				complexEigenvectors(j, i).real(eigenvectors(j, i));
-				complexEigenvectors(j, i).imag(eigenvectors(j, i+1));
-                }
-            }
-		// complex eigenvector with negative imaginary part
-		// retrieve this as the conjugate of the preceding eigenvector
-		else if (imaginaryEigenvalues[i] < 0.0)
-            {
-			for (int j=0; j<n; j++)
-                {
-				//complexEigenvectors(j, i) = (eigenvectors(j, i-1), -eigenvectors(j, i));
-				complexEigenvectors(j, i).real(eigenvectors(j, i-1));
-				complexEigenvectors(j, i).imag(-eigenvectors(j, i));
-                }
-            }
-        }
-}
-
 /* Calculates aInv = a^{-1} of complex matrix using LU-decomposition. The input
    matrix a is destroyed in the process. The function returns an error (non-zero)
    if the matrix is singular. */
@@ -1126,15 +1042,13 @@ int EigenSystem::luDecompose(Matrix<double>& a, double* vv, int* indx, double* p
 	return(0);
 }
 
-/* This function first checks that the input matrix has the same
-   dimensions as the matrix used to construct the eigensystem. Then
-   it calculates and stores the eigensystem for the input matrix. The
-   function allocates or deallocates memory for complex eigenvectors
-   depending on need. */
-int EigenSystem::update(const Matrix<double> &m) {
+bool EigenSystem::update(const Matrix<double> &m, RateEigen& eigens, ComplexRateEigen& complexEigens) {
 	
-	// copy the matrix into A because we don't want to
-	// destroy the contents of m
+	Matrix<double> eigenVectors(n, n, 0.0);
+	Matrix<double> inverseEigenVectors(n, n, 0.0);
+	std::vector<double> realEigenValues(n, 0.0);
+	std::vector<double> imaginaryEigenValues(n, 0.0);
+
 	Matrix<double> A = m.copy();
 
 	// check that the dimension of A is right
@@ -1151,36 +1065,82 @@ int EigenSystem::update(const Matrix<double> &m) {
 	elmhes(low, high, A, cnt);
 	
 	// initialize the eigenvectors
-	elmtrans(low, high, A, cnt, eigenvectors);
+	elmtrans(low, high, A, cnt, eigenVectors);
 	
 	// compute eigenvalues and eigenvectors
-	hqr2(low, high, A, realEigenvalues, imaginaryEigenvalues, eigenvectors);
+	hqr2(low, high, A, realEigenValues, imaginaryEigenValues, eigenVectors);
 	
 	// reverse balancing to obtain eigenvectors
-	balback(low, high, scale, eigenvectors);
+	balback(low, high, scale, eigenVectors);
 
 	// checks whether there are complex eigenvalues
-	bool wasComplex = isComplex;
-	isComplex = checkForComplexEigenvalues();
+	bool isComplex = false;
+	for(double i : imaginaryEigenValues){
+		if(i != 0.0){
+			isComplex = true;
+			break;
+		}
+	}
 	
 	// invert eigenvectors
-	if (isComplex == false)
-        {
-		A.inject(eigenvectors);
-		invertMatrix(A, inverseEigenvectors);
-		if (wasComplex)
-            {
-			// free memory by assigning null matrices
-			complexEigenvectors = Matrix<complexNum>();
-			complexInverseEigenvectors = Matrix<complexNum>();
-            }
+	if (isComplex == false) {
+		A.inject(eigenVectors);
+		invertMatrix(A, inverseEigenVectors);
+		for(int i = 0; i < n; i++){
+			eigens.eigenvalue[i] = realEigenValues[i];
+		}
+
+		double* pc = eigens.c_ijk;
+		for (int i=0; i<n; i++)
+			for (int j=0; j<n; j++)
+				for (int k=0; k<n; k++)
+					*(pc++) = eigenVectors(i, k) * inverseEigenVectors(k, j);
+    }
+	else {
+		Matrix<complexNum> complexEigenVectors(n,n);
+		Matrix<complexNum> complexInverseEigenVectors(n,n);
+		for(int i=0; i<n; i++) {
+			// real eigenvector
+			if (imaginaryEigenValues[i] == 0.0)
+				{
+				for(int j=0; j<n; j++)
+					{
+					//complexEigenvectors(j, i) = (eigenvectors(j, i), 0.0);
+					complexEigenVectors(j, i).real(eigenVectors(j, i));
+					complexEigenVectors(j, i).imag(0.0);
+					}
+				}
+			// complex eigenvector with positive imaginary part
+			else if (imaginaryEigenValues[i] > 0.0)
+				{
+				for (int j=0; j<n; j++)
+					{
+					//complexEigenvectors(j, i) = (eigenvectors(j, i), eigenvectors(j, i+1));
+					complexEigenVectors(j, i).real(eigenVectors(j, i));
+					complexEigenVectors(j, i).imag(eigenVectors(j, i+1));
+					}
+				}
+			// complex eigenvector with negative imaginary part
+			// retrieve this as the conjugate of the preceding eigenvector
+			else if (imaginaryEigenValues[i] < 0.0)
+				{
+				for (int j=0; j<n; j++)
+					{
+					//complexEigenvectors(j, i) = (eigenvectors(j, i-1), -eigenvectors(j, i));
+					complexEigenVectors(j, i).real(eigenVectors(j, i-1));
+					complexEigenVectors(j, i).imag(-eigenVectors(j, i));
+					}
+				}
+			complexEigens.ceigenvalue[i] = complexNum(realEigenValues[i], imaginaryEigenValues[i]);
         }
-	else
-        {
-		if (wasComplex == false)
-			allocateComplexEigenvectors();
-		initializeComplexEigenvectors();
-		invertComplexMatrix(complexEigenvectors, complexInverseEigenvectors);
-        }
-	return (0);
+		invertComplexMatrix(complexEigenVectors, complexInverseEigenVectors);
+
+		std::complex<double>* pc = complexEigens.cc_ijk;
+		for (int i=0; i<n; i++)
+			for (int j=0; j<n; j++)
+				for (int k=0; k<n; k++)
+					*(pc++) = complexEigenVectors(i, k) * complexInverseEigenVectors(k, j);
+    }
+
+	return isComplex;
 }

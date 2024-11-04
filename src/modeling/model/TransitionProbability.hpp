@@ -5,7 +5,7 @@
 #include <vector>
 #include "core/EigenSystem.hpp"
 #include "core/Matrix.hpp"
-#include "RateEigens.hpp"
+#include "core/RateEigens.hpp"
 
 class TransitionProbability {
 
@@ -21,16 +21,18 @@ class TransitionProbability {
         void                    pullProbs(const int state, const int r, const int node, const double v);
         void                    updateQ(Matrix<double> Q, const int index);
         void                    deleteQ(const int index);
-        void                    popQ();
+        void                    deleteNQ(const int count);
+        void                    allocateQ(int size);
 
     private:
         EigenSystem*            eigens;
         std::vector<RateEigen>  rateEigen;
         std::vector<ComplexRateEigen> complexRateEigen;
-        std::complex<double>*   ceigValExp;
-        double*                 eigValExp;
         std::vector<bool>       isComplex;
         std::vector<bool>       isOldComplex;
+        std::vector<RateEigen>  auxRateEigen;
+        std::vector<ComplexRateEigen> complexAuxRateEigen;
+        std::vector<bool>       isAuxComplex;
         int                     numCats;
         int                     numNodes;
         int                     numStates;

@@ -38,7 +38,7 @@ Model::Model(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProce
         activeTP[i] = false;
     }
     postOrder = new ConditionalLikelihood(aln, numNodes, 1);
-    transProb = new TransitionProbability(numNodes, numChar);
+    transProb = new TransitionProbability(numNodes, numChar + 5);
 
     activeT->updateAll();
 }
@@ -111,15 +111,22 @@ void Model::regenerateLikelihood(){
     int numCats = dpp->getNumCategories();
 
     if(rateMatrix->isDirty()){
+        tf::Taskflow rateTaskflow;
         activeT->updateAll();
+        transProb->allocateQ(numCats);
         for(int i = 0; i < numCats; i++){
             double omega1 = categories[i].omega;
             double omega2 = omega1 * categories[i].beta;
-            transProb->updateQ(rateMatrix->Q(omega1, omega2), i);
+            rateTaskflow.emplace([this, omega1, omega2, i](){
+                transProb->updateQ(rateMatrix->Q(omega1, omega2), i);
+            });
         }
+
+        executor.run(rateTaskflow).wait();
     }
     else if(dpp->isDirty()){
         activeT->updateAll();
+        transProb->allocateQ(numCats);
         for(int i = 0; i < numCats; i++){
             if(categories[i].dirty){
                 double omega1 = categories[i].omega;
@@ -129,12 +136,11 @@ void Model::regenerateLikelihood(){
         }
     }
 
-    tf::Taskflow taskflow;
+    tf::Taskflow phyloTaskflow;
     std::unordered_map<int, tf::Task> taskMap;
 
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     for(Node* n : poSeq){
-        taskMap.insert(std::make_pair(n->getIndex(), taskflow.emplace([n, this, numCats, categories, assignments, activeT](){
+        taskMap.insert(std::make_pair(n->getIndex(), phyloTaskflow.emplace([n, this, numCats, categories, assignments, activeT](){
             int nIndex = n->getIndex();
             if(n->getNeedsTPUpdate() == true){
                 if(n != activeT->getRoot()) {
@@ -196,9 +202,7 @@ void Model::regenerateLikelihood(){
             taskMap.at(n->getIndex()).precede(taskMap.at(n->getAncestor()->getIndex()));
     }
 
-    executor.run(taskflow).wait();
-    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    std::cout << "Completed in " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+    executor.run(phyloTaskflow).wait();
 
     int rIndex = activeT->getRoot()->getIndex();
     double* pR = (*postOrder)(rIndex, activeCL[rIndex], 0);
@@ -283,6 +287,97 @@ void Model::regenerateLikelihood(int site, int category, bool update){
 
     currentLikelihood = lnL;
 }
+
+
+double Model::testCategory(int site, int category, bool update){
+    TreeObject* activeT = tree->getTree();
+
+    std::vector<Node*>&  poSeq = activeT->getPostOrderSeq();
+    std::vector<Category> categories = dpp->getCategories();
+
+    if(update){
+        double omega1 = categories[category].omega;
+        double omega2 = omega1 * categories[category].beta;
+        transProb->updateQ(rateMatrix->Q(omega1, omega2), category);
+    }
+
+    double* siteBuffer = new double[numNodes * stateSpace];
+    std::fill(siteBuffer, siteBuffer + (numNodes * stateSpace), 1.0);
+
+    for(Node* n : poSeq){
+        int nIndex = n->getIndex();
+
+        if(update){
+            if(n != activeT->getRoot()){
+                double v = activeT->getBranchLength(n);
+                transProb->setProbs(activeTP[nIndex], category, nIndex, v);
+            }
+        }
+        
+        double* pNN = siteBuffer + (nIndex * stateSpace);
+        if(n->getIsTip() == false){
+
+            std::set<Node*>& nNeighbors = n->getNeighbors();
+
+            for(Node* d : nNeighbors){
+                if(d != n->getAncestor()){
+                    int dIndex = d->getIndex();
+                    double* pN = pNN;
+                    double* pD = siteBuffer + (dIndex * stateSpace);
+
+                    Matrix<double> P = *(*transProb)(activeTP[dIndex], category, dIndex);
+                    for(int i = 0; i < stateSpace; i++){
+                        double sum = 0.0;
+                        for(int j = 0; j < stateSpace; j++){
+                            sum += P(i, j) * pD[j];
+                        }
+                        (*pN) *= sum;
+                        pN++;
+                    }
+                }
+            }
+        }
+        else {
+            double* pTip = (*postOrder)(nIndex, activeCL[nIndex], 0) + site*stateSpace;
+            for(int i = 0; i < stateSpace; i++){
+                *pNN = *pTip;
+                pTip++;
+                pNN++;
+            }
+        }
+    }
+
+    int rIndex = activeT->getRoot()->getIndex();
+    double* pR = (*postOrder)(rIndex, activeCL[rIndex], 0);
+    std::vector<double> f = rateMatrix->getStationary();
+    double lnL = 0.0;
+
+    for(int c = 0; c < numChar; c++){
+        if(c != site){
+            double like = 0.0;
+            for(int i = 0; i < stateSpace; i++){
+                like += pR[i]*f[i];
+            }
+
+            lnL += std::log(like);
+            pR += stateSpace;
+        }
+        else {
+            double like = 0.0;
+            double* siteRoot = siteBuffer + (rIndex * stateSpace);
+            for(int i = 0; i < stateSpace; i++){
+                like += siteRoot[i]*f[i];
+            }
+            lnL += std::log(like);
+            pR += stateSpace;
+        }
+    }
+
+    delete [] siteBuffer;
+
+    return lnL;
+}
+
 
 void Model::tuneMoves(){
     dpp->tune();

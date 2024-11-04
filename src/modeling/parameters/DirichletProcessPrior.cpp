@@ -54,6 +54,8 @@ DirichletProcessPrior::DirichletProcessPrior(int size, double a, double oL, int 
     
     regeneratePrior();
 
+    oldAssignments = assignments;
+    oldCategories = currentCategories;
     oldLnPrior = currentLnPrior;
 }
 
@@ -147,6 +149,10 @@ void DirichletProcessPrior::accept() {
         else if(moveChoice == 1){
             omegaAcceptCount += 1;
         }
+        else if(moveChoice == 2){
+            omegaAcceptCount += 1;
+            betaAcceptCount += 1;
+        }
     }
 
     moveChoice = -1;
@@ -173,7 +179,7 @@ double DirichletProcessPrior::update() {
     double randomMove = rng.uniformRv();
     double hastings = 0.0;
 
-    if(randomMove < 0.33) { // Beta Simplex on Random Beta
+    if(randomMove < 0.25) { // Beta Simplex on Random Beta
         moveChoice = 0;
         betaCount += 1;
 
@@ -199,7 +205,7 @@ double DirichletProcessPrior::update() {
         
         hastings = backward - forward;
     }
-    else if(randomMove < 0.66) { // Scale Random Omega
+    else if(randomMove < 0.50) { // Scale Random Omega
         moveChoice = 1;
         omegaCount += 1;
 
@@ -212,6 +218,37 @@ double DirichletProcessPrior::update() {
         currentCategories[randomCategory].omega *= scale;
 
         hastings = std::log(scale);
+    }
+    else if(randomMove < 0.75) { // Simultaneous change of Omega and Beta
+        moveChoice = 2;
+        omegaCount += 1;
+        betaCount += 1;
+
+        int randomCategory = (int)(rng.uniformRv() * currentCategories.size());
+
+        this->dirty();
+
+        currentCategories[randomCategory].dirty = true;
+
+        double betaVal = currentCategories[randomCategory].beta;
+
+        double a = betaAlpha + 1.0;
+        double b = (betaAlpha / betaVal) - a + 2.0;
+        double newVal = Probability::Beta::rv(&rng, a, b);
+
+        currentCategories[randomCategory].beta = newVal;
+
+        double scalingFactor = (1.0 - newVal)/(1.0 - betaVal);
+
+        double forward = Probability::Beta::lnPdf(a, b, newVal);
+        double newA = betaAlpha + 1.0;
+        double newB = (betaAlpha / newVal) - a + 2.0;
+        double backward = Probability::Beta::lnPdf(newA, newB, betaVal);
+
+        double scale = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
+        currentCategories[randomCategory].omega *= scale;
+
+        hastings = std::log(scale) + (backward - forward);
     }
     else{ // Gibbs sample according to the numGibbsUpdate option
         hastings = INFINITY;
@@ -227,27 +264,41 @@ double DirichletProcessPrior::update() {
 
             std::vector<double> conditionalL;
             int numCats = currentCategories.size();
+
+            tf::Taskflow taskflow;
+
             for(int i = 0; i < numCats; i++){
-                model->regenerateLikelihood(randomMember, i, false);
-                conditionalL.push_back(model->lnLikelihood() + std::log(currentCategories[i].size));
+                conditionalL.push_back(0.0);
+
+                taskflow.emplace([this, &conditionalL, i, randomMember](){
+                    double likelihood = model->testCategory(randomMember, i, false);
+                    conditionalL[i] = likelihood + std::log(currentCategories[i].size);
+                });
             }
 
             std::vector<double> omegaVec;
             std::vector<double> betaVec;
             double alphaSplit = std::log(alpha/5);
 
-            addCategory(0, 0);
+            model->getTransitionProbability()->allocateQ(numCats + 5);
             for(int i = 0; i < 5; i++){
+                conditionalL.push_back(0.0);
                 double newOmega = Probability::Exponential::rv(&rng, omegaLambda);
                 double newBeta = Probability::Beta::rv(&rng, 1, 1);
-                currentCategories[numCats].omega = newOmega;
-                currentCategories[numCats].beta = newBeta;
+                addCategory(newOmega, newBeta);
                 omegaVec.push_back(newOmega);
                 betaVec.push_back(newBeta);
-                model->regenerateLikelihood(randomMember, numCats, true);
-                conditionalL.push_back(model->lnLikelihood() + alphaSplit);
+
+                taskflow.emplace([this, &conditionalL, i, randomMember, numCats, alphaSplit](){
+                    double likelihood = model->testCategory(randomMember, numCats+i, true);
+                    conditionalL[numCats + i] = likelihood + alphaSplit;
+                });
             }
-            removeCategory(numCats);
+
+            executor.run(taskflow).wait();
+
+            for(int i = 0; i < 5; i++)
+                currentCategories.pop_back();
 
 
             //Do some adjustments here to get relative probabilities
@@ -267,12 +318,13 @@ double DirichletProcessPrior::update() {
                 if(total > categoryDraw){
                     if(i < numCats) { //It already exists
                         assignMember(randomMember, i);
-                        model->getTransitionProbability()->deleteQ(numCats); //Remove extra
+                        model->getTransitionProbability()->deleteNQ(5);
                         model->regenerateLikelihood(randomMember, i, false);
                     }
                     else {
                         addCategory(omegaVec[i - numCats], betaVec[i - numCats]);
                         assignMember(randomMember, numCats);
+                        model->getTransitionProbability()->deleteNQ(4);
                         model->regenerateLikelihood(randomMember, numCats, true);
                     }
                     break;

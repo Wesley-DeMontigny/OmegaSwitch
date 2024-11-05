@@ -48,7 +48,7 @@ int main(int argc, char* argv[]) {
 
         Mcmc myMCMC(&model, &moveScheduler, settings);
 
-        std::cout << "Starting MCMC!" << std::endl;
+        std::cout << "Starting MCMC..." << std::endl;
         myMCMC.burnin();
         myMCMC.run();
 

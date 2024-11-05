@@ -10,7 +10,7 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                                               kLambda(1.0), omegaLambda(1.0), dppAlpha(0.5), updateStationary(false),
                                               numGibbsUpdate(10), rateMatrixWeight(10), dppWeight(10), treeWeight(5),
                                               treeLengthLambda(1.0), simulate(false), fixedTree(""), numTaxa(-1),
-                                              numChar(100), kValue(-1.0), rValue(-1.0), scaleTree(1.0) {
+                                              numChar(-1), kValue(-1.0), rValue(-1.0), scaleTree(1.0) {
     std::vector<std::string> settings;
     for (int i=1; i<argc; i++) {
         std::string arg = argv[i];
@@ -18,17 +18,13 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
     }
 
     settings.push_back("-nexus");
-    settings.push_back("/workspaces/Varying_Selection_DPP/globin_analysis/globins.nex");
+    settings.push_back("/workspaces/Varying_Selection_DPP/publication_analyses/globin_analysis/globins.nex");
     settings.push_back("-treeOut");
     settings.push_back("/workspaces/Code/Varying_Selection_DPP/res/trees.trees");
     settings.push_back("-mcmcOut"); 
     settings.push_back("/workspaces/Code/Varying_Selection_DPP/res/analysis.log");
     settings.push_back("-dppOut"); 
     settings.push_back("/workspaces/Code/Varying_Selection_DPP/res/dpp.log");
-    settings.push_back("-fixedTree");
-    settings.push_back("((((CcarpioHBB:0.05172908,DrerioHBB:0.03752478):0.07009799,SsalarHBB:0.14769959):0.19916559,XborealisHBB:0.47154023):0.06222666,(GgallusHBBA:0.13597721,(BtaurusHBB:0.08606479,HsapiensHBB:0.06002410):0.13346986):0.05790206,(((CcarpioHBA:0.09708301,DrerioHBA:0.02472006):0.15923891,SsalarHBA:0.20586909):0.16195969,(XborealisHBA:0.38418109,(GgallusHBAA:0.12817884,(BtaurusHBA2:0.06468952,HsapiensHBA2:0.07819764):0.12209754):0.07038107):0.06943181):0.22254004);");
-    settings.push_back("-numGibbsUpdate");
-    settings.push_back("15");
 
     /*
     settings.push_back("-simulate");

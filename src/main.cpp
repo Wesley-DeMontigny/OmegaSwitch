@@ -49,7 +49,7 @@ int main(int argc, char* argv[]) {
         Mcmc myMCMC(&model, &moveScheduler, settings);
 
         std::cout << "Starting MCMC..." << std::endl;
-        myMCMC.burnin();
+        //myMCMC.burnin();
         myMCMC.run();
 
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();

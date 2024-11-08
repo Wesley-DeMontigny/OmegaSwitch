@@ -157,14 +157,19 @@ double CodonMultiMatrix::update() {
     if(randomMove < 0.33) { // Scale R
         moveChoice = 0;
         rCount += 1;
-        double scale = std::exp(rDelta * (rng.uniformRv() - 0.5));
-        currentR *= scale;
+
+        double logR = std::log(currentR);
+
+        double proposedLogR = logR + rDelta * Probability::Normal::rv(&rng);
+        double proposedR = std::exp(proposedLogR);
+
+        hastings = proposedLogR - logR;
+
+        currentR = proposedR;
 
         this->dirty();
 
         currentRPrior = Probability::Exponential::lnPdf(rLambda, currentR);
-
-        hastings = std::log(scale);
 
         for(auto coord : valid){
             currentQMatrix(coord.first, coord.first + 61) = currentR * currentStationary[coord.first + 61];
@@ -176,14 +181,19 @@ double CodonMultiMatrix::update() {
     else if(randomMove < 0.66) { // Scale K
         moveChoice = 1;
         kCount += 1;
-        double scale = std::exp(kDelta * (rng.uniformRv() - 0.5));
-        currentK *= scale;
+
+        double logK = std::log(currentK);
+
+        double proposedLogK = logK + kDelta * Probability::Normal::rv(&rng);
+        double proposedK = std::exp(proposedLogK);
+
+        hastings = proposedLogK - logK;
+
+        currentK = proposedK;
 
         this->dirty();
 
         currentKPrior = Probability::Exponential::rv(&rng, kLambda);;;
-
-        hastings = std::log(scale);
 
         for(auto coord : transition){
             currentQMatrix(coord.first, coord.second) = currentStationary[coord.second] * currentK;

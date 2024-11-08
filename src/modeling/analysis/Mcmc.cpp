@@ -67,23 +67,34 @@ void Mcmc::run(){
     std::fstream fsAnalysis;
     fsAnalysis.open(analysisLog, std::fstream::out);
     fsAnalysis << tabularHeader;
+    fsAnalysis.close();
 
     std::fstream fsTree;
     fsTree.open(treeLog, std::fstream::out);
     fsTree << model->treeHeader();
+    fsTree.close();
 
     std::fstream fsDPP;
     fsDPP.open(dppLog, std::fstream::out);
     fsDPP << model->dppHeader();
+    fsDPP.close();
 
     for(int n = 1; n <= numIter; n++){
         if(n % printFreq == 0){
             std::cout << model->tabularOut(n);
         }
         if(n % sampleFreq == 0){
+            fsAnalysis.open(analysisLog, std::fstream::app);
             fsAnalysis << model->tabularOut(n);
+            fsAnalysis.close();
+
+            fsTree.open(treeLog, std::fstream::app);
             fsTree << model->treeOut(n);
+            fsTree.close();
+
+            fsDPP.open(dppLog, std::fstream::app);
             fsDPP << model->dppOut(n);
+            fsDPP.close();
         }
 
         double lnProposalRatio = moveScheduler->updateRandom();

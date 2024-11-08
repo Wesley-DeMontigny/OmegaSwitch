@@ -210,10 +210,14 @@ double DirichletProcessPrior::update() {
         this->dirty();
         currentCategories[randomCategory].dirty = true;
 
-        double scale = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
-        currentCategories[randomCategory].omega *= scale;
+        double logO = std::log(currentCategories[randomCategory].omega);
 
-        hastings = std::log(scale);
+        double proposedLogO = logO + omegaDelta * Probability::Normal::rv(&rng);
+        double proposedO = std::exp(proposedLogO);
+
+        hastings = proposedLogO - logO;
+
+        currentCategories[randomCategory].omega = proposedO;
     }
     else{ // Gibbs sample according to the numGibbsUpdate option
         hastings = INFINITY;

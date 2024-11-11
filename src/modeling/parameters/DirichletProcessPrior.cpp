@@ -215,7 +215,7 @@ double DirichletProcessPrior::update() {
         double proposedLogO = logO + omegaDelta * Probability::Normal::rv(&rng);
         double proposedO = std::exp(proposedLogO);
 
-        hastings = proposedLogO - logO;
+        hastings = 0.0;
 
         currentCategories[randomCategory].omega = proposedO;
     }

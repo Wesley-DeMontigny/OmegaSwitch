@@ -163,7 +163,7 @@ double CodonMultiMatrix::update() {
         double proposedLogR = logR + rDelta * Probability::Normal::rv(&rng);
         double proposedR = std::exp(proposedLogR);
 
-        hastings = proposedLogR - logR;
+        hastings = 0.0;
 
         currentR = proposedR;
 
@@ -187,7 +187,7 @@ double CodonMultiMatrix::update() {
         double proposedLogK = logK + kDelta * Probability::Normal::rv(&rng);
         double proposedK = std::exp(proposedLogK);
 
-        hastings = proposedLogK - logK;
+        hastings = 0.0;
 
         currentK = proposedK;
 

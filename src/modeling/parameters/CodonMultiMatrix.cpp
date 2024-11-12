@@ -211,6 +211,8 @@ double CodonMultiMatrix::update() {
         moveChoice = 2;
         stationaryCount += 1;
 
+        this->dirty();
+
         std::vector<int> drawSet(randomStates);
         std::vector<int> randomIndices;
 
@@ -232,7 +234,7 @@ double CodonMultiMatrix::update() {
                 x[it - randomIndices.begin()] += currentStationary[i];
             }
             else {
-                x[x.size()-1] += currentStationary[i];
+                x[20] += currentStationary[i];
             }
         }
 
@@ -247,6 +249,7 @@ double CodonMultiMatrix::update() {
         }
 
         double factor = z[z.size()-1] / x[x.size()-1];
+        double sum = 0.0;
         for(int i = 0; i < 122; i++) {
             auto it = std::find(randomIndices.begin(), randomIndices.end(), i);
             if(it != randomIndices.end()) {
@@ -256,15 +259,20 @@ double CodonMultiMatrix::update() {
                 currentStationary[i] = currentStationary[i] * factor;
             }
             
-            if(currentStationary[i] < 1E-100) {
+            if(currentStationary[i] < 1E-25) {
                 return -1 * INFINITY;
             }
+
+            sum += currentStationary[i];
+        }
+
+        // Try to rescale to avoid things shrinking to zero
+        for(int i = 0; i < 122; i++) {
+            currentStationary[i] = currentStationary[i]/sum;
         }
 
         hastings  = Probability::Dirichlet::lnPdf(alphaReverse, x) - Probability::Dirichlet::lnPdf(alphaForward, z);
         hastings += 101 * log(factor);
-
-        this->dirty();
 
         currentStationaryPrior = Probability::Dirichlet::lnPdf(flatDirichlet, currentStationary);
 
@@ -346,6 +354,9 @@ void CodonMultiMatrix::tune(){
         else {
             stationaryAlpha /= (2.0 - stationaryRate/0.44);
         }
+
+        stationaryAlpha = fmin(100, stationaryAlpha);
+
         stationaryAcceptCount = 0;
         stationaryCount = 0;
     }

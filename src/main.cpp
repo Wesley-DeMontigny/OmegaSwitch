@@ -35,10 +35,6 @@ int main(int argc, char* argv[]) {
             stationaryDist.push_back(v/2);
         }
 
-        for(double v : stationaryDist){
-            std::cout << v << std::endl;
-        }
-
         TreeParameter treeParam(&aln, settings.fixedTree, settings.treeLengthLambda);
         moveScheduler.registerParam(&treeParam, settings.treeWeight);
 

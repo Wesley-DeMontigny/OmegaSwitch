@@ -84,10 +84,10 @@ void Alignment::readCodonData(NxsCharactersBlock* charBlock){
 
     double total = 0.0;
     for(double v : frequencies){
-        total += v;
+        total += v + 1;
     }
 
     for(double& v : frequencies){
-        v = v/total;
+        v = (v + 1)/total;
     }
 }

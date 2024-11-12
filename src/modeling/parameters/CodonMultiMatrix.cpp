@@ -4,6 +4,7 @@
 #include "core/Probability.hpp"
 #include "core/Settings.hpp"
 #include <cmath>
+#include <algorithm>
 
 CodonMultiMatrix::CodonMultiMatrix(Settings settings, std::vector<double> pi) : 
                                    currentQMatrix(122, 122, 0.0), oldQMatrix(122, 122, 0.0), 
@@ -89,6 +90,10 @@ CodonMultiMatrix::CodonMultiMatrix(Settings settings, std::vector<double> pi) :
     }
     
     oldQMatrix = currentQMatrix;
+
+    for(int i = 0; i < 122; i++)
+        randomStates.push_back(i);
+
     dirty();
 }
 
@@ -205,45 +210,59 @@ double CodonMultiMatrix::update() {
     else { // Beta simplex on the stationary
         moveChoice = 2;
         stationaryCount += 1;
-        int paramNum = currentStationary.size();
-        int i = (int)(rng.uniformRv() * paramNum);
 
-        double pVal = currentStationary[i];
+        std::vector<int> drawSet(randomStates);
+        std::vector<int> randomIndices;
 
-        double a = stationaryAlpha + 1.0;
-        double b = (stationaryAlpha / pVal) - a + 2.0;
-        double newVal = Probability::Beta::rv(&rng, a, b);
+        for(int c = 0; c < 20; c++){
+            int i = (int)(rng.uniformRv() * drawSet.size());
+            randomIndices.push_back(drawSet[i]);
+            drawSet.erase(drawSet.begin() + i);
+        }
 
-        currentStationary[i] = newVal;
+        std::vector<double> x(21, 0.0);
+        std::vector<double> alphaForward(21, 0.0);
+        std::vector<double> alphaReverse(21, 0.0);
+        std::vector<double> z(21, 0.0);
 
-        double scalingFactor = (1.0 - newVal)/(1.0 - pVal);
 
-        double sum = 0.0;
-        for(int j = 0; j < paramNum; j++){
-            if(j != i)
-                currentStationary[j] *= scalingFactor;
+        for(int i = 0; i < 122; i++) {
+            auto it = std::find(randomIndices.begin(), randomIndices.end(), i);
+            if(it != randomIndices.end()) {
+                x[it - randomIndices.begin()] += currentStationary[i];
+            }
+            else {
+                x[x.size()-1] += currentStationary[i];
+            }
+        }
 
-            if(currentStationary[j] <= 1E-100)
-                return -1.0 * INFINITY;
+        for(int i = 0; i < x.size(); i++) {
+            alphaForward[i] = x[i] * stationaryAlpha;
+        }
+        
+        Probability::Dirichlet::rv(&rng, alphaForward, z);
+
+        for(int i = 0; i < z.size(); i++) {
+            alphaReverse[i] = z[i] * stationaryAlpha;
+        }
+
+        double factor = z[z.size()-1] / x[x.size()-1];
+        for(int i = 0; i < 122; i++) {
+            auto it = std::find(randomIndices.begin(), randomIndices.end(), i);
+            if(it != randomIndices.end()) {
+                currentStationary[i] = z[it - randomIndices.begin()];
+            }
+            else {
+                currentStationary[i] = currentStationary[i] * factor;
+            }
             
-            sum += currentStationary[j];
+            if(currentStationary[i] < 1E-100) {
+                return -1 * INFINITY;
+            }
         }
 
-        //Normalize to make sure this doesn't drift from 1.0;
-        for (int j = 0; j < paramNum; j++) {
-            currentStationary[j] /= sum;
-        }
-
-        // The probability of getting our new value
-        double forward = Probability::Beta::lnPdf(a, b, newVal);
-        double newA = stationaryAlpha + 1.0;
-        double newB = (stationaryAlpha / newVal) - a + 2.0;
-        // The probability of getting our old value in the future
-        double backward = Probability::Beta::lnPdf(newA, newB, pVal);
-        
-        hastings = backward - forward;
-        
-        hastings += (paramNum - 2) * std::log(scalingFactor) - (paramNum - 1) * std::log(sum);
+        hastings  = Probability::Dirichlet::lnPdf(alphaReverse, x) - Probability::Dirichlet::lnPdf(alphaForward, z);
+        hastings += 101 * log(factor);
 
         this->dirty();
 

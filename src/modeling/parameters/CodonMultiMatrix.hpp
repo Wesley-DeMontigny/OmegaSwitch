@@ -62,6 +62,8 @@ class CodonMultiMatrix : public Parameter {
         std::set<std::pair<int, int>> nonsynonymous;
         std::set<std::pair<int, int>> valid;
         std::set<std::pair<int, int>> transition;
+
+        std::vector<int> randomStates;
 };
 
 #endif

@@ -24,6 +24,8 @@ class Model {
         void regenerateLikelihood();
         void regenerateLikelihood(int site, int category, bool update);
 
+        void reconstructTips();
+
         double testCategory(int site, int category, bool update);
 
         TransitionProbability* getTransitionProbability() { return transProb; }
@@ -39,6 +41,8 @@ class Model {
         std::string treeOut(int i);
         std::string dppHeader();
         std::string dppOut(int i);
+        std::string tipsHeader();
+        std::string tipsOut(int i);
     protected:
         double oldLikelihood;
         double currentLikelihood;
@@ -53,6 +57,7 @@ class Model {
         Alignment* aln;
         ConditionalLikelihood* postOrder;
         TransitionProbability* transProb;
+        double* reconstruction;
         TreeParameter* tree;
         DirichletProcessPrior* dpp;
 };

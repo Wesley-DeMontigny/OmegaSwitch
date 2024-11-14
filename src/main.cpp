@@ -62,12 +62,8 @@ int main(int argc, char* argv[]) {
         TreeObject tree(settings.numTaxa);
         std::vector<Node*> nodes = tree.getPostOrderSeq();
         for(Node* n : nodes) {
-            if(n != tree.getRoot()) {
-                if(settings.scaleTree == 1.0)
-                    tree.setBranchLength(n, Probability::Exponential::rv(&rng, settings.treeLengthLambda));
-                else
-                    tree.setBranchLength(n, tree.getBranchLength(n) * settings.scaleTree);
-            }
+            if(n != tree.getRoot())
+                tree.setBranchLength(n, Probability::Exponential::rv(&rng, settings.treeLengthLambda));
         }
 
 

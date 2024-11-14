@@ -40,6 +40,10 @@ Model::Model(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProce
     postOrder = new ConditionalLikelihood(aln, numNodes, 1);
     transProb = new TransitionProbability(numNodes, numChar + 5); // Add extra for aux tables
 
+    int rWidth = numNodes*numChar*stateSpace;
+    reconstruction = new double[rWidth];
+    std::fill(reconstruction, reconstruction + rWidth, 0.0);
+
     activeT->updateAll();
 }
 
@@ -378,6 +382,84 @@ double Model::testCategory(int site, int category, bool update){
     return lnL;
 }
 
+void Model::reconstructTips(){
+    TreeObject* activeT = tree->getTree();
+    std::vector<Node*>&  preOrderSeq = activeT->getPostOrderSeq();
+    std::reverse(preOrderSeq.begin(), preOrderSeq.end());
+    std::vector<int> assignments = dpp->getAssinments();
+    std::vector<Category> categories = dpp->getCategories();
+    int numCats = dpp->getNumCategories();
+
+    tf::Taskflow phyloTaskflow;
+    std::unordered_map<int, tf::Task> taskMap;
+
+    Node* root = activeT->getRoot();
+    taskMap.insert(std::make_pair(root->getIndex(), phyloTaskflow.emplace([root, this, numCats, categories, assignments, activeT](){
+        int rIndex = root->getIndex();
+        double* pR = (*postOrder)(rIndex, activeCL[rIndex], 0);
+        double* rR = reconstruction + rIndex*numChar*stateSpace;
+        std::vector<double> f = rateMatrix->getStationary();
+
+        for(int c = 0; c < numChar; c++){
+            double total = 0.0;
+            for(int i = 0; i < stateSpace; i++){
+                double product = f[i] * pR[i];
+                rR[i] = product;
+                total += product;
+            }
+            for(int i = 0; i < stateSpace; i++){
+                *rR /= total;
+                rR++;
+            }
+            pR += stateSpace;
+        }
+    })));
+
+    for(Node* n : preOrderSeq){
+        if(n != activeT->getRoot()){
+            taskMap.insert(std::make_pair(n->getIndex(), phyloTaskflow.emplace([n, this, numCats, categories, assignments, activeT](){
+                int nIndex = n->getIndex();
+                double* pN = (*postOrder)(nIndex, activeCL[nIndex], 0);
+                double* rN = reconstruction + nIndex*numChar*stateSpace;
+
+                int aIndex = n->getAncestor()->getIndex();
+                double* rA = reconstruction + aIndex*numChar*stateSpace;
+
+                std::vector<Matrix<double>> transProbMatrices;
+                for(int cat = 0; cat < numCats; cat++)
+                    transProbMatrices.push_back(*(*transProb)(activeTP[aIndex], cat, aIndex));
+                for(int c = 0; c < numChar; c++){
+                    Matrix<double> P = transProbMatrices[assignments[c]];
+                    double total = 0.0;
+                    for(int i = 0; i < stateSpace; i++){
+                        double sum = 0.0;
+                        double l = pN[i];
+                        for(int j = 0; j < stateSpace; j++){
+                            sum += P(j, i) * rA[j] * l; //Probability of going from ancestor j to current i times probability of ancestor j times condL?
+                        }
+                        rN[i] = sum;
+                        total += sum;
+                    }
+
+                    for(int i = 0; i < stateSpace; i++){
+                        *rN /= total;
+                        rN++;
+                    }
+
+                    pN += stateSpace;
+                    rA += stateSpace;
+                }
+            })));
+        }
+    }
+
+    for(Node* n : preOrderSeq){
+        if(n != root)
+            taskMap.at(n->getIndex()).succeed(taskMap.at(n->getAncestor()->getIndex()));
+    }
+
+    executor.run(phyloTaskflow).wait();
+}
 
 void Model::tuneMoves(){
     dpp->tune();

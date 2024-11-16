@@ -50,6 +50,7 @@ Model::Model(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProce
 Model::~Model(){
     delete postOrder;
     delete transProb;
+    delete [] reconstruction;
     delete [] activeCL;
     delete [] activeTP;
 }
@@ -427,7 +428,7 @@ void Model::reconstructTips(){
 
                 std::vector<Matrix<double>> transProbMatrices;
                 for(int cat = 0; cat < numCats; cat++)
-                    transProbMatrices.push_back(*(*transProb)(activeTP[aIndex], cat, aIndex));
+                    transProbMatrices.push_back(*(*transProb)(activeTP[nIndex], cat, nIndex));
                 for(int c = 0; c < numChar; c++){
                     Matrix<double> P = transProbMatrices[assignments[c]];
                     double total = 0.0;
@@ -454,8 +455,13 @@ void Model::reconstructTips(){
     }
 
     for(Node* n : preOrderSeq){
-        if(n != root)
-            taskMap.at(n->getIndex()).succeed(taskMap.at(n->getAncestor()->getIndex()));
+        if(n->getIsTip() == false){
+            for(Node* d : n->getNeighbors()){
+                if(d != n->getAncestor()){
+                    taskMap.at(n->getIndex()).precede(taskMap.at(d->getIndex()));
+                }
+            }
+        }
     }
 
     executor.run(phyloTaskflow).wait();
@@ -522,6 +528,54 @@ std::string Model::dppOut(int i){
     std::vector<int> assignments = dpp->getAssinments();
     for(int c : assignments){
         returnString += "\t" + std::to_string(categories[c].omega) + "\t" + std::to_string(categories[c].beta);
+    }
+
+    return returnString + "\n";
+}
+
+std::string Model::tipsHeader(){
+    std::string returnString = "Iteration";
+    std::vector<Node*> tips = tree->getTree()->getTips();
+
+    for(Node* n : tips){
+        std::string name = n->getName();
+        for(int c = 0; c < numChar; c++){
+            returnString += "\t" + name + "[" + std::to_string(c) + "]";
+        }
+    }
+
+    return returnString + "\n";
+}
+
+std::string Model::tipsOut(int i){
+    std::string returnString = "";
+    std::vector<Node*> tips = tree->getTree()->getTips();
+
+    std::vector<int> assignments = dpp->getAssinments();
+    std::vector<Category> categories = dpp->getCategories();
+
+    for(Node* n : tips) {
+        double* rN = reconstruction + n->getIndex()*numChar*stateSpace;
+        for(int c = 0; c < numChar; c++) {
+            double expectedOmega = 0;
+            double omega = categories[assignments[c]].omega;
+            double beta = categories[assignments[c]].beta;
+
+            for(int i = 0; i < stateSpace; i++) {
+                if(*rN > 0) {
+                    if(stateSpace < 61) {
+                        expectedOmega += omega * (*rN);
+                    }
+                    else {
+                        expectedOmega += omega * beta * (*rN);
+                    }
+                }
+
+                rN++;
+            }
+
+            returnString += "\t" + std::to_string(expectedOmega);
+        }
     }
 
     return returnString + "\n";

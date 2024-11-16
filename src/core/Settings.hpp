@@ -10,6 +10,8 @@ struct Settings {
     std::string     treeOutput;
     std::string     dppOutput;
     std::string     mcmcOutput;
+    std::string     tipsOutput;
+
     std::string     fixedTree;
     int             numIterations;
     int             printFrequency;
@@ -32,7 +34,6 @@ struct Settings {
     int             numChar;
     double          kValue;
     double          rValue;
-    double          scaleTree;
     std::vector<int> assignmentVector;
     std::vector<double> omega1Vector;
     std::vector<double> omega2Vector;

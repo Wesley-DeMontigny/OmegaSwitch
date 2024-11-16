@@ -17,6 +17,7 @@ Mcmc::Mcmc(Model* m, MoveScheduler* mS, Settings& s) : model(m), moveScheduler(m
     analysisLog = s.mcmcOutput;
     treeLog = s.treeOutput;
     dppLog = s.dppOutput;
+    tipsLog = s.tipsOutput;
 }
 
 void Mcmc::burnin(){
@@ -79,6 +80,11 @@ void Mcmc::run(){
     fsDPP << model->dppHeader();
     fsDPP.close();
 
+    std::fstream fsTips;
+    fsTips.open(tipsLog, std::fstream::out);
+    fsTips << model->dppHeader();
+    fsTips.close();
+
     for(int n = 1; n <= numIter; n++){
         if(n % printFreq == 0){
             std::cout << model->tabularOut(n);
@@ -95,6 +101,12 @@ void Mcmc::run(){
             fsDPP.open(dppLog, std::fstream::app);
             fsDPP << model->dppOut(n);
             fsDPP.close();
+
+            model->reconstructTips();
+            fsTips.open(tipsLog, std::fstream::app);
+            fsTips << model->tipsOut(n);
+            fsTips.close();
+
         }
 
         double lnProposalRatio = moveScheduler->updateRandom();

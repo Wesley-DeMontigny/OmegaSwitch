@@ -24,6 +24,7 @@ class Mcmc{
         std::string analysisLog;
         std::string treeLog;
         std::string dppLog;
+        std::string tipsLog;
         MoveScheduler* moveScheduler;
         Model* model;
 };

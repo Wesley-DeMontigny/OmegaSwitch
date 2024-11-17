@@ -65,48 +65,48 @@ void Mcmc::run(){
     std::string tabularHeader = model->tabularHeader();
     std::cout << tabularHeader;
 
-    std::fstream fsAnalysis;
-    fsAnalysis.open(analysisLog, std::fstream::out);
-    fsAnalysis << tabularHeader;
-    fsAnalysis.close();
+    std::ofstream fs;
+    fs.open(analysisLog, std::ofstream::out);
+    fs << tabularHeader;
+    fs.close();
 
-    std::fstream fsTree;
-    fsTree.open(treeLog, std::fstream::out);
-    fsTree << model->treeHeader();
-    fsTree.close();
+    fs.open(treeLog, std::ofstream::out);
+    fs << model->treeHeader();
+    fs.close();
 
-    std::fstream fsDPP;
-    fsDPP.open(dppLog, std::fstream::out);
-    fsDPP << model->dppHeader();
-    fsDPP.close();
+    fs.open(dppLog, std::ofstream::out);
+    fs << model->dppHeader();
+    fs.close();
 
-    std::fstream fsTips;
-    fsTips.open(tipsLog, std::fstream::out);
-    fsTips << model->dppHeader();
-    fsTips.close();
+    fs.open(tipsLog, std::ofstream::out);
+    fs << model->tipsHeader();
+    fs.close();
 
     for(int n = 1; n <= numIter; n++){
         if(n % printFreq == 0){
             std::cout << model->tabularOut(n);
         }
         if(n % sampleFreq == 0){
-            fsAnalysis.open(analysisLog, std::fstream::app);
-            fsAnalysis << model->tabularOut(n);
-            fsAnalysis.close();
+            fs.open(analysisLog, std::ofstream::app);
+            fs << model->tabularOut(n);
+            fs.close();
+            fs.clear();
 
-            fsTree.open(treeLog, std::fstream::app);
-            fsTree << model->treeOut(n);
-            fsTree.close();
+            fs.open(treeLog, std::ofstream::app);
+            fs << model->treeOut(n);
+            fs.close();
+            fs.clear();
 
-            fsDPP.open(dppLog, std::fstream::app);
-            fsDPP << model->dppOut(n);
-            fsDPP.close();
+            fs.open(dppLog, std::ofstream::app);
+            fs << model->dppOut(n);
+            fs.close();
+            fs.clear();
 
             model->reconstructTips();
-            fsTips.open(tipsLog, std::fstream::app);
-            fsTips << model->tipsOut(n);
-            fsTips.close();
-
+            fs.open(tipsLog, std::ofstream::app);
+            fs << model->tipsOut(n);
+            fs.close();
+            fs.clear();
         }
 
         double lnProposalRatio = moveScheduler->updateRandom();
@@ -125,8 +125,4 @@ void Mcmc::run(){
             model->reject();
         }
     }
-
-    fsAnalysis.close();
-    fsDPP.close();
-    fsTree.close();
 }

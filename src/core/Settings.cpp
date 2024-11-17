@@ -20,13 +20,13 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
     settings.push_back("-nexus");
     settings.push_back("/workspaces/Varying_Selection_DPP/publication_analyses/globin_analysis/globins.nex");
     settings.push_back("-treeOut");
-    settings.push_back("/workspaces/Code/Varying_Selection_DPP/res/trees.trees");
+    settings.push_back("/workspaces/Varying_Selection_DPP/res/trees.trees");
     settings.push_back("-mcmcOut"); 
-    settings.push_back("/workspaces/Code/Varying_Selection_DPP/res/analysis.log");
+    settings.push_back("/workspaces/Varying_Selection_DPP/res/analysis.log");
     settings.push_back("-dppOut"); 
-    settings.push_back("/workspaces/Code/Varying_Selection_DPP/res/dpp.log");
+    settings.push_back("/workspaces/Varying_Selection_DPP/res/dpp.log");
     settings.push_back("-tipsOut"); 
-    settings.push_back("/workspaces/Code/Varying_Selection_DPP/res/tips.log");
+    settings.push_back("/workspaces/Varying_Selection_DPP/res/tips.log");
     settings.push_back("-fixedTree");
     settings.push_back("((((CcarpioHBB:1,DrerioHBB:1):1,SsalarHBB:1):1,XborealisHBB:1):1,(GgallusHBBA:1,(BtaurusHBB:1,HsapiensHBB:1):1):1,(((CcarpioHBA:1,DrerioHBA:1):1,SsalarHBA:1):1,(XborealisHBA:1,(GgallusHBAA:1,(BtaurusHBA2:1,HsapiensHBA2:1):1):1):1):1);");
 
@@ -179,6 +179,7 @@ void Settings::print(){
     std::cout << "   * -treeOut           : " << treeOutput << std::endl;
     std::cout << "   * -mcmcOut           : " << mcmcOutput << std::endl;
     std::cout << "   * -dppOut            : " << dppOutput << std::endl;
+    std::cout << "   * -tipsOut            : " << tipsOutput << std::endl;
     std::cout << "   * -fixedTree         : " << fixedTree << std::endl;
     std::cout << std::endl;
     
@@ -230,6 +231,7 @@ void Settings::usage(void) {
     std::cout << "   * -treeOut           : The output file name for the tree trace." << std::endl;
     std::cout << "   * -mcmcOut           : The output file name for the bulk of the MCMC trace, excluding the tree and DPP parameters." << std::endl;
     std::cout << "   * -dppOut            : The output file name for the DPP parameters." << std::endl;
+    std::cout << "   * -tipsOut           : The output file name for the reconstructed tip stats." << std::endl;
     std::cout << "   * -fixedTree         : The NEWICK string corresponding to the fixed tree you wish to analyze." << std::endl;
     std::cout << std::endl;
 

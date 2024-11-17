@@ -548,7 +548,7 @@ std::string Model::tipsHeader(){
 }
 
 std::string Model::tipsOut(int i){
-    std::string returnString = "";
+    std::string returnString = std::to_string(i);
     std::vector<Node*> tips = tree->getTree()->getTips();
 
     std::vector<int> assignments = dpp->getAssinments();

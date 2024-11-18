@@ -28,7 +28,6 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
     settings.push_back("-tipsOut"); 
     settings.push_back("/workspaces/Varying_Selection_DPP/res/tips.log");
     settings.push_back("-fixedTree");
-    settings.push_back("((((CcarpioHBB:1,DrerioHBB:1):1,SsalarHBB:1):1,XborealisHBB:1):1,(GgallusHBBA:1,(BtaurusHBB:1,HsapiensHBB:1):1):1,(((CcarpioHBA:1,DrerioHBA:1):1,SsalarHBA:1):1,(XborealisHBA:1,(GgallusHBAA:1,(BtaurusHBA2:1,HsapiensHBA2:1):1):1):1):1);");
 
 /*
     settings.push_back("-simulate");

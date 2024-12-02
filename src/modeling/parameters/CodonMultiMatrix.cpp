@@ -9,8 +9,8 @@
 CodonMultiMatrix::CodonMultiMatrix(Settings settings, std::vector<double> pi) : 
                                    currentQMatrix(122, 122, 0.0), oldQMatrix(122, 122, 0.0), 
                                    currentStationary(pi), oldStationary(pi), currentRPrior(0.0), oldRPrior(0.0),
-                                   rLambda(settings.rLambda), kLambda(settings.kLambda), currentKPrior(0.0), oldKPrior(0.0), currentStationaryPrior(0.0), 
-                                   oldStationaryPrior(0.0), updateStationary(settings.updateStationary), moveChoice(-1), rCount(0),
+                                   rLambda(settings.rLambda), kLambda(settings.kLambda), currentKPrior(0.0), oldKPrior(0.0), 
+                                   updateStationary(settings.updateStationary), moveChoice(-1), rCount(0),
                                    kCount(0), stationaryCount(0), rAcceptCount(0), kAcceptCount(0), stationaryAcceptCount(0),
                                    rDelta(std::log(2)), kDelta(std::log(2)), stationaryAlpha(1000) {
     
@@ -63,14 +63,6 @@ CodonMultiMatrix::CodonMultiMatrix(Settings settings, std::vector<double> pi) :
     currentKPrior = Probability::Exponential::lnPdf(kLambda, currentK);
     oldKPrior = currentKPrior;
 
-    if(updateStationary){
-        for(int i = 0; i < 122; i++){
-            flatDirichlet.push_back(1.0);
-        }
-        currentStationaryPrior = Probability::Dirichlet::lnPdf(flatDirichlet, currentStationary);
-        oldStationaryPrior = currentStationaryPrior;
-    }
-
     for(auto coord : valid){
         currentQMatrix(coord.first, coord.second) = currentStationary[coord.second];
         currentQMatrix(coord.second, coord.first) = currentStationary[coord.first];
@@ -107,7 +99,6 @@ void CodonMultiMatrix::accept() {
 
     if(updateStationary){
         oldStationary = currentStationary;
-        oldStationaryPrior = currentStationaryPrior;
     }
 
     if(moveChoice != -1){
@@ -134,7 +125,6 @@ void CodonMultiMatrix::reject() {
 
     if(updateStationary){
         currentStationary = oldStationary;
-        currentStationaryPrior = oldStationaryPrior;
     }
 
     moveChoice = -1;
@@ -145,7 +135,7 @@ double CodonMultiMatrix::lnPrior() {
         return currentKPrior + currentRPrior;
     }
     else {
-        return currentKPrior + currentRPrior + currentStationaryPrior;
+        return currentKPrior + currentRPrior;
     }
 }
 
@@ -273,8 +263,6 @@ double CodonMultiMatrix::update() {
 
         hastings  = Probability::Dirichlet::lnPdf(alphaReverse, x) - Probability::Dirichlet::lnPdf(alphaForward, z);
         hastings += 101 * log(factor);
-
-        currentStationaryPrior = Probability::Dirichlet::lnPdf(flatDirichlet, currentStationary);
 
         for(auto coord : valid){
             currentQMatrix(coord.first, coord.second) = currentStationary[coord.second];

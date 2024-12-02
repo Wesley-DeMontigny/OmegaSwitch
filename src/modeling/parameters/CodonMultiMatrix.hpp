@@ -20,7 +20,6 @@ class CodonMultiMatrix : public Parameter {
         double lnPrior();
         double kPrior() {return currentKPrior;}
         double rPrior() {return currentRPrior;}
-        double stationaryPrior() {return currentStationaryPrior;}
         bool updatingStationary() {return updateStationary;}
         std::vector<double> getStationary() {return currentStationary;}
         double getK() {return currentK;}
@@ -54,10 +53,7 @@ class CodonMultiMatrix : public Parameter {
 
         std::vector<double> currentStationary;
         std::vector<double> oldStationary;
-        double currentStationaryPrior;
-        double oldStationaryPrior;
         bool updateStationary;
-        std::vector<double> flatDirichlet;
 
         std::set<std::pair<int, int>> nonsynonymous;
         std::set<std::pair<int, int>> valid;

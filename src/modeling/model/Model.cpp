@@ -570,8 +570,6 @@ void Model::tuneMoves(){
 
 std::string Model::tabularHeader(){
     std::string returnString = "Iteration\tPosterior\tLikelihood\tTree Prior\tDPP Prior\tK Prior\tR Prior";
-    if(rateMatrix->updatingStationary())
-        returnString += "\tPi Prior";
     returnString += "\tK\tR";
     if(rateMatrix->updatingStationary()){
         for(int i = 0; i < 122; i++){
@@ -587,8 +585,6 @@ std::string Model::tabularOut(int i){
                                std::to_string(currentLikelihood) + "\t" + std::to_string(tree->lnPrior()) + "\t" +
                                std::to_string(dpp->lnPrior()) + "\t" + std::to_string(rateMatrix->kPrior()) + "\t" +
                                std::to_string(rateMatrix->rPrior());
-    if(rateMatrix->updatingStationary())
-        returnString += "\t" + std::to_string(rateMatrix->stationaryPrior());
     returnString += "\t" + std::to_string(rateMatrix->getK()) + "\t" + std::to_string(rateMatrix->getR());
     if(rateMatrix->updatingStationary()){
         std::vector<double> stationary = rateMatrix->getStationary();

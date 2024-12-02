@@ -40,9 +40,13 @@ Model::Model(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProce
     postOrder = new ConditionalLikelihood(aln, numNodes, 1);
     transProb = new TransitionProbability(numNodes, numChar + 5); // Add extra for aux tables
 
-    int rWidth = numNodes*numChar*stateSpace;
-    reconstruction = new double[rWidth];
-    std::fill(reconstruction, reconstruction + rWidth, 0.0);
+    int reconstructionWidth = numNodes*numChar*stateSpace;
+    reconstruction = new double[reconstructionWidth];
+    std::fill(reconstruction, reconstruction + reconstructionWidth, 0.0);
+
+    int rescaleWidth = numNodes*numChar;
+    rescaling = new double[rescaleWidth];
+    std::fill(rescaling, rescaling + rescaleWidth, 0.0);
 
     activeT->updateAll();
 }
@@ -197,6 +201,28 @@ void Model::regenerateLikelihood(){
                         }
                     }
                 }
+                double* rescalePointer = rescaling + (numChar * nIndex);
+                std::fill(rescalePointer, rescalePointer + numChar, 0.0);
+
+                for(int c = 0; c < numChar; c++){
+                    double max = *pNN;
+                    pNN++;
+                    for(int i = 1; i < stateSpace; i++){
+                        if(*pNN > max)
+                            max = *pNN;
+                        pNN++;
+                    }
+                    if(max < 1e-25){
+                        pNN -= stateSpace;
+                        for(int i = 1; i < stateSpace; i++){
+                            *pNN /= max;
+                            pNN++;
+                        }
+                        *rescalePointer = std::log(max);
+                    }
+                    rescalePointer++;
+                }
+
                 n->setNeedsCLUpdate(false);
             }
         })));
@@ -222,6 +248,12 @@ void Model::regenerateLikelihood(){
 
         lnL += std::log(like);
         pR += stateSpace;
+    }
+
+    double* rescalePointer = rescaling;
+    for(int i = 0, len = numNodes * numChar; i < len; i++){
+        lnL += *rescalePointer;
+        rescalePointer++;
     }
 
     currentLikelihood = lnL;
@@ -272,6 +304,25 @@ void Model::regenerateLikelihood(int site, int category, bool update){
                     }
                 }
             }
+
+            double* rescalePointer = rescaling + (numChar * nIndex) + site;
+            *rescalePointer = 0.0;
+
+            double max = *pNN;
+            pNN++;
+            for(int i = 1; i < stateSpace; i++){
+                if(*pNN > max)
+                    max = *pNN;
+                pNN++;
+            }
+            if(max < 1e-25){
+                pNN -= stateSpace;
+                for(int i = 1; i < stateSpace; i++){
+                    *pNN /= max;
+                    pNN++;
+                }
+                *rescalePointer = std::log(max);
+            }
         }
     }
 
@@ -288,6 +339,12 @@ void Model::regenerateLikelihood(int site, int category, bool update){
 
         lnL += std::log(like);
         pR += stateSpace;
+    }
+
+    double* rescalePointer = rescaling;
+    for(int i = 0, len = numNodes * numChar; i < len; i++){
+        lnL += *rescalePointer;
+        rescalePointer++;
     }
 
     currentLikelihood = lnL;
@@ -308,6 +365,9 @@ double Model::testCategory(int site, int category, bool update){
 
     double* siteBuffer = new double[numNodes * stateSpace];
     std::fill(siteBuffer, siteBuffer + (numNodes * stateSpace), 1.0);
+
+    double* rescaleBuffer = new double[numNodes];
+    std::fill(rescaleBuffer, rescaleBuffer + numNodes, 0.0);
 
     for(Node* n : poSeq){
         int nIndex = n->getIndex();
@@ -340,6 +400,24 @@ double Model::testCategory(int site, int category, bool update){
                         pN++;
                     }
                 }
+            }
+
+            double* rescalePointer = rescaleBuffer + nIndex;
+
+            double max = *pNN;
+            pNN++;
+            for(int i = 1; i < stateSpace; i++){
+                if(*pNN > max)
+                    max = *pNN;
+                pNN++;
+            }
+            if(max < 1e-25){
+                pNN -= stateSpace;
+                for(int i = 1; i < stateSpace; i++){
+                    *pNN /= max;
+                    pNN++;
+                }
+                *rescalePointer = std::log(max);
             }
         }
         else {
@@ -378,7 +456,24 @@ double Model::testCategory(int site, int category, bool update){
         }
     }
 
+    double* rescalePointer = rescaling;
+    double* rescaleBufferPointer = rescaleBuffer;
+    for(int i = 0; i < numNodes; i++){
+        for(int c = 0; c < numChar; c++){
+            if(c != site){
+                lnL += *rescalePointer;  
+            }
+            else{
+                lnL += *rescaleBufferPointer;
+                rescaleBufferPointer++;
+            }
+            rescalePointer++; 
+        }
+    }
+
     delete [] siteBuffer;
+
+    delete [] rescaleBuffer;
 
     return lnL;
 }

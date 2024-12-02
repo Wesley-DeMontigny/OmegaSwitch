@@ -17,7 +17,6 @@ class Model {
         Model(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProcessPrior* d);
         ~Model();
 
-
         double lnLikelihood() {return currentLikelihood;}
         double lnPrior();
 
@@ -58,6 +57,7 @@ class Model {
         ConditionalLikelihood* postOrder;
         TransitionProbability* transProb;
         double* reconstruction;
+        double* rescaling;
         TreeParameter* tree;
         DirichletProcessPrior* dpp;
 };

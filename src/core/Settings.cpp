@@ -17,17 +17,19 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
         settings.push_back(arg);
     }
 
+
     settings.push_back("-nexus");
     settings.push_back("/workspaces/Varying_Selection_DPP/publication_analyses/globin_analysis/globins.nex");
     settings.push_back("-treeOut");
     settings.push_back("/workspaces/Varying_Selection_DPP/res/trees.trees");
-    settings.push_back("-mcmcOut"); 
+    settings.push_back("-mcmcOut");
     settings.push_back("/workspaces/Varying_Selection_DPP/res/analysis.log");
-    settings.push_back("-dppOut"); 
+    settings.push_back("-dppOut");
     settings.push_back("/workspaces/Varying_Selection_DPP/res/dpp.log");
-    settings.push_back("-tipsOut"); 
+    settings.push_back("-tipsOut");
     settings.push_back("/workspaces/Varying_Selection_DPP/res/tips.log");
     settings.push_back("-fixedTree");
+    settings.push_back("((HakajeiHBB:1,(((DrerioHBB:1,CcarpioHBB:1):1,SsalarHBB:1):1,((BtaurusHBB:1,HsapiensHBB:1):1,(XborealisHBB:1,(CniloticusHBB:1,(CminorHBB:1,GgallusHBBA:1):1):1):1):1):1):1,((((((CminorHBA:1,GgallusHBAA:1):1,CniloticusHBA:1):1,XborealisHBA:1):1,(BtaurusHBA2:1,HsapiensHBA2:1):1):1,((DrerioHBA:1,CcarpioHBA:1):1,SsalarHBA:1):1):1,HakajeiHBA:1):1);");
 
 /*
     settings.push_back("-simulate");

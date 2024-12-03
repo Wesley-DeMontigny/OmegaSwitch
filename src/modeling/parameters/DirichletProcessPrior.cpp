@@ -9,11 +9,11 @@
 #include <iostream>
 #include <algorithm>
 
-DirichletProcessPrior::DirichletProcessPrior(int size, double a, double oL, int numGibbs) : 
+DirichletProcessPrior::DirichletProcessPrior(int size, double a, double oL, double rL, int numGibbs) : 
                                              alpha(a), omegaLambda(oL), numMembers(size), currentLnPrior(0.0), 
                                              oldLnPrior(0.0), numGibbsUpdate(numGibbs), model(nullptr),
                                              moveChoice(-1), omegaCount(0), omegaAcceptCount(0), omegaDelta(std::log(2)),
-                                             betaCount(0), betaAcceptCount(0), betaAlpha(1.0) {
+                                             betaCount(0), betaAcceptCount(0), betaAlpha(1.0), rLambda(rL) {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
     //The expected category number can be roughly computed as n = a * ln(1 + c/a)
@@ -25,6 +25,7 @@ DirichletProcessPrior::DirichletProcessPrior(int size, double a, double oL, int 
         if(total > randomVal){
             Category newCat = {Probability::Exponential::rv(&rng, omegaLambda),
                                Probability::Beta::rv(&rng, 1, 1),
+                               Probability::Exponential::rv(&rng, rLambda),
                                1, {i}, true};
             currentCategories.push_back(newCat);
             continue;
@@ -72,6 +73,7 @@ void DirichletProcessPrior::regeneratePrior(){
         currentLnPrior += Math::lnFactorial(currentCategories[i].size - 1);
         currentLnPrior += Probability::Exponential::lnPdf(omegaLambda, currentCategories[i].omega);
         currentLnPrior += Probability::Beta::lnPdf(1, 1, currentCategories[i].beta);
+        currentLnPrior += Probability::Exponential::lnPdf(rLambda, currentCategories[i].r);
     }
 
     currentLnPrior -= denominator;
@@ -84,10 +86,10 @@ void DirichletProcessPrior::removeCategory(int index){
     currentCategories.erase(currentCategories.begin() + index);
 }
 
-void DirichletProcessPrior::addCategory(double value1, double value2){
+void DirichletProcessPrior::addCategory(double omega1, double omega2, double r){
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
-    Category newCat = {value1, value2, 0, {}, true};
+    Category newCat = {omega1, omega2, r, 0, {}, true};
     currentCategories.push_back(newCat);
 }
 
@@ -149,6 +151,9 @@ void DirichletProcessPrior::accept() {
         else if(moveChoice == 1){
             omegaAcceptCount += 1;
         }
+        else if(moveChoice == 2){
+            rAcceptCount += 1;
+        }
     }
 
     moveChoice = -1;
@@ -175,7 +180,7 @@ double DirichletProcessPrior::update() {
     double randomMove = rng.uniformRv();
     double hastings = 0.0;
 
-    if(randomMove < 0.33) { // Beta Simplex on Random Beta
+    if(randomMove < 0.25) { // Beta Simplex on Random Beta
         moveChoice = 0;
         betaCount += 1;
 
@@ -201,7 +206,7 @@ double DirichletProcessPrior::update() {
         
         hastings = backward - forward;
     }
-    else if(randomMove < 0.66) { // Scale Random Omega
+    else if(randomMove < 0.50) { // Scale Random Omega
         moveChoice = 1;
         omegaCount += 1;
 
@@ -218,6 +223,24 @@ double DirichletProcessPrior::update() {
         hastings = 0.0;
 
         currentCategories[randomCategory].omega = proposedO;
+    }
+    else if(randomMove < 0.75){
+        moveChoice = 2;
+        rCount += 1;
+
+        int randomCategory = (int)(rng.uniformRv() * currentCategories.size());
+
+        this->dirty();
+        currentCategories[randomCategory].dirty = true;
+
+        double logR = std::log(currentCategories[randomCategory].r);
+
+        double proposedLogR = logR + rDelta * Probability::Normal::rv(&rng);
+        double proposedR = std::exp(proposedLogR);
+
+        hastings = 0.0;
+
+        currentCategories[randomCategory].r = proposedR;
     }
     else{ // Gibbs sample according to the numGibbsUpdate option
         hastings = INFINITY;
@@ -247,6 +270,7 @@ double DirichletProcessPrior::update() {
 
             std::vector<double> omegaVec;
             std::vector<double> betaVec;
+            std::vector<double> rVec;
             double alphaSplit = std::log(alpha/5);
 
             model->getTransitionProbability()->allocateQ(numCats + 5);
@@ -254,9 +278,11 @@ double DirichletProcessPrior::update() {
                 conditionalL.push_back(0.0);
                 double newOmega = Probability::Exponential::rv(&rng, omegaLambda);
                 double newBeta = Probability::Beta::rv(&rng, 1, 1);
-                addCategory(newOmega, newBeta);
+                double newR = Probability::Exponential::rv(&rng, rLambda);
+                addCategory(newOmega, newBeta, newR);
                 omegaVec.push_back(newOmega);
                 betaVec.push_back(newBeta);
+                rVec.push_back(newR);
 
                 taskflow.emplace([this, &conditionalL, i, randomMember, numCats, alphaSplit](){
                     double likelihood = model->testCategory(randomMember, numCats+i, true);
@@ -291,7 +317,8 @@ double DirichletProcessPrior::update() {
                         model->regenerateLikelihood(randomMember, i, false);
                     }
                     else {
-                        addCategory(omegaVec[i - numCats], betaVec[i - numCats]);
+                        int adjustedIndex = i - numCats;
+                        addCategory(omegaVec[adjustedIndex], betaVec[adjustedIndex], rVec[adjustedIndex]);
                         assignMember(randomMember, numCats);
                         model->getTransitionProbability()->deleteNQ(4);
                         model->regenerateLikelihood(randomMember, numCats, true);
@@ -323,6 +350,17 @@ void DirichletProcessPrior::tune(){
     }
     betaAcceptCount = 0;
     betaCount = 0;
+
+    double rRate = (double)rAcceptCount/(double)rCount;
+
+    if ( rRate > 0.44 ) {
+        rDelta *= (1.0 + ((rRate-0.44)/0.766));
+    }
+    else {
+        rDelta /= (2.0 - rRate/0.44);
+    }
+    rAcceptCount = 0;
+    rCount = 0;
 
 
     double omegaRate = (double)omegaAcceptCount/(double)omegaCount;

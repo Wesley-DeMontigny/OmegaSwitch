@@ -11,7 +11,7 @@ class Settings;
 class CodonMultiMatrix : public Parameter {
     public:
         CodonMultiMatrix(Settings settings, std::vector<double> pi);
-        Matrix<double> Q(double omega1, double omega2);
+        Matrix<double> Q(double omega1, double omega2, double r);
         std::vector<double> stationary();
         void accept();
         void reject();
@@ -19,19 +19,14 @@ class CodonMultiMatrix : public Parameter {
         void tune();
         double lnPrior();
         double kPrior() {return currentKPrior;}
-        double rPrior() {return currentRPrior;}
         bool updatingStationary() {return updateStationary;}
         std::vector<double> getStationary() {return currentStationary;}
         double getK() {return currentK;}
-        double getR() {return currentR;}
     private:
         Matrix<double> currentQMatrix;
         Matrix<double> oldQMatrix;
 
         int moveChoice;
-        int rCount;
-        int rAcceptCount;
-        double rDelta;
         int kCount;
         int kAcceptCount;
         double kDelta;
@@ -44,12 +39,6 @@ class CodonMultiMatrix : public Parameter {
         double oldK;
         double currentKPrior;
         double oldKPrior;
-
-        double rLambda;
-        double currentR;
-        double oldR;
-        double currentRPrior;
-        double oldRPrior;
 
         std::vector<double> currentStationary;
         std::vector<double> oldStationary;

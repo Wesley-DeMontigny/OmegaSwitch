@@ -8,11 +8,10 @@
 
 CodonMultiMatrix::CodonMultiMatrix(Settings settings, std::vector<double> pi) : 
                                    currentQMatrix(122, 122, 0.0), oldQMatrix(122, 122, 0.0), 
-                                   currentStationary(pi), oldStationary(pi), currentRPrior(0.0), oldRPrior(0.0),
-                                   rLambda(settings.rLambda), kLambda(settings.kLambda), currentKPrior(0.0), oldKPrior(0.0), 
-                                   updateStationary(settings.updateStationary), moveChoice(-1), rCount(0),
-                                   kCount(0), stationaryCount(0), rAcceptCount(0), kAcceptCount(0), stationaryAcceptCount(0),
-                                   rDelta(std::log(2)), kDelta(std::log(2)), stationaryAlpha(1000) {
+                                   currentStationary(pi), oldStationary(pi), kLambda(settings.kLambda), 
+                                   currentKPrior(0.0), oldKPrior(0.0), updateStationary(settings.updateStationary), 
+                                   moveChoice(-1), kCount(0), stationaryCount(0), kAcceptCount(0), 
+                                   stationaryAcceptCount(0), kDelta(std::log(2)), stationaryAlpha(1000) {
     
     std::vector<int> aaMap = {8, 11, 8, 11, 16, 16, 16, 16, 14, 15, 14, 15, 7, 7, 10, 7, 13, 6, 13, 6, 12, 12, 12, 12, 14, 14, 14, 14, 9, 9, 9, 9, 3, 2, 3, 2, 0, 0, 0, 0, 5, 5, 5, 5, 17, 17, 17, 17, 19, 19, 15, 15, 15, 15, 1, 18, 1, 9, 4, 9, 4};  
     std::vector<const char*> codons = {"AAA", "AAC", "AAG", "AAT", "ACA", "ACC", "ACG", "ACT", "AGA", "AGC", "AGG", "AGT", "ATA", "ATC", "ATG", "ATT", "CAA", "CAC", "CAG", "CAT", "CCA", "CCC", "CCG", "CCT", "CGA", "CGC", "CGG", "CGT", "CTA", "CTC", "CTG", "CTT", "GAA", "GAC", "GAG", "GAT", "GCA", "GCC", "GCG", "GCT", "GGA", "GGC", "GGG", "GGT", "GTA", "GTC", "GTG", "GTT", "TAC", "TAT", "TCA", "TCC", "TCG", "TCT", "TGC", "TGG", "TGT", "TTA", "TTC", "TTG", "TTT"};
@@ -47,14 +46,6 @@ CodonMultiMatrix::CodonMultiMatrix(Settings settings, std::vector<double> pi) :
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
-    if(settings.rValue == -1)
-        currentR = Probability::Exponential::rv(&rng, rLambda);
-    else
-        currentR = settings.rValue;
-    oldR = currentR;
-    currentRPrior = Probability::Exponential::lnPdf(rLambda, currentR);
-    oldRPrior = currentRPrior;
-
     if(settings.kValue == -1)
         currentK = Probability::Exponential::rv(&rng, kLambda);
     else
@@ -69,10 +60,10 @@ CodonMultiMatrix::CodonMultiMatrix(Settings settings, std::vector<double> pi) :
         currentQMatrix(coord.first + 61, coord.second +  61) = currentStationary[coord.second + 61];
         currentQMatrix(coord.second + 61, coord.first + 61) = currentStationary[coord.first + 61];
 
-        currentQMatrix(coord.first, coord.first + 61) = currentR * currentStationary[coord.first + 61];
-        currentQMatrix(coord.first + 61, coord.first) = currentR * currentStationary[coord.first];
-        currentQMatrix(coord.second, coord.second + 61) = currentR * currentStationary[coord.second + 61];
-        currentQMatrix(coord.second + 61, coord.second) = currentR * currentStationary[coord.second];
+        currentQMatrix(coord.first, coord.first + 61) = currentStationary[coord.first + 61];
+        currentQMatrix(coord.first + 61, coord.first) = currentStationary[coord.first];
+        currentQMatrix(coord.second, coord.second + 61) = currentStationary[coord.second + 61];
+        currentQMatrix(coord.second + 61, coord.second) = currentStationary[coord.second];
     }
     for(auto coord : transition){
         currentQMatrix(coord.first, coord.second) *= currentK;
@@ -92,8 +83,6 @@ CodonMultiMatrix::CodonMultiMatrix(Settings settings, std::vector<double> pi) :
 void CodonMultiMatrix::accept() {
     oldK = currentK;
     oldKPrior = currentKPrior;
-    oldR = currentR;
-    oldRPrior = currentRPrior;
 
     oldQMatrix = currentQMatrix;
 
@@ -103,12 +92,9 @@ void CodonMultiMatrix::accept() {
 
     if(moveChoice != -1){
         if(moveChoice == 0){
-            rAcceptCount += 1;
-        }
-        else if(moveChoice == 1){
             kAcceptCount += 1;
         }
-        else if(moveChoice == 2){
+        else if(moveChoice == 1){
             stationaryAcceptCount += 1;
         }
         moveChoice = -1;
@@ -118,9 +104,6 @@ void CodonMultiMatrix::accept() {
 void CodonMultiMatrix::reject() {
     currentK = oldK;
     currentKPrior = oldKPrior;
-    currentR = oldR;
-    currentRPrior = oldRPrior;
-
     currentQMatrix = oldQMatrix;
 
     if(updateStationary){
@@ -131,12 +114,7 @@ void CodonMultiMatrix::reject() {
 }
 
 double CodonMultiMatrix::lnPrior() {
-    if(!updateStationary) {
-        return currentKPrior + currentRPrior;
-    }
-    else {
-        return currentKPrior + currentRPrior;
-    }
+    return currentKPrior;
 }
 
 double CodonMultiMatrix::update() {
@@ -147,34 +125,11 @@ double CodonMultiMatrix::update() {
     do {
         randomMove = rng.uniformRv();
     }
-    while(updateStationary == false && randomMove >= 0.66);
+    while(updateStationary == false && randomMove >= 0.5);
 
-    if(randomMove < 0.33) { // Scale R
+
+    if(randomMove < 0.5) { // Scale K
         moveChoice = 0;
-        rCount += 1;
-
-        double logR = std::log(currentR);
-
-        double proposedLogR = logR + rDelta * Probability::Normal::rv(&rng);
-        double proposedR = std::exp(proposedLogR);
-
-        hastings = 0.0;
-
-        currentR = proposedR;
-
-        this->dirty();
-
-        currentRPrior = Probability::Exponential::lnPdf(rLambda, currentR);
-
-        for(auto coord : valid){
-            currentQMatrix(coord.first, coord.first + 61) = currentR * currentStationary[coord.first + 61];
-            currentQMatrix(coord.first + 61, coord.first) = currentR * currentStationary[coord.first];
-            currentQMatrix(coord.second, coord.second + 61) = currentR * currentStationary[coord.second + 61];
-            currentQMatrix(coord.second + 61, coord.second) = currentR * currentStationary[coord.second];
-        }
-    }
-    else if(randomMove < 0.66) { // Scale K
-        moveChoice = 1;
         kCount += 1;
 
         double logK = std::log(currentK);
@@ -197,8 +152,8 @@ double CodonMultiMatrix::update() {
             currentQMatrix(coord.second + 61, coord.first + 61) = currentStationary[coord.first + 61] * currentK;  
         }
     }
-    else { // Beta simplex on the stationary
-        moveChoice = 2;
+    else { // Dirichlet simplex on the stationary
+        moveChoice = 1;
         stationaryCount += 1;
 
         this->dirty();
@@ -270,10 +225,10 @@ double CodonMultiMatrix::update() {
             currentQMatrix(coord.first + 61, coord.second +  61) = currentStationary[coord.second + 61];
             currentQMatrix(coord.second + 61, coord.first + 61) = currentStationary[coord.first + 61];
 
-            currentQMatrix(coord.first, coord.first + 61) = currentR * currentStationary[coord.first + 61];
-            currentQMatrix(coord.first + 61, coord.first) = currentR * currentStationary[coord.first];
-            currentQMatrix(coord.second, coord.second + 61) = currentR * currentStationary[coord.second + 61];
-            currentQMatrix(coord.second + 61, coord.second) = currentR * currentStationary[coord.second];
+            currentQMatrix(coord.first, coord.first + 61) = currentStationary[coord.first + 61];
+            currentQMatrix(coord.first + 61, coord.first) = currentStationary[coord.first];
+            currentQMatrix(coord.second, coord.second + 61) = currentStationary[coord.second + 61];
+            currentQMatrix(coord.second + 61, coord.second) = currentStationary[coord.second];
         }
         for(auto coord : transition){
             currentQMatrix(coord.first, coord.second) *= currentK;
@@ -286,7 +241,7 @@ double CodonMultiMatrix::update() {
     return hastings;
 }
 
-Matrix<double> CodonMultiMatrix::Q(double omega1, double omega2) {
+Matrix<double> CodonMultiMatrix::Q(double omega1, double omega2, double r) {
     Matrix<double> returnMatrix = currentQMatrix.copy();
 
     for(auto coord : nonsynonymous){
@@ -295,6 +250,13 @@ Matrix<double> CodonMultiMatrix::Q(double omega1, double omega2) {
 
         returnMatrix(coord.first + 61, coord.second + 61) *= omega2;
         returnMatrix(coord.second + 61, coord.first + 61) *= omega2; 
+    }
+
+    for(auto coord : valid){
+        currentQMatrix(coord.first, coord.first + 61) *= r;
+        currentQMatrix(coord.first + 61, coord.first) *= r;
+        currentQMatrix(coord.second, coord.second + 61) *= r;
+        currentQMatrix(coord.second + 61, coord.second) *= r;
     }
 
     for(int i = 0; i < 122; i++){
@@ -311,17 +273,6 @@ Matrix<double> CodonMultiMatrix::Q(double omega1, double omega2) {
 }
 
 void CodonMultiMatrix::tune(){
-    double rRate = (double)rAcceptCount/(double)rCount;
-
-    if ( rRate > 0.44 ) {
-        rDelta *= (1.0 + ((rRate-0.44)/0.766));
-    }
-    else {
-        rDelta /= (2.0 - rRate/0.44);
-    }
-    rAcceptCount = 0;
-    rCount = 0;
-
     double kRate = (double)kAcceptCount/(double)kCount;
 
     if ( kRate > 0.44 ) {

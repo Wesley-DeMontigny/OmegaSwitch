@@ -38,7 +38,7 @@ int main(int argc, char* argv[]) {
         TreeParameter treeParam(&aln, settings.fixedTree, settings.treeLengthLambda);
         moveScheduler.registerParam(&treeParam, settings.treeWeight);
 
-        DirichletProcessPrior dpp(aln.getNumChar(), settings.dppAlpha, settings.omegaLambda, settings.numGibbsUpdate);
+        DirichletProcessPrior dpp(aln.getNumChar(), settings.dppAlpha, settings.omegaLambda, settings.rLambda, settings.numGibbsUpdate);
         moveScheduler.registerParam(&dpp, settings.dppWeight);
 
         CodonMultiMatrix rateMatrix(settings, stationaryDist);
@@ -56,6 +56,8 @@ int main(int argc, char* argv[]) {
         std::cout << "Analysis was completed in " << std::chrono::duration_cast<std::chrono::minutes>(end - begin).count() << "[m]" << std::endl;
     }
     else {
+        // TODO: Make it so simulations use an rVector for rate matrix categories.
+        /*
         RandomVariable& rng = RandomVariable::randomVariableInstance();
 
         std::cout << "Generating Tree..." << std::endl;
@@ -202,5 +204,6 @@ int main(int argc, char* argv[]) {
         }
 
         delete [] alignment;
+    */
     }
 }

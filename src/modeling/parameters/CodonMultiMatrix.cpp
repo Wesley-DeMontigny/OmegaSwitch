@@ -203,10 +203,6 @@ double CodonMultiMatrix::update() {
             else {
                 currentStationary[i] = currentStationary[i] * factor;
             }
-            
-            if(currentStationary[i] < 1E-25) {
-                return -1 * INFINITY;
-            }
 
             sum += currentStationary[i];
         }
@@ -214,6 +210,10 @@ double CodonMultiMatrix::update() {
         // Try to rescale to avoid things shrinking to zero
         for(int i = 0; i < 122; i++) {
             currentStationary[i] = currentStationary[i]/sum;
+
+            if(currentStationary[i] < 1E-25) {
+                return -1 * INFINITY;
+            }
         }
 
         hastings  = Probability::Dirichlet::lnPdf(alphaReverse, x) - Probability::Dirichlet::lnPdf(alphaForward, z);

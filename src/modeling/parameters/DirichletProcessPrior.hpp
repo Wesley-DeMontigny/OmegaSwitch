@@ -63,7 +63,7 @@ class DirichletProcessPrior : public Parameter {
         double omegaDelta;
         int betaCount;
         int betaAcceptCount;
-        double betaAlpha;
+        double betaDelta;
         int rCount;
         int rAcceptCount;
         double rDelta;

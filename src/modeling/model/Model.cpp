@@ -38,7 +38,7 @@ Model::Model(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProce
         activeTP[i] = false;
     }
     postOrder = new ConditionalLikelihood(aln, numNodes, 1);
-    transProb = new TransitionProbability(numNodes, numChar + 5); // Add extra for aux tables
+    transProb = new TransitionProbability(numNodes, numChar + 10); // Add extra for aux tables
 
     int reconstructionWidth = numNodes*numChar*stateSpace;
     reconstruction = new double[reconstructionWidth];
@@ -125,7 +125,7 @@ void Model::regenerateLikelihood(){
         transProb->allocateQ(numCats);
         for(int i = 0; i < numCats; i++){
             double omega1 = categories[i].omega;
-            double omega2 = omega1 * categories[i].beta;
+            double omega2 = omega1 + categories[i].beta;
             double r = categories[i].r;
             rateTaskflow.emplace([this, omega1, omega2, r, i](){
                 transProb->updateQ(rateMatrix->Q(omega1, omega2, r), i);
@@ -140,7 +140,7 @@ void Model::regenerateLikelihood(){
         for(int i = 0; i < numCats; i++){
             if(categories[i].dirty){
                 double omega1 = categories[i].omega;
-                double omega2 = omega1 * categories[i].beta;
+                double omega2 = omega1 + categories[i].beta;
                 double r = categories[i].r;
                 transProb->updateQ(rateMatrix->Q(omega1, omega2, r), i);
             }
@@ -269,7 +269,7 @@ void Model::regenerateLikelihood(int site, int category, bool update){
 
     if(update){
         double omega1 = categories[category].omega;
-        double omega2 = omega1 * categories[category].beta;
+        double omega2 = omega1 + categories[category].beta;
         double r = categories[category].r;
         transProb->updateQ(rateMatrix->Q(omega1, omega2, r), category);
     }
@@ -362,7 +362,7 @@ double Model::testCategory(int site, int category, bool update){
 
     if(update){
         double omega1 = categories[category].omega;
-        double omega2 = omega1 * categories[category].beta;
+        double omega2 = omega1 + categories[category].beta;
         double r = categories[category].r;
         transProb->updateQ(rateMatrix->Q(omega1, omega2, r), category);
     }
@@ -576,7 +576,7 @@ std::string Model::tabularHeader(){
     std::string returnString = "Iteration\tPosterior\tLikelihood\tTree Prior\tDPP Prior\tK Prior";
     returnString += "\tK";
     if(rateMatrix->updatingStationary()){
-        for(int i = 0; i < 122; i++){
+        for(int i = 0; i < 61; i++){
             returnString += "\tPi[" + std::to_string(i) + "]";
         }
     }
@@ -590,7 +590,7 @@ std::string Model::tabularOut(int i){
                                std::to_string(dpp->lnPrior()) + "\t" + std::to_string(rateMatrix->kPrior());
     returnString += "\t" + std::to_string(rateMatrix->getK());
     if(rateMatrix->updatingStationary()){
-        std::vector<double> stationary = rateMatrix->getStationary();
+        std::vector<double> stationary = rateMatrix->getRawStationary();
         for(double i : stationary){
             returnString += "\t" + std::to_string(i);
         }
@@ -660,7 +660,7 @@ std::string Model::tipsOut(int i){
                         expectedOmega += omega * (*rN);
                     }
                     else {
-                        expectedOmega += omega * beta * (*rN);
+                        expectedOmega += (omega + beta) * (*rN);
                     }
                 }
 

@@ -20,7 +20,8 @@ class CodonMultiMatrix : public Parameter {
         double lnPrior();
         double kPrior() {return currentKPrior;}
         bool updatingStationary() {return updateStationary;}
-        std::vector<double> getStationary() {return currentStationary;}
+        std::vector<double> getStationary();
+        std::vector<double> getRawStationary() {return currentStationary;}
         double getK() {return currentK;}
     private:
         Matrix<double> currentQMatrix;
@@ -33,6 +34,7 @@ class CodonMultiMatrix : public Parameter {
         int stationaryCount;
         int stationaryAcceptCount;
         double stationaryAlpha;
+        double stationaryOffset;
 
         double kLambda;
         double currentK;

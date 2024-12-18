@@ -154,6 +154,72 @@ void TransitionProbability::updateQ(Matrix<double> Q, const int index) {
 	isComplex[index] = eigens->update(Q, rateEigen[index], complexRateEigen[index]);
 }
 
+std::vector<Matrix<double>> TransitionProbability::generateProbs(Matrix<double> Q, std::vector<double> branches) {
+	
+	double scaler = 0.0;
+	for (int i=0; i<numStates; i++)
+		scaler += Q(i, i);
+			
+	// Rescale rate matrix
+	scaler = -1.0 / scaler;
+	for (int i=0; i<numStates; i++)
+		for (int j=0; j<numStates; j++)
+			Q(i, j) *= scaler;
+
+	RateEigen localRateEigen(numStates);
+	ComplexRateEigen localComplexRateEigen(numStates);
+
+	bool isComplex = eigens->update(Q, localRateEigen, localComplexRateEigen);
+
+	std::vector<Matrix<double>> returnMatrices;
+
+	if(!isComplex) {
+		for(int i = 0; i < branches.size(); i++){
+			double v = branches[i];
+			std::vector<double> eigValExp;
+
+			Matrix<double> branchMatrix(numStates, numStates); 
+
+			for (int s=0; s<numStates; s++)
+				eigValExp.push_back(exp(localRateEigen.eigenvalue[s] * v));
+
+			double *ptr = localRateEigen.c_ijk;
+			for (int i=0; i<numStates; i++) {
+				for (int j=0; j<numStates; j++) {
+					double sum = 0.0;
+					for(int s=0; s<numStates; s++)
+						sum += (*ptr++) * eigValExp[s];
+					branchMatrix(i, j) = (sum < 0.0) ? 0.0 : sum;
+				}
+			}
+
+			returnMatrices.push_back(branchMatrix);
+		}
+	}
+	else {
+		for(int i = 0; i < branches.size(); i++){
+			double v = branches[i];
+
+			std::vector<std::complex<double>> ceigValExp;
+
+			Matrix<double> branchMatrix(numStates, numStates);
+
+			for (int s=0; s<numStates; s++)
+				ceigValExp.push_back(exp(localComplexRateEigen.ceigenvalue[s] * v));
+
+			const std::complex<double>* ptr = localComplexRateEigen.cc_ijk;
+			for (int i=0; i<numStates; i++){
+				for (int j=0; j<numStates; j++) {
+					std::complex<double> sum = std::complex<double>(0.0, 0.0);
+					for(int s=0; s<numStates; s++)
+						sum += (*ptr++) * ceigValExp[s];
+					branchMatrix(i, j) = (sum.real() < 0.0) ? 0.0 : sum.real();
+				}
+			}
+		}
+	}
+}
+
 // Be sure you want to delete!!
 void TransitionProbability::deleteQ(const int index) {
 	isComplex.erase(isComplex.begin() + index);

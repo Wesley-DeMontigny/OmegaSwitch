@@ -19,6 +19,7 @@ class TransitionProbability {
         void                    reject(void);                                                                                   
         void                    setProbs(const int state, const int r, const int node, const double v);
         void                    pullProbs(const int state, const int r, const int node, const double v);
+        std::vector<Matrix<double>>     generateProbs(Matrix<double> Q, std::vector<double> branches);
         void                    updateQ(Matrix<double> Q, const int index);
         void                    deleteQ(const int index);
         void                    deleteNQ(const int count);

@@ -25,7 +25,7 @@ class Model {
 
         void reconstructTips();
 
-        double testCategory(int site, int category, bool update);
+        double testCategory(int site, double omega1, double omega2, double r);
 
         TransitionProbability* getTransitionProbability() { return transProb; }
         ConditionalLikelihood* getConditionalLikelihood() { return postOrder; }

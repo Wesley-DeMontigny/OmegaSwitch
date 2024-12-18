@@ -38,7 +38,7 @@ Model::Model(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProce
         activeTP[i] = false;
     }
     postOrder = new ConditionalLikelihood(aln, numNodes, 1);
-    transProb = new TransitionProbability(numNodes, numChar + 10); // Add extra for aux tables
+    transProb = new TransitionProbability(numNodes, numChar);
 
     int reconstructionWidth = numNodes*numChar*stateSpace;
     reconstruction = new double[reconstructionWidth];
@@ -124,8 +124,8 @@ void Model::regenerateLikelihood(){
         activeT->updateAll();
         transProb->allocateQ(numCats);
         for(int i = 0; i < numCats; i++){
-            double omega1 = categories[i].omega;
-            double omega2 = omega1 + categories[i].beta;
+            double omega1 = categories[i].omega1;
+            double omega2 = omega1 + categories[i].omega2;
             double r = categories[i].r;
             rateTaskflow.emplace([this, omega1, omega2, r, i](){
                 transProb->updateQ(rateMatrix->Q(omega1, omega2, r), i);
@@ -139,8 +139,8 @@ void Model::regenerateLikelihood(){
         transProb->allocateQ(numCats);
         for(int i = 0; i < numCats; i++){
             if(categories[i].dirty){
-                double omega1 = categories[i].omega;
-                double omega2 = omega1 + categories[i].beta;
+                double omega1 = categories[i].omega1;
+                double omega2 = omega1 + categories[i].omega2;
                 double r = categories[i].r;
                 transProb->updateQ(rateMatrix->Q(omega1, omega2, r), i);
             }
@@ -268,8 +268,8 @@ void Model::regenerateLikelihood(int site, int category, bool update){
     std::vector<Category> categories = dpp->getCategories();
 
     if(update){
-        double omega1 = categories[category].omega;
-        double omega2 = omega1 + categories[category].beta;
+        double omega1 = categories[category].omega1;
+        double omega2 = omega1 + categories[category].omega2;
         double r = categories[category].r;
         transProb->updateQ(rateMatrix->Q(omega1, omega2, r), category);
     }
@@ -354,34 +354,33 @@ void Model::regenerateLikelihood(int site, int category, bool update){
 }
 
 
-double Model::testCategory(int site, int category, bool update){
+double Model::testCategory(int site, double omega1, double omega2, double r){
     TreeObject* activeT = tree->getTree();
 
     std::vector<Node*>&  poSeq = activeT->getPostOrderSeq();
-    std::vector<Category> categories = dpp->getCategories();
+    std::vector<double> branchLengths;
 
-    if(update){
-        double omega1 = categories[category].omega;
-        double omega2 = omega1 + categories[category].beta;
-        double r = categories[category].r;
-        transProb->updateQ(rateMatrix->Q(omega1, omega2, r), category);
+    for(int i = 0; i < poSeq.size(); i++)
+        branchLengths.push_back(0.0);
+
+    for(Node* n : poSeq){
+        int nIndex = n->getIndex();
+
+        if(n != activeT->getRoot()){
+            double v = activeT->getBranchLength(n);
+            branchLengths[nIndex] = v;
+        }
     }
+
+    std::vector<Matrix<double>> probs = transProb->generateProbs(rateMatrix->Q(omega1, omega2, r), branchLengths);
 
     double* siteBuffer = new double[numNodes * stateSpace];
     std::fill(siteBuffer, siteBuffer + (numNodes * stateSpace), 1.0);
-
     double* rescaleBuffer = new double[numNodes];
     std::fill(rescaleBuffer, rescaleBuffer + numNodes, 0.0);
 
     for(Node* n : poSeq){
         int nIndex = n->getIndex();
-
-        if(update){
-            if(n != activeT->getRoot()){
-                double v = activeT->getBranchLength(n);
-                transProb->setProbs(activeTP[nIndex], category, nIndex, v);
-            }
-        }
         
         double* pNN = siteBuffer + (nIndex * stateSpace);
         if(n->getIsTip() == false){
@@ -394,7 +393,7 @@ double Model::testCategory(int site, int category, bool update){
                     double* pN = pNN;
                     double* pD = siteBuffer + (dIndex * stateSpace);
 
-                    Matrix<double> P = *(*transProb)(activeTP[dIndex], category, dIndex);
+                    Matrix<double> P = probs[dIndex];
                     for(int i = 0; i < stateSpace; i++){
                         double sum = 0.0;
                         for(int j = 0; j < stateSpace; j++){
@@ -610,7 +609,7 @@ std::string Model::treeOut(int i){
 std::string Model::dppHeader(){
     std::string returnString = "Iteration\tPosterior\tCategoryCount";
     for(int i = 0; i < numChar; i++)
-        returnString += "\tOmega[" + std::to_string(i) + "]" + "\tBeta[" + std::to_string(i) + "]" + "\tR[" + std::to_string(i) + "]";
+        returnString += "\tOmega1[" + std::to_string(i) + "]" + "\tOmega2[" + std::to_string(i) + "]" + "\tR[" + std::to_string(i) + "]";
     return returnString + "\n";
 }
 
@@ -620,7 +619,7 @@ std::string Model::dppOut(int i){
     returnString += std::to_string(categories.size());
     std::vector<int> assignments = dpp->getAssinments();
     for(int c : assignments){
-        returnString += "\t" + std::to_string(categories[c].omega) + "\t" + std::to_string(categories[c].beta) + "\t" + std::to_string(categories[c].r);
+        returnString += "\t" + std::to_string(categories[c].omega1) + "\t" + std::to_string(categories[c].omega2) + "\t" + std::to_string(categories[c].r);
     }
 
     return returnString + "\n";
@@ -651,16 +650,16 @@ std::string Model::tipsOut(int i){
         double* rN = reconstruction + n->getIndex()*numChar*stateSpace;
         for(int c = 0; c < numChar; c++) {
             double expectedOmega = 0;
-            double omega = categories[assignments[c]].omega;
-            double beta = categories[assignments[c]].beta;
+            double omega1 = categories[assignments[c]].omega1;
+            double omega2 = categories[assignments[c]].omega2;
 
             for(int i = 0; i < stateSpace; i++) {
                 if(*rN > 0) {
                     if(stateSpace < 61) {
-                        expectedOmega += omega * (*rN);
+                        expectedOmega += omega1 * (*rN);
                     }
                     else {
-                        expectedOmega += (omega + beta) * (*rN);
+                        expectedOmega += omega2 * (*rN);
                     }
                 }
 

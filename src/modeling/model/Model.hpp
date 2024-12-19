@@ -21,11 +21,12 @@ class Model {
         double lnPrior();
 
         void regenerateLikelihood();
-        void regenerateLikelihood(int site);
+        void regenerateLikelihood(int site, int category, bool update);
 
         void reconstructTips();
 
-        double testCategory(int site, int omegaNum, double omegaVal);
+        double testCategory(int site, int category, bool update);
+
 
         TransitionProbability* getTransitionProbability() { return transProb; }
         ConditionalLikelihood* getConditionalLikelihood() { return postOrder; }

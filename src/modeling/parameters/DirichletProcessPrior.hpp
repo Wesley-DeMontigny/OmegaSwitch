@@ -7,9 +7,11 @@
 class Model;
 
 struct Category {
-    double value;
+    double omega1;
+    double omega2;
     int size;
     std::vector<int> members;
+    bool dirty;
 };
 
 class DirichletProcessPrior : public Parameter {
@@ -30,25 +32,35 @@ class DirichletProcessPrior : public Parameter {
         double getAlpha() {return alpha;}
 
         int getCategorySize(int index);
-        void addCategory(double omega);
-        std::vector<double> getAssignments() { return assignments;}
+        void addCategory(double omega1, double omega2);
+
+        std::vector<Category> getCategories() {return currentCategories;}
+        std::vector<int> getAssignments() { return assignments;}
 
         int unassignMember(int member);
 
         void assignMember(int member, int category);
 
-        int getNumCategories(){return categories.size();}
+        int getNumCategories(){return currentCategories.size();}
     protected:
         void regeneratePrior();
         Model* model;
         double currentLnPrior;
+        double oldLnPrior;
         double alpha;
         double omegaLambda;
 
+        int omegaAcceptCount;
+        int omegaCount;
+        double omegaDelta;
+
         int numMembers;
         int numGibbsUpdate;
-        std::vector<Category> categories;
-        std::vector<double> assignments;
+        std::vector<Category> currentCategories;
+        std::vector<Category> oldCategories;
+        std::vector<int> assignments;
+
+        int moveChoice;
 
         void removeCategory(int index);
 

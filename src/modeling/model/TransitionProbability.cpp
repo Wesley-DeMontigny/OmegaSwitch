@@ -18,8 +18,8 @@ TransitionProbability::TransitionProbability(const int nn, const int nC)
 
 	eigens = new EigenSystem(122);
 	
-	allocateQ(nC);
-
+	allocateQ(1);
+	updateQ(Q, 0);
 	accept();
 }
 

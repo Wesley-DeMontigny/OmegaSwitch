@@ -35,7 +35,7 @@ int main(int argc, char* argv[]) {
         TreeParameter treeParam(&aln, settings.fixedTree, settings.treeLengthLambda);
         moveScheduler.registerParam(&treeParam, settings.treeWeight);
 
-        DirichletProcessPrior dpp(aln.getNumChar(), settings.dppAlpha, settings.omegaLambda, settings.rLambda, settings.numGibbsUpdate);
+        DirichletProcessPrior dpp(aln.getNumChar(), settings.dppAlpha, settings.omegaLambda, settings.numGibbsUpdate);
         moveScheduler.registerParam(&dpp, settings.dppWeight);
 
         CodonMultiMatrix rateMatrix(settings, stationaryDist);

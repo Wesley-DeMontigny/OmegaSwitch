@@ -115,62 +115,34 @@ void Model::regenerateLikelihood(){
     TreeObject* activeT = tree->getTree();
 
     std::vector<Node*>&  poSeq = activeT->getPostOrderSeq();
-    std::vector<int> assignments = dpp->getAssinments();
-    std::vector<Category> categories = dpp->getCategories();
-    int numCats = dpp->getNumCategories();
+    std::vector<double> assignments = dpp->getAssignments();
 
-    if(rateMatrix->isDirty()){
+    if(rateMatrix->isDirty() || dpp->isDirty()){
         tf::Taskflow rateTaskflow;
         activeT->updateAll();
-        transProb->allocateQ(numCats);
-        for(int i = 0; i < numCats; i++){
-            double omega1 = categories[i].omega1;
-            double omega2 = omega1 + categories[i].omega2;
-            double r = categories[i].r;
-            rateTaskflow.emplace([this, omega1, omega2, r, i](){
-                transProb->updateQ(rateMatrix->Q(omega1, omega2, r), i);
+        for(int i = 0; i < numChar; i++){
+            double omega1 = assignments[i*2];
+            double omega2 = assignments[i*2 + 1];
+            rateTaskflow.emplace([this, omega1, omega2, i](){
+                transProb->updateQ(rateMatrix->Q(omega1, omega2), i);
             });
         }
 
         executor.run(rateTaskflow).wait();
-    }
-    else if(dpp->isDirty()){
-        activeT->updateAll();
-        transProb->allocateQ(numCats);
-        for(int i = 0; i < numCats; i++){
-            if(categories[i].dirty){
-                double omega1 = categories[i].omega1;
-                double omega2 = omega1 + categories[i].omega2;
-                double r = categories[i].r;
-                transProb->updateQ(rateMatrix->Q(omega1, omega2, r), i);
-            }
-        }
     }
 
     tf::Taskflow phyloTaskflow;
     std::unordered_map<int, tf::Task> taskMap;
 
     for(Node* n : poSeq){
-        taskMap.insert(std::make_pair(n->getIndex(), phyloTaskflow.emplace([n, this, numCats, categories, assignments, activeT](){
+        taskMap.insert(std::make_pair(n->getIndex(), phyloTaskflow.emplace([n, this, activeT](){
             int nIndex = n->getIndex();
             if(n->getNeedsTPUpdate() == true){
                 if(n != activeT->getRoot()) {
-                    if(!dpp->isDirty()) {
-                        activeTP[nIndex] ^= true;
-                        double v = activeT->getBranchLength(n);
-                        for(int i = 0; i < numCats; i++)
-                            transProb->setProbs(activeTP[nIndex], i, nIndex, v);
-                    }
-                    else {
-                        activeTP[nIndex] ^= true;
-                        double v = activeT->getBranchLength(n);
-                        for(int i = 0; i < numCats; i++){
-                            if(categories[i].dirty)
-                                transProb->setProbs(activeTP[nIndex], i, nIndex, v);
-                            else
-                                transProb->pullProbs(activeTP[nIndex], i, nIndex, v);
-                        }
-                    }
+                    activeTP[nIndex] ^= true;
+                    double v = activeT->getBranchLength(n);
+                    for(int i = 0; i < numChar; i++)
+                        transProb->setProbs(activeTP[nIndex], i, nIndex, v);
                 }
                 n->setNeedsTPUpdate(false);
             }
@@ -186,11 +158,8 @@ void Model::regenerateLikelihood(){
                         double* pN = pNN;
                         double* pD = (*postOrder)(dIndex, activeCL[dIndex], 0);
 
-                        std::vector<Matrix<double>> transProbMatrices;
-                        for(int cat = 0; cat < numCats; cat++)
-                            transProbMatrices.push_back(*(*transProb)(activeTP[dIndex], cat, dIndex));
                         for(int c = 0; c < numChar; c++){
-                            Matrix<double> P = transProbMatrices[assignments[c]];
+                            Matrix<double> P = *(*transProb)(activeTP[dIndex], c, dIndex);
                             for(int i = 0; i < stateSpace; i++){
                                 double sum = 0.0;
                                 for(int j = 0; j < stateSpace; j++){
@@ -261,27 +230,22 @@ void Model::regenerateLikelihood(){
     currentLikelihood = lnL;
 }
 
-void Model::regenerateLikelihood(int site, int category, bool update){
+void Model::regenerateLikelihood(int site){
     TreeObject* activeT = tree->getTree();
 
     std::vector<Node*>&  poSeq = activeT->getPostOrderSeq();
-    std::vector<Category> categories = dpp->getCategories();
+    std::vector<double> assignments = dpp->getAssignments();
 
-    if(update){
-        double omega1 = categories[category].omega1;
-        double omega2 = omega1 + categories[category].omega2;
-        double r = categories[category].r;
-        transProb->updateQ(rateMatrix->Q(omega1, omega2, r), category);
-    }
+    double omega1 = assignments[site*2];
+    double omega2 = assignments[site*2 + 1];
+    transProb->updateQ(rateMatrix->Q(omega1, omega2), site);
 
     for(Node* n : poSeq){
         int nIndex = n->getIndex();
 
-        if(update){
-            if(n != activeT->getRoot()){
-                double v = activeT->getBranchLength(n);
-                transProb->setProbs(activeTP[nIndex], category, nIndex, v);
-            }
+        if(n != activeT->getRoot()){
+            double v = activeT->getBranchLength(n);
+            transProb->setProbs(activeTP[nIndex], site, nIndex, v);
         }
 
         if(n->getIsTip() == false){
@@ -296,7 +260,7 @@ void Model::regenerateLikelihood(int site, int category, bool update){
                     double* pN = pNN;
                     double* pD = (*postOrder)(dIndex, activeCL[dIndex], 0) + site*stateSpace;
 
-                    Matrix<double> P = *(*transProb)(activeTP[dIndex], category, dIndex);
+                    Matrix<double> P = *(*transProb)(activeTP[dIndex], site, dIndex);
                     for(int i = 0; i < stateSpace; i++){
                         double sum = 0.0;
                         for(int j = 0; j < stateSpace; j++){
@@ -354,7 +318,7 @@ void Model::regenerateLikelihood(int site, int category, bool update){
 }
 
 
-double Model::testCategory(int site, double omega1, double omega2, double r){
+double Model::testCategory(int site, int omegaNum, double omegaVal){
     TreeObject* activeT = tree->getTree();
 
     std::vector<Node*>&  poSeq = activeT->getPostOrderSeq();
@@ -372,7 +336,14 @@ double Model::testCategory(int site, double omega1, double omega2, double r){
         }
     }
 
-    std::vector<Matrix<double>> probs = transProb->generateProbs(rateMatrix->Q(omega1, omega2, r), branchLengths);
+    std::vector<Matrix<double>> probs;
+
+    if(omegaNum == 0){
+        transProb->generateProbs(rateMatrix->Q(omegaVal, dpp->getAssignments()[site*2 +1]), branchLengths);
+    }
+    else{
+        transProb->generateProbs(rateMatrix->Q(dpp->getAssignments()[site*2], omegaVal), branchLengths);
+    }
 
     double* siteBuffer = new double[numNodes * stateSpace];
     std::fill(siteBuffer, siteBuffer + (numNodes * stateSpace), 1.0);
@@ -485,15 +456,12 @@ void Model::reconstructTips(){
     TreeObject* activeT = tree->getTree();
     std::vector<Node*>&  preOrderSeq = activeT->getPostOrderSeq();
     std::reverse(preOrderSeq.begin(), preOrderSeq.end());
-    std::vector<int> assignments = dpp->getAssinments();
-    std::vector<Category> categories = dpp->getCategories();
-    int numCats = dpp->getNumCategories();
 
     tf::Taskflow phyloTaskflow;
     std::unordered_map<int, tf::Task> taskMap;
 
     Node* root = activeT->getRoot();
-    taskMap.insert(std::make_pair(root->getIndex(), phyloTaskflow.emplace([root, this, numCats, categories, assignments, activeT](){
+    taskMap.insert(std::make_pair(root->getIndex(), phyloTaskflow.emplace([root, this, activeT](){
         int rIndex = root->getIndex();
         double* pR = (*postOrder)(rIndex, activeCL[rIndex], 0);
         double* rR = reconstruction + rIndex*numChar*stateSpace;
@@ -516,7 +484,7 @@ void Model::reconstructTips(){
 
     for(Node* n : preOrderSeq){
         if(n != activeT->getRoot()){
-            taskMap.insert(std::make_pair(n->getIndex(), phyloTaskflow.emplace([n, this, numCats, categories, assignments, activeT](){
+            taskMap.insert(std::make_pair(n->getIndex(), phyloTaskflow.emplace([n, this, activeT](){
                 int nIndex = n->getIndex();
                 double* pN = (*postOrder)(nIndex, activeCL[nIndex], 0);
                 double* rN = reconstruction + nIndex*numChar*stateSpace;
@@ -524,11 +492,8 @@ void Model::reconstructTips(){
                 int aIndex = n->getAncestor()->getIndex();
                 double* rA = reconstruction + aIndex*numChar*stateSpace;
 
-                std::vector<Matrix<double>> transProbMatrices;
-                for(int cat = 0; cat < numCats; cat++)
-                    transProbMatrices.push_back(*(*transProb)(activeTP[nIndex], cat, nIndex));
                 for(int c = 0; c < numChar; c++){
-                    Matrix<double> P = transProbMatrices[assignments[c]];
+                    Matrix<double> P = *(*transProb)(activeTP[nIndex], c, nIndex);
                     double total = 0.0;
                     for(int i = 0; i < stateSpace; i++){
                         double sum = 0.0;
@@ -572,8 +537,8 @@ void Model::tuneMoves(){
 }
 
 std::string Model::tabularHeader(){
-    std::string returnString = "Iteration\tPosterior\tLikelihood\tTree Prior\tDPP Prior\tK Prior";
-    returnString += "\tK";
+    std::string returnString = "Iteration\tPosterior\tLikelihood\tTree Prior\tDPP Prior\tK Prior\tR Prior";
+    returnString += "\tK\tR";
     if(rateMatrix->updatingStationary()){
         for(int i = 0; i < 61; i++){
             returnString += "\tPi[" + std::to_string(i) + "]";
@@ -586,7 +551,9 @@ std::string Model::tabularHeader(){
 std::string Model::tabularOut(int i){
     std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" +
                                std::to_string(currentLikelihood) + "\t" + std::to_string(tree->lnPrior()) + "\t" +
-                               std::to_string(dpp->lnPrior()) + "\t" + std::to_string(rateMatrix->kPrior());
+                               std::to_string(dpp->lnPrior()) + "\t" + std::to_string(rateMatrix->kPrior()) + "\t" +
+                               std::to_string(rateMatrix->rPrior());
+    returnString += "\t" + std::to_string(rateMatrix->getK()) + "\t" + std::to_string(rateMatrix->getR());
     returnString += "\t" + std::to_string(rateMatrix->getK());
     if(rateMatrix->updatingStationary()){
         std::vector<double> stationary = rateMatrix->getRawStationary();
@@ -609,17 +576,16 @@ std::string Model::treeOut(int i){
 std::string Model::dppHeader(){
     std::string returnString = "Iteration\tPosterior\tCategoryCount";
     for(int i = 0; i < numChar; i++)
-        returnString += "\tOmega1[" + std::to_string(i) + "]" + "\tOmega2[" + std::to_string(i) + "]" + "\tR[" + std::to_string(i) + "]";
+        returnString += "\tOmega1[" + std::to_string(i) + "]" + "\tOmega2[" + std::to_string(i) + "]";
     return returnString + "\n";
 }
 
 std::string Model::dppOut(int i){
     std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t";
-    std::vector<Category> categories = dpp->getCategories();
-    returnString += std::to_string(categories.size());
-    std::vector<int> assignments = dpp->getAssinments();
+    returnString += std::to_string(dpp->getNumCategories());
+    std::vector<double> assignments = dpp->getAssignments();
     for(int c : assignments){
-        returnString += "\t" + std::to_string(categories[c].omega1) + "\t" + std::to_string(categories[c].omega2) + "\t" + std::to_string(categories[c].r);
+        returnString += "\t" + std::to_string(assignments[c*2]) + "\t" + std::to_string(assignments[c*2 + 1]);
     }
 
     return returnString + "\n";
@@ -643,15 +609,14 @@ std::string Model::tipsOut(int i){
     std::string returnString = std::to_string(i);
     std::vector<Node*> tips = tree->getTree()->getTips();
 
-    std::vector<int> assignments = dpp->getAssinments();
-    std::vector<Category> categories = dpp->getCategories();
+    std::vector<double> assignments = dpp->getAssignments();
 
     for(Node* n : tips) {
         double* rN = reconstruction + n->getIndex()*numChar*stateSpace;
         for(int c = 0; c < numChar; c++) {
             double expectedOmega = 0;
-            double omega1 = categories[assignments[c]].omega1;
-            double omega2 = categories[assignments[c]].omega2;
+            double omega1 = assignments[c*2];
+            double omega2 = assignments[c*2 + 1];
 
             for(int i = 0; i < stateSpace; i++) {
                 if(*rN > 0) {

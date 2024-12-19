@@ -5,9 +5,9 @@
 #include <vector>
 
 Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dppOutput(""), mcmcOutput(""), tipsOutput(""),
-                                              numIterations(100000), printFrequency(10), sampleFrequency(200),
+                                              numIterations(100000), printFrequency(10), sampleFrequency(10),
                                               burnInIterations(10000), tuneFrequency(2000), rLambda(2.0),
-                                              kLambda(1.0), omegaLambda(1.0), dppAlpha(0.5), updateStationary(true),
+                                              kLambda(1.0), omegaLambda(1.0), dppAlpha(0.1), updateStationary(true),
                                               numGibbsUpdate(15), rateMatrixWeight(5), dppWeight(10), treeWeight(5),
                                               treeLengthLambda(1.0), simulate(false), fixedTree(""), numTaxa(-1),
                                               numChar(-1), kValue(-1.0), rValue(-1.0) {
@@ -29,8 +29,7 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
     settings.push_back("-tipsOut");
     settings.push_back("/workspaces/Varying_Selection_DPP/res/tips.log");
     settings.push_back("-fixedTree");
-    settings.push_back("((HakajeiHBB:1,(((DrerioHBB:1,CcarpioHBB:1):1,SsalarHBB:1):1,((BtaurusHBB:1,HsapiensHBB:1):1,(XborealisHBB:1,(CniloticusHBB:1,(CminorHBB:1,GgallusHBBA:1):1):1):1):1):1):1,((((((CminorHBA:1,GgallusHBAA:1):1,CniloticusHBA:1):1,XborealisHBA:1):1,(BtaurusHBA2:1,HsapiensHBA2:1):1):1,((DrerioHBA:1,CcarpioHBA:1):1,SsalarHBA:1):1):1,HakajeiHBA:1):1);");
-
+    settings.push_back("((HsabinusHBB:1,((BtaurusHBB:1,HsapiensHBB:1):1,(((BbombinaHBB:1,XborealisHBB:1):1,((DrerioHBB:1,CcarpioHBB:1):1,SsalarHBB:1):1):1,(TelegansHBB:1,((((AindicusHBB:1,GgallusHBBA:1):1,(ShabroptilaHBB:1,CminorHBB:1):1):1,TaedonHBB:1):1,(CmydasHBB:1,(PcastaneusHBB:1,CniloticusHBB:1):1):1):1):1):1):1):1,((((((((CmydasHBA:1,PcastaneusHBA:1):1,CniloticusHBA:1):1,((((GamericanaHBA:1,CminorHBA:1):1,EminorHBA:1):1,GgallusHBAA:1):1,AindicusHBA:1):1):1,TelegansHBA:1):1,(BtaurusHBA2:1,HsapiensHBA2:1):1):1,(BbombinaHBA:1,XborealisHBA:1):1):1,((DrerioHBA:1,CcarpioHBA:1):1,SsalarHBA:1):1):1,HsabinusHBA:1):1);");
 
 /*
     settings.push_back("-simulate");

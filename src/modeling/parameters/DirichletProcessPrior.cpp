@@ -14,9 +14,6 @@ DirichletProcessPrior::DirichletProcessPrior(int size, double a, double oL, int 
                                              numGibbsUpdate(numGibbs), model(nullptr) {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
-    //The expected category number can be roughly computed as n = a * ln(1 + c/a)
-    std::cout << "Initializing a DPP with " << alpha * std::log(1 + numMembers/alpha) << " expected dN/dS ratios" << std::endl;
-
     for(int i = 0; i < size * 2; i++){
         double randomVal = rng.uniformRv();
         double total = alpha/(i + alpha);
@@ -51,6 +48,8 @@ DirichletProcessPrior::DirichletProcessPrior(int size, double a, double oL, int 
         for(int m : c.members)
             assignments[m] = c.value;
     
+    this->dirty();
+
     regeneratePrior();
 }
 
@@ -115,7 +114,6 @@ void DirichletProcessPrior::reject() {}
 double DirichletProcessPrior::update() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
-    this->dirty();
     for(int n = 0; n < numGibbsUpdate; n++) {
         int randomSite = (int)(rng.uniformRv() * numMembers);
         int randomOmega = (int)(rng.uniformRv() * 2);
@@ -173,21 +171,19 @@ double DirichletProcessPrior::update() {
             if(total > categoryDraw){
                 if(i < numCats) { //It already exists
                     assignMember(randomMember, i);
+                    assignments[randomMember] = categories[i].value;
                     model->regenerateLikelihood(randomSite);
                 }
                 else {
                     int adjustedIndex = i - numCats;
                     addCategory(omegaVec[adjustedIndex]);
+                    assignments[randomMember] = omegaVec[adjustedIndex];
                     assignMember(randomMember, numCats);
                     model->regenerateLikelihood(randomMember);
                 }
                 break;
             }
         }
-
-        for(Category& c : categories)
-            for(int m : c.members)
-                assignments[m] = c.value;
     }
 
     regeneratePrior();

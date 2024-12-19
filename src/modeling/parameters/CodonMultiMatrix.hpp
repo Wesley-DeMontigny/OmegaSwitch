@@ -19,10 +19,12 @@ class CodonMultiMatrix : public Parameter {
         void tune();
         double lnPrior();
         double kPrior() {return currentKPrior;}
+        double rPrior() {return currentRPrior;}
         bool updatingStationary() {return updateStationary;}
         std::vector<double> getStationary();
         std::vector<double> getRawStationary() {return currentStationary;}
         double getK() {return currentK;}
+        double getR() {return currentR;}
     private:
         Matrix<double> currentQMatrix;
         Matrix<double> oldQMatrix;

@@ -31,7 +31,7 @@ class DirichletProcessPrior : public Parameter {
 
         int getCategorySize(int index);
         void addCategory(double omega);
-        std::vector<int> getAssinments() { return assignments;}
+        std::vector<double> getAssignments() { return assignments;}
 
         int unassignMember(int member);
 

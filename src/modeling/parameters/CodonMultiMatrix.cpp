@@ -120,8 +120,10 @@ void CodonMultiMatrix::accept() {
 void CodonMultiMatrix::reject() {
     currentK = oldK;
     currentKPrior = oldKPrior;
+
     currentRPrior = oldRPrior;
     currentR = oldR;
+    
     currentQMatrix = oldQMatrix;
 
     if(updateStationary){

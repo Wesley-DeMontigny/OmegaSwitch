@@ -17,7 +17,7 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
         settings.push_back(arg);
     }
 
-
+/*
     settings.push_back("-nexus");
     settings.push_back("/workspaces/Varying_Selection_DPP/publication_analyses/globin_analysis/globins.nex");
     settings.push_back("-treeOut");
@@ -30,6 +30,7 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
     settings.push_back("/workspaces/Varying_Selection_DPP/res/tips.log");
     settings.push_back("-fixedTree");
     settings.push_back("((HsabinusHBB:1,((BtaurusHBB:1,HsapiensHBB:1):1,(((BbombinaHBB:1,XborealisHBB:1):1,((DrerioHBB:1,CcarpioHBB:1):1,SsalarHBB:1):1):1,(TelegansHBB:1,((((AindicusHBB:1,GgallusHBBA:1):1,(ShabroptilaHBB:1,CminorHBB:1):1):1,TaedonHBB:1):1,(CmydasHBB:1,(PcastaneusHBB:1,CniloticusHBB:1):1):1):1):1):1):1):1,((((((((CmydasHBA:1,PcastaneusHBA:1):1,CniloticusHBA:1):1,((((GamericanaHBA:1,CminorHBA:1):1,EminorHBA:1):1,GgallusHBAA:1):1,AindicusHBA:1):1):1,TelegansHBA:1):1,(BtaurusHBA2:1,HsapiensHBA2:1):1):1,(BbombinaHBA:1,XborealisHBA:1):1):1,((DrerioHBA:1,CcarpioHBA:1):1,SsalarHBA:1):1):1,HsabinusHBA:1):1);");
+*/
 
 /*
     settings.push_back("-simulate");

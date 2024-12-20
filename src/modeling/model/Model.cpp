@@ -38,7 +38,7 @@ Model::Model(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProce
         activeTP[i] = false;
     }
     postOrder = new ConditionalLikelihood(aln, numNodes, 1);
-    transProb = new TransitionProbability(numNodes, numChar + 10);
+    transProb = new TransitionProbability(numNodes, numChar + 20);
 
     int reconstructionWidth = numNodes*numChar*stateSpace;
     reconstruction = new double[reconstructionWidth];

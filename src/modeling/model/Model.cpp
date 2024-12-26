@@ -212,7 +212,7 @@ void Model::regenerateLikelihood(){
                             max = *pNN;
                         pNN++;
                     }
-                    if(max < 1e-25){
+                    if(max < 1e-10){
                         pNN -= stateSpace;
                         for(int i = 1; i < stateSpace; i++){
                             *pNN /= max;
@@ -315,7 +315,7 @@ void Model::regenerateLikelihood(int site, int category, bool update){
                     max = *pNN;
                 pNN++;
             }
-            if(max < 1e-25){
+            if(max < 1e-10){
                 pNN -= stateSpace;
                 for(int i = 1; i < stateSpace; i++){
                     *pNN /= max;
@@ -411,7 +411,7 @@ double Model::testCategory(int site, int category, bool update){
                     max = *pNN;
                 pNN++;
             }
-            if(max < 1e-25){
+            if(max < 1e-10){
                 pNN -= stateSpace;
                 for(int i = 1; i < stateSpace; i++){
                     *pNN /= max;

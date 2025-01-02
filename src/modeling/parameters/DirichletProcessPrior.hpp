@@ -5,6 +5,7 @@
 #include <map>
 
 class Model;
+class Settings;
 
 struct Category {
     double omega1;
@@ -17,7 +18,7 @@ struct Category {
 class DirichletProcessPrior : public Parameter {
     public:
         DirichletProcessPrior(void)=delete;
-        DirichletProcessPrior(int size, double alpha, double oL, int numGibbs);
+        DirichletProcessPrior(int size, Settings s);
         ~DirichletProcessPrior(void);
 
         void registerModel(Model* m) {model = m;}
@@ -48,7 +49,8 @@ class DirichletProcessPrior : public Parameter {
         double currentLnPrior;
         double oldLnPrior;
         double alpha;
-        double omegaLambda;
+        double omegaAlpha;
+        double omegaBeta;
 
         int omegaAcceptCount;
         int omegaCount;

@@ -5,10 +5,10 @@
 #include <vector>
 
 Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dppOutput(""), mcmcOutput(""), tipsOutput(""),
-                                              numIterations(100000), printFrequency(10), sampleFrequency(10),
+                                              numIterations(100000), printFrequency(10), sampleFrequency(100),
                                               burnInIterations(10000), tuneFrequency(2000), rLambda(2.0),
-                                              kLambda(1.0), omegaLambda(1.0), dppAlpha(1.0), updateStationary(true),
-                                              numGibbsUpdate(10), rateMatrixWeight(10), dppWeight(10), treeWeight(10),
+                                              kLambda(1.0), omegaAlpha(2.0), omegaBeta(3.0), dppAlpha(0.5), updateStationary(true),
+                                              numGibbsUpdate(10), rateMatrixWeight(10), dppWeight(5), treeWeight(5),
                                               treeLengthLambda(1.0), simulate(false), fixedTree(""), numTaxa(-1),
                                               numChar(-1), kValue(-1.0), rValue(-1.0) {
     std::vector<std::string> settings;
@@ -81,8 +81,10 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                 tuneFrequency = stoi(settings[i]);
             else if (currentArg == "-treeLambda")
                 treeLengthLambda = stod(settings[i]);
-            else if (currentArg == "-omegaLambda")
-                omegaLambda = stod(settings[i]);
+            else if (currentArg == "-omegaAlpha")
+                omegaAlpha = stod(settings[i]);
+            else if (currentArg == "-omegaBeta")
+                omegaBeta = stod(settings[i]);
             else if (currentArg == "-kLambda")
                 kLambda = stod(settings[i]);
             else if (currentArg == "-rLambda")
@@ -187,7 +189,8 @@ void Settings::print(){
     
     std::cout << "Model Parameters:" << std::endl;
     std::cout << "   * -treeLambda        : " << treeLengthLambda << std::endl;
-    std::cout << "   * -omegaLambda       : " << omegaLambda << std::endl;
+    std::cout << "   * -omegaAlpha        : " << omegaAlpha << std::endl;
+    std::cout << "   * -omegaBeta         : " << omegaBeta << std::endl;
     std::cout << "   * -kLamdba           : " << kLambda << std::endl;
     std::cout << "   * -rLambda           : " << rLambda << std::endl;
     std::cout << "   * -dppAlpha          : " << dppAlpha << std::endl;
@@ -239,7 +242,8 @@ void Settings::usage(void) {
 
     std::cout << "Model Parameters:" << std::endl;
     std::cout << "   * -treeLambda        : Lambda parameter for the tree length exponential prior." << std::endl;
-    std::cout << "   * -omegaLambda       : Lambda parameter for the dN/dS exponential prior." << std::endl;
+    std::cout << "   * -omegaAlpha        : Alpha parameter for the dN/dS gamma prior." << std::endl;
+    std::cout << "   * -omegaBeta         : Beta parameter for the dN/dS gamma prior." << std::endl;
     std::cout << "   * -kLamdba           : Lambda parameter for the transition/transversion ratio exponential prior." << std::endl;
     std::cout << "   * -rLambda           : Lambda parameter for the matrix-swapping exponential prior." << std::endl;
     std::cout << "   * -dppAlpha          : The alpha parameter of the DPP." << std::endl;

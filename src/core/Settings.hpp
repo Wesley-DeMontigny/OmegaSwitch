@@ -20,7 +20,8 @@ struct Settings {
     int             tuneFrequency;
     double          rLambda;
     double          kLambda;
-    double          omegaLambda;
+    double          omegaAlpha;
+    double          omegaBeta;
     double          dppAlpha;
     double          treeLengthLambda;
     bool            updateStationary;

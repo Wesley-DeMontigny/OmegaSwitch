@@ -35,7 +35,7 @@ int main(int argc, char* argv[]) {
         TreeParameter treeParam(&aln, settings.fixedTree, settings.treeLengthLambda);
         moveScheduler.registerParam(&treeParam, settings.treeWeight);
 
-        DirichletProcessPrior dpp(aln.getNumChar(), settings.dppAlpha, settings.omegaLambda, settings.numGibbsUpdate);
+        DirichletProcessPrior dpp(aln.getNumChar(), settings);
         moveScheduler.registerParam(&dpp, settings.dppWeight);
 
         CodonMultiMatrix rateMatrix(settings, stationaryDist);
@@ -53,7 +53,7 @@ int main(int argc, char* argv[]) {
         std::cout << "Analysis was completed in " << std::chrono::duration_cast<std::chrono::minutes>(end - begin).count() << "[m]" << std::endl;
     }
     else {
-        // TODO: Make it so simulations use an rVector for rate matrix categories.
+        // TODO: Fix this when everything is a little more settled
         /*
         RandomVariable& rng = RandomVariable::randomVariableInstance();
 

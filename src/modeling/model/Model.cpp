@@ -38,7 +38,7 @@ Model::Model(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProce
         activeTP[i] = false;
     }
     postOrder = new ConditionalLikelihood(aln, numNodes, 1);
-    transProb = new TransitionProbability(numNodes, numChar + 20);
+    transProb = new TransitionProbability(numNodes, numChar + 5);
 
     int reconstructionWidth = numNodes*numChar*stateSpace;
     reconstruction = new double[reconstructionWidth];
@@ -431,44 +431,19 @@ double Model::testCategory(int site, int category, bool update){
     }
 
     int rIndex = activeT->getRoot()->getIndex();
-    double* pR = (*postOrder)(rIndex, activeCL[rIndex], 0);
     std::vector<double> f = rateMatrix->getStationary();
     double lnL = 0.0;
+    double* siteRoot = siteBuffer + (rIndex * stateSpace);
 
-    for(int c = 0; c < numChar; c++){
-        if(c != site){
-            double like = 0.0;
-            for(int i = 0; i < stateSpace; i++){
-                like += pR[i]*f[i];
-            }
-
-            lnL += std::log(like);
-            pR += stateSpace;
-        }
-        else {
-            double like = 0.0;
-            double* siteRoot = siteBuffer + (rIndex * stateSpace);
-            for(int i = 0; i < stateSpace; i++){
-                like += siteRoot[i]*f[i];
-            }
-            lnL += std::log(like);
-            pR += stateSpace;
-        }
+    for(int i = 0; i < stateSpace; i++){
+        lnL += siteRoot[i]*f[i];
     }
+    lnL = std::log(lnL);
 
-    double* rescalePointer = rescaling;
     double* rescaleBufferPointer = rescaleBuffer;
     for(int i = 0; i < numNodes; i++){
-        for(int c = 0; c < numChar; c++){
-            if(c != site){
-                lnL += *rescalePointer;  
-            }
-            else{
-                lnL += *rescaleBufferPointer;
-                rescaleBufferPointer++;
-            }
-            rescalePointer++; 
-        }
+        lnL += *rescaleBufferPointer;
+        rescaleBufferPointer++;
     }
 
     delete [] siteBuffer;

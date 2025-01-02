@@ -4,14 +4,16 @@
 #include "modeling/model/TransitionProbability.hpp"
 #include "core/Probability.hpp"
 #include "core/Msg.hpp"
+#include "core/Settings.hpp"
 #include <cmath>
 #include "core/Math.hpp"
 #include <iostream>
 #include <algorithm>
 
-DirichletProcessPrior::DirichletProcessPrior(int size, double a, double oL, int numGibbs) : 
-                                             alpha(a), omegaLambda(oL), numMembers(size), currentLnPrior(0.0), 
-                                             numGibbsUpdate(numGibbs), model(nullptr), omegaDelta(0.15) {
+DirichletProcessPrior::DirichletProcessPrior(int size, Settings s) : 
+                                             alpha(s.dppAlpha), omegaAlpha(s.omegaAlpha), omegaBeta(s.omegaBeta), 
+                                             numMembers(size), currentLnPrior(0.0), numGibbsUpdate(s.numGibbsUpdate), 
+                                             model(nullptr), omegaDelta(0.05) {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
     for(int i = 0; i < size; i++){
@@ -20,8 +22,8 @@ DirichletProcessPrior::DirichletProcessPrior(int size, double a, double oL, int 
 
         // If new category
         if(total > randomVal){
-            Category newCat = {Probability::Exponential::rv(&rng, omegaLambda),
-                               Probability::Exponential::rv(&rng, omegaLambda),
+            Category newCat = {Probability::Gamma::rv(&rng, omegaAlpha, omegaBeta),
+                               Probability::Gamma::rv(&rng, omegaAlpha, omegaBeta),
                                1, {i}, true};
             currentCategories.push_back(newCat);
             continue;
@@ -69,8 +71,8 @@ void DirichletProcessPrior::regeneratePrior(){
 
     for(Category& c : currentCategories) {
         currentLnPrior += Math::lnFactorial(c.size - 1);
-        currentLnPrior += Probability::Exponential::lnPdf(omegaLambda, c.omega1);
-        currentLnPrior += Probability::Exponential::lnPdf(omegaLambda, c.omega2);
+        currentLnPrior += Probability::Gamma::lnPdf(omegaAlpha, omegaBeta, c.omega1);
+        currentLnPrior += Probability::Gamma::lnPdf(omegaAlpha, omegaBeta, c.omega2);
     }
 
     //currentLnPrior -= denominator;
@@ -195,13 +197,13 @@ double DirichletProcessPrior::update() {
 
             std::vector<double> omega1Vec;
             std::vector<double> omega2Vec;
-            double alphaSplit = std::log(alpha/20);
+            double alphaSplit = std::log(alpha/5);
 
-            model->getTransitionProbability()->allocateQ(numCats + 20);
-            for(int i = 0; i < 20; i++){
+            model->getTransitionProbability()->allocateQ(numCats + 5);
+            for(int i = 0; i < 5; i++){
                 conditionalL.push_back(0.0);
-                double newOmega1 = Probability::Exponential::rv(&rng, omegaLambda);
-                double newOmega2 = Probability::Exponential::rv(&rng, omegaLambda);
+                double newOmega1 = Probability::Gamma::rv(&rng, omegaAlpha, omegaBeta);
+                double newOmega2 = Probability::Gamma::rv(&rng, omegaAlpha, omegaBeta);
                 addCategory(newOmega1, newOmega2);
                 omega1Vec.push_back(newOmega1);
                 omega2Vec.push_back(newOmega2);
@@ -214,7 +216,7 @@ double DirichletProcessPrior::update() {
 
             executor.run(taskflow).wait();
 
-            for(int i = 0; i < 20; i++)
+            for(int i = 0; i < 5; i++)
                 currentCategories.pop_back();
 
             //Do some adjustments here to get relative probabilities
@@ -234,13 +236,13 @@ double DirichletProcessPrior::update() {
                 if(total > categoryDraw){
                     if(i < numCats) { //It already exists
                         assignMember(randomMember, i);
-                        model->getTransitionProbability()->deleteNQ(20);
+                        model->getTransitionProbability()->deleteNQ(5);
                         model->regenerateLikelihood(randomMember, i, false);
                     }
                     else {
                         addCategory(omega1Vec[i - numCats], omega2Vec[i - numCats]);
                         assignMember(randomMember, numCats);
-                        model->getTransitionProbability()->deleteNQ(19);
+                        model->getTransitionProbability()->deleteNQ(4);
                         model->regenerateLikelihood(randomMember, numCats, true);
                     }
                     break;

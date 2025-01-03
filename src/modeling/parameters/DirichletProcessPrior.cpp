@@ -2,6 +2,7 @@
 #include "core/RandomVariable.hpp"
 #include "modeling/model/Model.hpp" // Annoying circular dependency... It is what is is for now...
 #include "modeling/model/TransitionProbability.hpp"
+#include "modeling/model/ConditionalLikelihood.hpp"
 #include "core/Probability.hpp"
 #include "core/Msg.hpp"
 #include "core/Settings.hpp"
@@ -13,7 +14,8 @@
 DirichletProcessPrior::DirichletProcessPrior(int size, Settings s) : 
                                              alpha(s.dppAlpha), omegaAlpha(s.omegaAlpha), omegaBeta(s.omegaBeta), 
                                              numMembers(size), currentLnPrior(0.0), numGibbsUpdate(s.numGibbsUpdate), 
-                                             model(nullptr), omegaDelta(0.05) {
+                                             model(nullptr), omegaDelta(0.5), assignments(size, -1) {
+/*
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
     for(int i = 0; i < size; i++){
@@ -58,10 +60,98 @@ DirichletProcessPrior::DirichletProcessPrior(int size, Settings s) :
 
     oldCategories = currentCategories;
     oldLnPrior = currentLnPrior;
+*/
 }
 
 DirichletProcessPrior::~DirichletProcessPrior() {
     
+}
+
+void DirichletProcessPrior::registerModel(Model* m) {
+    model = m;
+    double expectedCategories = omegaAlpha * std::log(1 + numMembers/omegaAlpha);
+    std::cout << "Initializing Dirichlet Process With E(Categories) = " << expectedCategories << std::endl;
+    double flooredCategories = (double)(int)expectedCategories;
+    double quantile = 1.0/flooredCategories * numMembers;
+    std::cout << "Binning Sites By Heterogeneity With " << flooredCategories << " Bins" << std::endl;
+
+    std::vector<double> heterogeneity;
+    std::vector<int> aaMap = {8, 11, 8, 11, 16, 16, 16, 16, 14, 15, 14, 15, 7, 7, 10, 7, 13, 6, 13, 6, 12, 12, 12, 12, 14, 14, 14, 14, 9, 9, 9, 9, 3, 2, 3, 2, 0, 0, 0, 0, 5, 5, 5, 5, 17, 17, 17, 17, 19, 19, 15, 15, 15, 15, 1, 18, 1, 9, 4, 9, 4};  
+
+    ConditionalLikelihood* condL = model->getConditionalLikelihood();
+    int numTaxa = model->getNumTaxa();
+
+    for(int i = 0; i < numMembers; i++){
+        std::set<int> seenAA;
+        for(int j = 0; j < numTaxa; j++){
+            double* p = (*condL)(j, 0, 0) + i * 61;
+            for(int k = 0; k < 61; k++){
+                if(p[k] == 1.0){
+                    seenAA.insert(aaMap[k]);
+                    break;
+                }
+            }
+        }
+        heterogeneity.push_back(seenAA.size());
+    }
+
+    std::vector<double> sortedVector(heterogeneity);
+    std::sort(sortedVector.begin(), sortedVector.end());
+
+    RandomVariable& rng = RandomVariable::randomVariableInstance();
+
+    for(int i = 0; i < flooredCategories; i++){
+        Category newCat = {Probability::Gamma::rv(&rng, omegaAlpha, omegaBeta),
+                            Probability::Gamma::rv(&rng, omegaAlpha, omegaBeta),
+                            0, {}, true};
+        currentCategories.push_back(newCat);
+    }
+
+    std::vector<std::pair<double, int>> indexedHeterogeneity;
+    for (int i = 0; i < heterogeneity.size(); i++) {
+        indexedHeterogeneity.emplace_back(heterogeneity[i], i);
+    }
+
+    std::sort(indexedHeterogeneity.begin(), indexedHeterogeneity.end(),
+            [](const std::pair<double, int>& a, const std::pair<double, int>& b) {
+                return a.first < b.first;
+            });
+
+    std::vector<int> sortedIndices;
+    for (const auto& pair : indexedHeterogeneity) {
+        sortedIndices.push_back(pair.second);
+    }
+
+    std::vector<int> thresholds;
+    for (int q = 1; q <= flooredCategories; q++) {
+        int thresholdIndex = std::min((int)(q * quantile), (int)(sortedIndices.size() - 1));
+        thresholds.push_back(thresholdIndex);
+    }
+
+    for (int i = 0; i < sortedIndices.size(); i++) {
+        for (int c = 0; c < thresholds.size(); c++) {
+            if (i < thresholds[c]) {
+                assignments[sortedIndices[i]] = c;
+                assignMember(sortedIndices[i], c);
+                currentCategories[c].members.push_back(sortedIndices[i]);
+                currentCategories[c].size++;
+                break;
+            }
+        }
+        if (assignments[sortedIndices[i]] == -1) {
+            int finalIndex = thresholds.size() - 1;
+            assignments[sortedIndices[i]] = finalIndex;
+            currentCategories[finalIndex].members.push_back(sortedIndices[i]);
+            currentCategories[finalIndex].size++;
+        }
+    }
+
+    this->dirty();
+
+    regeneratePrior();
+
+    oldCategories = currentCategories;
+    oldLnPrior = currentLnPrior;
 }
 
 void DirichletProcessPrior::regeneratePrior(){
@@ -74,8 +164,6 @@ void DirichletProcessPrior::regeneratePrior(){
         currentLnPrior += Probability::Gamma::lnPdf(omegaAlpha, omegaBeta, c.omega1);
         currentLnPrior += Probability::Gamma::lnPdf(omegaAlpha, omegaBeta, c.omega2);
     }
-
-    //currentLnPrior -= denominator;
 }
 
 void DirichletProcessPrior::removeCategory(int index){
@@ -145,7 +233,7 @@ double DirichletProcessPrior::update() {
 
     double randomMove = rng.uniformRv();
 
-    if(randomMove < 0.5) { // Scale Random Omega
+    if(randomMove < 0.75) { // Scale Random Omega
         moveChoice = 0;
         omegaCount += 1;
 
@@ -155,20 +243,20 @@ double DirichletProcessPrior::update() {
         currentCategories[randomCategory].dirty = true;
 
         if(randomOmega == 0){
-            double logO = std::log(currentCategories[randomCategory].omega1);
+            double currentV = currentCategories[randomCategory].omega1;
+            double scale = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
+            double newV = currentV * scale;
 
-            double proposedLogO = logO + omegaDelta * Probability::Normal::rv(&rng);
-            double proposedO = std::exp(proposedLogO);
-
-            currentCategories[randomCategory].omega1 = proposedO;
+            currentCategories[randomCategory].omega1 = newV;
+            hastings = std::log(scale);
         }
         else{
-            double logO = std::log(currentCategories[randomCategory].omega2);
+            double currentV = currentCategories[randomCategory].omega2;
+            double scale = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
+            double newV = currentV * scale;
 
-            double proposedLogO = logO + omegaDelta * Probability::Normal::rv(&rng);
-            double proposedO = std::exp(proposedLogO);
-
-            currentCategories[randomCategory].omega2 = proposedO;
+            currentCategories[randomCategory].omega2 = newV;
+            hastings = std::log(scale);
         }
     }
     else{

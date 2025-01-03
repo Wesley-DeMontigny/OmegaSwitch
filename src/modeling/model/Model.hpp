@@ -2,10 +2,10 @@
 #define PHYLO_CTMC_HPP
 #include "modeling/parameters/trees/TreeParameter.hpp"
 #include <taskflow/taskflow.hpp>
+#include "core/Alignment.hpp"
 
 class ConditionalLikelihood;
 class TransitionProbability;
-class Alignment;
 class RandomVariable;
 class RateMatrix;
 class CodonMultiMatrix;
@@ -27,6 +27,9 @@ class Model {
 
         double testCategory(int site, int category, bool update);
 
+        int getNumTaxa(){return aln->getNumTaxa();}
+        int getNumChar(){return numChar;}
+        int getNumNodes(){return numNodes;}
 
         TransitionProbability* getTransitionProbability() { return transProb; }
         ConditionalLikelihood* getConditionalLikelihood() { return postOrder; }

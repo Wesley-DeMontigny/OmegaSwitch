@@ -22,8 +22,6 @@ Model::Model(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProce
     stateSpace = 122;
     numChar = aln->getNumChar();
 
-    dpp->registerModel(this);
-
     if(aln->getNumTaxa() != activeT->getNumTaxa())
         Msg::error("Expected " + std::to_string(aln->getNumTaxa()) + 
         "taxa in the tree, but found only " + std::to_string(activeT->getNumTaxa()));
@@ -49,11 +47,14 @@ Model::Model(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProce
     std::fill(rescaling, rescaling + rescaleWidth, 0.0);
 
     activeT->updateAll();
+
+    dpp->registerModel(this);
 }
 
 Model::~Model(){
     delete postOrder;
     delete transProb;
+    delete [] rescaling;
     delete [] reconstruction;
     delete [] activeCL;
     delete [] activeTP;

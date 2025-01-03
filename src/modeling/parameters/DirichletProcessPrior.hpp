@@ -21,7 +21,7 @@ class DirichletProcessPrior : public Parameter {
         DirichletProcessPrior(int size, Settings s);
         ~DirichletProcessPrior(void);
 
-        void registerModel(Model* m) {model = m;}
+        void registerModel(Model* m);
         
         double lnPrior() {return currentLnPrior;}
         double update();

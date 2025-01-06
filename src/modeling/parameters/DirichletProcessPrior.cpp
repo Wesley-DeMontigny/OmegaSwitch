@@ -12,56 +12,10 @@
 #include <algorithm>
 
 DirichletProcessPrior::DirichletProcessPrior(int size, Settings s) : 
-                                             alpha(s.dppAlpha), omegaAlpha(s.omegaAlpha), omegaBeta(s.omegaBeta), 
+                                             alpha(s.dppAlpha), omegaLambda(s.omegaLambda), 
                                              numMembers(size), currentLnPrior(0.0), numGibbsUpdate(s.numGibbsUpdate), 
-                                             model(nullptr), omegaDelta(0.5), assignments(size, -1) {
-/*
-    RandomVariable& rng = RandomVariable::randomVariableInstance();
-
-    for(int i = 0; i < size; i++){
-        double randomVal = rng.uniformRv();
-        double total = alpha/(i + alpha);
-
-        // If new category
-        if(total > randomVal){
-            Category newCat = {Probability::Gamma::rv(&rng, omegaAlpha, omegaBeta),
-                               Probability::Gamma::rv(&rng, omegaAlpha, omegaBeta),
-                               1, {i}, true};
-            currentCategories.push_back(newCat);
-            continue;
-        }
-
-        for(Category &c : currentCategories){
-            total += c.size/(i+alpha);
-
-            //If old category
-            if(total > randomVal){
-                c.size++;
-                c.members.push_back(i);
-                break;
-            }
-        }
-    }
-
-    for(int i = 0; i < numMembers; i++)
-        assignments.push_back(-1);
-
-    //This is just a constant - no need to calculate it
-    //denominator = Math::lnGamma(numMembers - alpha);
-
-    int numCats = currentCategories.size();
-    for(int i = 0; i < numCats; i++)
-        for(int m : currentCategories[i].members)
-            assignments[m] = i;
-    
-    this->dirty();
-
-    regeneratePrior();
-
-    oldCategories = currentCategories;
-    oldLnPrior = currentLnPrior;
-*/
-}
+                                             model(nullptr), omegaDelta(0.5), assignments(size, -1), omegaAcceptCount(0),
+                                             omegaCount(0), moveChoice(-1) {}
 
 DirichletProcessPrior::~DirichletProcessPrior() {
     
@@ -69,7 +23,7 @@ DirichletProcessPrior::~DirichletProcessPrior() {
 
 void DirichletProcessPrior::registerModel(Model* m) {
     model = m;
-    double expectedCategories = omegaAlpha * std::log(1 + numMembers/omegaAlpha);
+    double expectedCategories = alpha * std::log(1 + numMembers/alpha);
     std::cout << "Initializing Dirichlet Process With E(Categories) = " << expectedCategories << std::endl;
     double flooredCategories = (double)(int)expectedCategories;
     double quantile = 1.0/flooredCategories * numMembers;
@@ -101,9 +55,9 @@ void DirichletProcessPrior::registerModel(Model* m) {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
     for(int i = 0; i < flooredCategories; i++){
-        Category newCat = {Probability::Gamma::rv(&rng, omegaAlpha, omegaBeta),
-                            Probability::Gamma::rv(&rng, omegaAlpha, omegaBeta),
-                            0, {}, true};
+        double newOmega1 = Probability::Exponential::rv(&rng, omegaLambda);
+        double newOmega2 = Probability::Exponential::rv(&rng, omegaLambda);
+        Category newCat = {newOmega1, newOmega2, 0, {}, true};
         currentCategories.push_back(newCat);
     }
 
@@ -161,8 +115,8 @@ void DirichletProcessPrior::regeneratePrior(){
 
     for(Category& c : currentCategories) {
         currentLnPrior += Math::lnFactorial(c.size - 1);
-        currentLnPrior += Probability::Gamma::lnPdf(omegaAlpha, omegaBeta, c.omega1);
-        currentLnPrior += Probability::Gamma::lnPdf(omegaAlpha, omegaBeta, c.omega2);
+        currentLnPrior += Probability::Exponential::lnPdf(omegaLambda, c.omega1);
+        currentLnPrior += Probability::Exponential::lnPdf(omegaLambda, c.omega2);
     }
 }
 
@@ -238,26 +192,22 @@ double DirichletProcessPrior::update() {
         omegaCount += 1;
 
         int randomCategory = (int)(rng.uniformRv() * currentCategories.size());
-        int randomOmega = (int)(rng.uniformRv() * 2);
 
         currentCategories[randomCategory].dirty = true;
 
-        if(randomOmega == 0){
-            double currentV = currentCategories[randomCategory].omega1;
-            double scale = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
-            double newV = currentV * scale;
+        double currentV1 = currentCategories[randomCategory].omega1;
+        double scale1 = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
+        double newV1 = currentV1 * scale1;
 
-            currentCategories[randomCategory].omega1 = newV;
-            hastings = std::log(scale);
-        }
-        else{
-            double currentV = currentCategories[randomCategory].omega2;
-            double scale = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
-            double newV = currentV * scale;
+        currentCategories[randomCategory].omega1 = newV1;
+        hastings = std::log(scale1);
 
-            currentCategories[randomCategory].omega2 = newV;
-            hastings = std::log(scale);
-        }
+        double currentV2 = currentCategories[randomCategory].omega2;
+        double scale2 = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
+        double newV2 = currentV2 * scale2;
+
+        currentCategories[randomCategory].omega2 = newV2;
+        hastings += std::log(scale2);
     }
     else{
         for(int n = 0; n < numGibbsUpdate; n++) {
@@ -290,8 +240,9 @@ double DirichletProcessPrior::update() {
             model->getTransitionProbability()->allocateQ(numCats + 5);
             for(int i = 0; i < 5; i++){
                 conditionalL.push_back(0.0);
-                double newOmega1 = Probability::Gamma::rv(&rng, omegaAlpha, omegaBeta);
-                double newOmega2 = Probability::Gamma::rv(&rng, omegaAlpha, omegaBeta);
+                double newOmega1 = Probability::Exponential::rv(&rng, omegaLambda);
+                double newOmega2 = Probability::Exponential::rv(&rng, omegaLambda);
+
                 addCategory(newOmega1, newOmega2);
                 omega1Vec.push_back(newOmega1);
                 omega2Vec.push_back(newOmega2);

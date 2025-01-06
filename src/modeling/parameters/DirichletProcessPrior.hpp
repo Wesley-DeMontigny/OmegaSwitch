@@ -49,8 +49,7 @@ class DirichletProcessPrior : public Parameter {
         double currentLnPrior;
         double oldLnPrior;
         double alpha;
-        double omegaAlpha;
-        double omegaBeta;
+        double omegaLambda;
 
         int omegaAcceptCount;
         int omegaCount;

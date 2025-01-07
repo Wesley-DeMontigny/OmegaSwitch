@@ -186,8 +186,8 @@ double DirichletProcessPrior::update() {
     double hastings = 0.0;
 
     double randomMove = rng.uniformRv();
-
-    if(randomMove < 0.75) { // Scale Random Omega
+    
+    if(randomMove < 0.8) { // Scale Random Omega
         moveChoice = 0;
         omegaCount += 1;
 
@@ -276,13 +276,12 @@ double DirichletProcessPrior::update() {
                     if(i < numCats) { //It already exists
                         assignMember(randomMember, i);
                         model->getTransitionProbability()->deleteNQ(5);
-                        model->regenerateLikelihood(randomMember, i, false);
                     }
                     else {
                         addCategory(omega1Vec[i - numCats], omega2Vec[i - numCats]);
                         assignMember(randomMember, numCats);
                         model->getTransitionProbability()->deleteNQ(4);
-                        model->regenerateLikelihood(randomMember, numCats, true);
+                        model->regenerateTransitionProbs(randomMember, numCats);
                     }
                     break;
                 }

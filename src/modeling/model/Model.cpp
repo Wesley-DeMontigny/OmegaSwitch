@@ -43,8 +43,8 @@ Model::Model(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProce
     std::fill(reconstruction, reconstruction + reconstructionWidth, 0.0);
 
     int rescaleWidth = numNodes*numChar;
-    rescaling = new double[rescaleWidth];
-    std::fill(rescaling, rescaling + rescaleWidth, 0.0);
+    rescaling = new double[rescaleWidth * 2];
+    std::fill(rescaling, rescaling + rescaleWidth * 2, 0.0);
 
     activeT->updateAll();
 
@@ -67,6 +67,8 @@ void Model::accept() {
         activeCL[i + numNodes] = activeCL[i];
         activeTP[i + numNodes] = activeTP[i];
     }
+
+    std::memcpy(rescaling + numNodes*numChar, rescaling, numNodes*numChar);
 
     if(tree->isDirty()){
         tree->accept();
@@ -91,6 +93,8 @@ void Model::reject() {
         activeCL[i] = activeCL[i + numNodes];
         activeTP[i] = activeTP[i + numNodes];
     }
+
+    std::memcpy(rescaling, rescaling + numNodes*numChar, numNodes*numChar);
 
     if(tree->isDirty()){
         tree->reject();
@@ -260,95 +264,24 @@ void Model::regenerateLikelihood(){
     currentLikelihood = lnL;
 }
 
-void Model::regenerateLikelihood(int site, int category, bool update){
+void Model::regenerateTransitionProbs(int site, int category){
     TreeObject* activeT = tree->getTree();
 
     std::vector<Node*>&  poSeq = activeT->getPostOrderSeq();
     std::vector<Category> categories = dpp->getCategories();
 
-    if(update){
-        double omega1 = categories[category].omega1;
-        double omega2 = omega1 + categories[category].omega2;
-        transProb->updateQ(rateMatrix->Q(omega1, omega2), category);
-    }
+    double omega1 = categories[category].omega1;
+    double omega2 = omega1 + categories[category].omega2;
+    transProb->updateQ(rateMatrix->Q(omega1, omega2), category);
 
     for(Node* n : poSeq){
         int nIndex = n->getIndex();
 
-        if(update){
-            if(n != activeT->getRoot()){
-                double v = activeT->getBranchLength(n);
-                transProb->setProbs(activeTP[nIndex], category, nIndex, v);
-            }
-        }
-
-        if(n->getIsTip() == false){
-            double* pNN = (*postOrder)(nIndex, activeCL[nIndex], 0) + site*stateSpace;
-            std::fill(pNN, pNN + stateSpace, 1.0);
-
-            std::set<Node*>& nNeighbors = n->getNeighbors();
-
-            for(Node* d : nNeighbors){
-                if(d != n->getAncestor()){
-                    int dIndex = d->getIndex();
-                    double* pN = pNN;
-                    double* pD = (*postOrder)(dIndex, activeCL[dIndex], 0) + site*stateSpace;
-
-                    Matrix<double> P = *(*transProb)(activeTP[dIndex], category, dIndex);
-                    for(int i = 0; i < stateSpace; i++){
-                        double sum = 0.0;
-                        for(int j = 0; j < stateSpace; j++){
-                            sum += P(i, j) * pD[j];
-                        }
-                        (*pN) *= sum;
-                        pN++;
-                    }
-                }
-            }
-
-            double* rescalePointer = rescaling + (numChar * nIndex) + site;
-            *rescalePointer = 0.0;
-
-            double max = *pNN;
-            pNN++;
-            for(int i = 1; i < stateSpace; i++){
-                if(*pNN > max)
-                    max = *pNN;
-                pNN++;
-            }
-            if(max < 1e-10){
-                pNN -= stateSpace;
-                for(int i = 1; i < stateSpace; i++){
-                    *pNN /= max;
-                    pNN++;
-                }
-                *rescalePointer = std::log(max);
-            }
+        if(n != activeT->getRoot()){
+            double v = activeT->getBranchLength(n);
+            transProb->setProbs(activeTP[nIndex], category, nIndex, v);
         }
     }
-
-    int rIndex = activeT->getRoot()->getIndex();
-    double* pR = (*postOrder)(rIndex, activeCL[rIndex], 0);
-    std::vector<double> f = rateMatrix->getStationary();
-    double lnL = 0.0;
-
-    for(int c = 0; c < numChar; c++){
-        double like = 0.0;
-        for(int i = 0; i < stateSpace; i++){
-            like += pR[i]*f[i];
-        }
-
-        lnL += std::log(like);
-        pR += stateSpace;
-    }
-
-    double* rescalePointer = rescaling;
-    for(int i = 0, len = numNodes * numChar; i < len; i++){
-        lnL += *rescalePointer;
-        rescalePointer++;
-    }
-
-    currentLikelihood = lnL;
 }
 
 

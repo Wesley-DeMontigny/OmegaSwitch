@@ -21,8 +21,7 @@ class Model {
         double lnPrior();
 
         void regenerateLikelihood();
-        void regenerateLikelihood(int site, int category, bool update);
-
+        void regenerateTransitionProbs(int site, int category);
         void reconstructTips();
 
         double testCategory(int site, int category, bool update);

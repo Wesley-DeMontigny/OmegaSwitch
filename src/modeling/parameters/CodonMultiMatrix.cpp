@@ -12,7 +12,7 @@ CodonMultiMatrix::CodonMultiMatrix(Settings settings, std::vector<double> pi) :
                                    currentKPrior(0.0), oldKPrior(0.0), updateStationary(settings.updateStationary), 
                                    currentRPrior(0.0), oldRPrior(0.0), moveChoice(-1), kCount(0), stationaryCount(0), 
                                    kAcceptCount(0), rCount(0), rAcceptCount(0), stationaryAcceptCount(0), 
-                                   kDelta(0.5), stationaryAlpha(100), stationaryOffset(0.001), rDelta(0.5) {
+                                   kDelta(0.5), stationaryAlpha(100), stationaryOffset(0.01), rDelta(0.5) {
     
     std::vector<int> aaMap = {8, 11, 8, 11, 16, 16, 16, 16, 14, 15, 14, 15, 7, 7, 10, 7, 13, 6, 13, 6, 12, 12, 12, 12, 14, 14, 14, 14, 9, 9, 9, 9, 3, 2, 3, 2, 0, 0, 0, 0, 5, 5, 5, 5, 17, 17, 17, 17, 19, 19, 15, 15, 15, 15, 1, 18, 1, 9, 4, 9, 4};  
     std::vector<const char*> codons = {"AAA", "AAC", "AAG", "AAT", "ACA", "ACC", "ACG", "ACT", "AGA", "AGC", "AGG", "AGT", "ATA", "ATC", "ATG", "ATT", "CAA", "CAC", "CAG", "CAT", "CCA", "CCC", "CCG", "CCT", "CGA", "CGC", "CGG", "CGT", "CTA", "CTC", "CTG", "CTT", "GAA", "GAC", "GAG", "GAT", "GCA", "GCC", "GCG", "GCT", "GGA", "GGC", "GGG", "GGT", "GTA", "GTC", "GTG", "GTT", "TAC", "TAT", "TCA", "TCC", "TCG", "TCT", "TGC", "TGG", "TGT", "TTA", "TTC", "TTG", "TTT"};
@@ -84,7 +84,7 @@ CodonMultiMatrix::CodonMultiMatrix(Settings settings, std::vector<double> pi) :
     
     oldQMatrix = currentQMatrix;
 
-    for(int i = 0; i < 122; i++)
+    for(int i = 0; i < 61; i++)
         randomStates.push_back(i);
 
     dirty();
@@ -251,7 +251,7 @@ double CodonMultiMatrix::update() {
         for(int i = 0; i < 61; i++) {
             currentStationary[i] = currentStationary[i]/sum;
 
-            if(currentStationary[i] < 1E-25) {
+            if(currentStationary[i] < 1E-10) {
                 return -1 * INFINITY;
             }
         }

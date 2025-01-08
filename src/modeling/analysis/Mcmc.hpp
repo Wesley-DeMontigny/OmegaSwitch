@@ -5,14 +5,16 @@
 
 class Model;
 class Parameter;
-class MoveScheduler;
+class TreeParameter;
+class CodonMultiMatrix;
+class DirichletProcessPrior;
 class EventManager;
 class Settings;
 
 class Mcmc{
     public:
         Mcmc(void)=delete;
-        Mcmc(Model* m, MoveScheduler* mS, Settings& s);
+        Mcmc(Model* m, TreeParameter* t, CodonMultiMatrix* cmm, DirichletProcessPrior* dpp, Settings& s);
         void burnin();
         void run();
     private:
@@ -21,11 +23,24 @@ class Mcmc{
         int printFreq;
         int tuneFreq;
         int sampleFreq;
+        int metropolisUpdates;
+
+        double treeChoice;
+        double stationaryChoice;
+        double kChoice;
+        double rChoice;
+        double dppChoice;
+        double omegaChoice;
+
+        TreeParameter* tree;
+        CodonMultiMatrix* codonMatrix;
+        DirichletProcessPrior* dpp;
+
         std::string analysisLog;
         std::string treeLog;
         std::string dppLog;
         std::string tipsLog;
-        MoveScheduler* moveScheduler;
+
         Model* model;
 };
 

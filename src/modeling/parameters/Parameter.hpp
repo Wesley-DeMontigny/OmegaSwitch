@@ -8,7 +8,6 @@ class Parameter {
         virtual void accept()=0;
         virtual void reject()=0;
         virtual double lnPrior()=0;
-        virtual double update()=0;
         virtual void tune()=0;
         void clean() {dirtyFlag = false;}
         void dirty() {dirtyFlag = true;}

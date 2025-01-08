@@ -6,16 +6,19 @@
 
 Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dppOutput(""), mcmcOutput(""), tipsOutput(""),
                                               numIterations(100000), printFrequency(10), sampleFrequency(100),
-                                              burnInIterations(10000), tuneFrequency(2000), rLambda(2.0),
-                                              kLambda(1.0), omegaLambda(5.0), dppAlpha(1), updateStationary(true),
-                                              numGibbsUpdate(30), rateMatrixWeight(10), dppWeight(10), treeWeight(10),
+                                              burnInIterations(20000), tuneFrequency(500), rLambda(2.0),
+                                              kLambda(1.0), omegaLambda(5.0), dppAlpha(1), numGibbsUpdate(2), 
+                                              rWeight(2.0), kWeight(2.0), stationaryWeight(3.0),
+                                              omegaWeight(4.0), dppWeight(1.0), treeWeight(8.0),
                                               treeLengthLambda(1.0), simulate(false), fixedTree(""), numTaxa(-1),
                                               numChar(-1), kValue(-1.0), rValue(-1.0) {
+
     std::vector<std::string> settings;
     for (int i=1; i<argc; i++) {
         std::string arg = argv[i];
         settings.push_back(arg);
     }
+
 /*
     settings.push_back("-nexus");
     settings.push_back("/workspaces/Varying_Selection_DPP/publication_analyses/globin_analysis/globins.nex");
@@ -28,7 +31,20 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
     settings.push_back("-tipsOut");
     settings.push_back("/workspaces/Varying_Selection_DPP/res/tips.log");
     settings.push_back("-fixedTree");
-    settings.push_back("((HsabinusHBB:1,((BtaurusHBB:1,HsapiensHBB:1):1,(((BbombinaHBB:1,XborealisHBB:1):1,((DrerioHBB:1,CcarpioHBB:1):1,SsalarHBB:1):1):1,(TelegansHBB:1,((((AindicusHBB:1,GgallusHBBA:1):1,(ShabroptilaHBB:1,CminorHBB:1):1):1,TaedonHBB:1):1,(CmydasHBB:1,(PcastaneusHBB:1,CniloticusHBB:1):1):1):1):1):1):1):1,((((((((CmydasHBA:1,PcastaneusHBA:1):1,CniloticusHBA:1):1,((((GamericanaHBA:1,CminorHBA:1):1,EminorHBA:1):1,GgallusHBAA:1):1,AindicusHBA:1):1):1,TelegansHBA:1):1,(BtaurusHBA2:1,HsapiensHBA2:1):1):1,(BbombinaHBA:1,XborealisHBA:1):1):1,((DrerioHBA:1,CcarpioHBA:1):1,SsalarHBA:1):1):1,HsabinusHBA:1):1);");
+    settings.push_back("((HakajeiHBB:1,(((DrerioHBB:1,CcarpioHBB:1):1,SsalarHBB:1):1,((BtaurusHBB:1,HsapiensHBB:1):1,(XborealisHBB:1,(CniloticusHBB:1,(CminorHBB:1,GgallusHBBA:1):1):1):1):1):1):1,((((((CminorHBA:1,GgallusHBAA:1):1,CniloticusHBA:1):1,XborealisHBA:1):1,(BtaurusHBA2:1,HsapiensHBA2:1):1):1,((DrerioHBA:1,CcarpioHBA:1):1,SsalarHBA:1):1):1,HakajeiHBA:1):1);");
+*/
+
+/*
+    settings.push_back("-nexus");
+    settings.push_back("/workspaces/Varying_Selection_DPP/res/replicase.nex");
+    settings.push_back("-treeOut");
+    settings.push_back("/workspaces/Varying_Selection_DPP/res/trees.trees");
+    settings.push_back("-mcmcOut");
+    settings.push_back("/workspaces/Varying_Selection_DPP/res/analysis.log");
+    settings.push_back("-dppOut");
+    settings.push_back("/workspaces/Varying_Selection_DPP/res/dpp.log");
+    settings.push_back("-tipsOut");
+    settings.push_back("/workspaces/Varying_Selection_DPP/res/tips.log");
 */
 
 /*
@@ -90,12 +106,16 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                 dppAlpha = stod(settings[i]);
              else if (currentArg == "-dppWeight")
                 dppWeight = stod(settings[i]);
-            else if (currentArg == "-rateMatrixWeight")
-                rateMatrixWeight = stod(settings[i]);
+            else if (currentArg == "-kWeight")
+                kWeight = stod(settings[i]);
+            else if (currentArg == "-rWeight")
+                rWeight = stod(settings[i]);
+            else if (currentArg == "-omegaWeight")
+                omegaWeight = stod(settings[i]);
+            else if (currentArg == "-stationaryWeight")
+                stationaryWeight = stod(settings[i]);
             else if (currentArg == "-treeWeight")
                 treeWeight = stod(settings[i]);
-            else if (currentArg == "-updateStationary")
-                updateStationary = stoi(settings[i]) == 1;
             else if (currentArg == "-numGibbsUpdate")
                 numGibbsUpdate = stoi(settings[i]);
             else if (currentArg == "-simulate")
@@ -201,9 +221,11 @@ void Settings::print(){
     std::cout << "   * -burnInIter        : " << burnInIterations << std::endl;
     std::cout << "   * -tuneFreq          : " << tuneFrequency << std::endl;
     std::cout << "   * -numGibbsUpdate    : " << numGibbsUpdate << std::endl;
-    std::cout << "   * -updateStationary  : " << updateStationary << std::endl;
     std::cout << "   * -treeWeight        : " << treeWeight << std::endl;
-    std::cout << "   * -rateMatrixWeight  : " << rateMatrixWeight << std::endl;
+    std::cout << "   * -kWeight           : " << kWeight << std::endl;
+    std::cout << "   * -rWeight           : " << rWeight << std::endl;
+    std::cout << "   * -omegaWeight       : " << omegaWeight << std::endl;
+    std::cout << "   * -stationaryWeight  : " << stationaryWeight << std::endl;
     std::cout << "   * -dppWeight         : " << dppWeight << std::endl;
     std::cout << std::endl;
 
@@ -253,10 +275,12 @@ void Settings::usage(void) {
     std::cout << "   * -burnInIter        : The number of iterations for the burn-in." << std::endl;
     std::cout << "   * -tuneFreq          : How often to tune the MCMC moves during the burn-in." << std::endl;
     std::cout << "   * -numGibbsUpdate    : How many sites to use during the Gibbs sampling of the DPP." << std::endl;
-    std::cout << "   * -updateStationary  : Whether or not the stationary should be treated as empirical or updated as a parameter (0/1)." << std::endl;
     std::cout << "   * -treeWeight        : How often to propose a move on the tree." << std::endl;
-    std::cout << "   * -rateMatrixWeight  : How often to propose a move on the stationary, R, and K." << std::endl;
-    std::cout << "   * -dppWeight         : How often to propose a move on the DPP parameters." << std::endl;
+    std::cout << "   * -kWeight           : How often to propose a move on the K parameter." << std::endl;
+    std::cout << "   * -rWeight           : How often to propose a move on the R parameter." << std::endl;
+    std::cout << "   * -omegaWeight       : How often to propose a move on the omega parameters." << std::endl;
+    std::cout << "   * -stationaryWeight  : How often to propose a move on the stationary distribution." << std::endl;
+    std::cout << "   * -dppWeight         : How often to propose a move on the DPP partitions." << std::endl;
     std::cout << std::endl;
 
     std::cout << "Simulation:" << std::endl;

@@ -19,12 +19,17 @@ class TreeParameter : public Parameter{
         double lnPrior();
 
         std::string writeNewick() {return trees[0]->getNewick();}
+
+
+        int branchCount;
+        int branchAcceptCount;
+        int treeCount; 
+        int treeAcceptCount;
     private:
         bool fixedTree;
         int moveChoice;
-        int count;
-        int acceptCount;
-        double delta;
+        double branchDelta;
+        double treeDelta;
         double lambda;
         double currentPrior;
         double oldPrior;

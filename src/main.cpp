@@ -2,7 +2,6 @@
 #include "core/Alignment.hpp"
 #include "core/Settings.hpp"
 #include "core/Probability.hpp"
-#include "modeling/analysis/MoveScheduler.hpp"
 #include "ncl/nxscharactersblock.h"
 #include "modeling/parameters/trees/TreeObject.hpp"
 #include "modeling/parameters/trees/TreeParameter.hpp"
@@ -23,27 +22,18 @@ int main(int argc, char* argv[]) {
         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
         RandomVariable& rng = RandomVariable::randomVariableInstance();
-        MoveScheduler moveScheduler;
         Alignment aln(settings.nexusInput);
         std::cout << "Initializing model..." << std::endl;
 
-        std::vector<double> stationaryDist;
-        for(double v : aln.getStateFrequencies()){
-            stationaryDist.push_back(v);
-        }
-
         TreeParameter treeParam(&aln, settings.fixedTree, settings.treeLengthLambda);
-        moveScheduler.registerParam(&treeParam, settings.treeWeight);
 
         DirichletProcessPrior dpp(aln.getNumChar(), settings);
-        moveScheduler.registerParam(&dpp, settings.dppWeight);
 
-        CodonMultiMatrix rateMatrix(settings, stationaryDist);
-        moveScheduler.registerParam(&rateMatrix, settings.rateMatrixWeight);
+        CodonMultiMatrix rateMatrix(settings);
 
         Model model(&aln, &treeParam, &rateMatrix, &dpp);
 
-        Mcmc myMCMC(&model, &moveScheduler, settings);
+        Mcmc myMCMC(&model, &treeParam, &rateMatrix, &dpp, settings);
 
         std::cout << "Starting MCMC..." << std::endl;
         myMCMC.burnin();

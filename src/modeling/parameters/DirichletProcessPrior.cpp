@@ -14,7 +14,7 @@
 DirichletProcessPrior::DirichletProcessPrior(int size, Settings s) : 
                                              alpha(s.dppAlpha), omegaLambda(s.omegaLambda), 
                                              numMembers(size), currentLnPrior(0.0), numGibbsUpdate(s.numGibbsUpdate), 
-                                             model(nullptr), omegaDelta(0.5), assignments(size, -1), omegaAcceptCount(0),
+                                             model(nullptr), omegaDelta(0.25), assignments(size, -1), omegaAcceptCount(0),
                                              omegaCount(0), moveChoice(-1) {}
 
 DirichletProcessPrior::~DirichletProcessPrior() {
@@ -57,7 +57,7 @@ void DirichletProcessPrior::registerModel(Model* m) {
     for(int i = 0; i < flooredCategories; i++){
         double newOmega1 = Probability::Exponential::rv(&rng, omegaLambda);
         double newOmega2 = Probability::Exponential::rv(&rng, omegaLambda);
-        Category newCat = {newOmega1, newOmega2, 0, {}, true};
+        Category newCat = {newOmega1, newOmega2, 0, {}, false}; //Set false so dirty ones aren't copied into "old"
         currentCategories.push_back(newCat);
     }
 
@@ -100,12 +100,14 @@ void DirichletProcessPrior::registerModel(Model* m) {
         }
     }
 
-    this->dirty();
-
     regeneratePrior();
 
     oldCategories = currentCategories;
     oldLnPrior = currentLnPrior;
+
+    this->dirty();
+    for(Category& c : currentCategories)
+        c.dirty = true;
 }
 
 void DirichletProcessPrior::regeneratePrior(){
@@ -158,7 +160,7 @@ void DirichletProcessPrior::assignMember(int member, int category){
 }
 
 void DirichletProcessPrior::accept() {
-    if(moveChoice != 0){
+    if(moveChoice == 0){
         omegaAcceptCount += 1;
     }
 
@@ -179,120 +181,129 @@ void DirichletProcessPrior::reject() {
     moveChoice = -1;
 }
 
-double DirichletProcessPrior::update() {
+double DirichletProcessPrior::updateOmega() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
     this->dirty();
     double hastings = 0.0;
-
-    double randomMove = rng.uniformRv();
     
-    if(randomMove < 0.8) { // Scale Random Omega
-        moveChoice = 0;
-        omegaCount += 1;
+    moveChoice = 0;
+    omegaCount += 1;
 
-        int randomCategory = (int)(rng.uniformRv() * currentCategories.size());
+    int randomCategory = (int)(rng.uniformRv() * currentCategories.size());
+    currentCategories[randomCategory].dirty = true;
+    int randomOmega = (int)(rng.uniformRv() * 2);
 
-        currentCategories[randomCategory].dirty = true;
-
+    if(randomOmega == 0){
         double currentV1 = currentCategories[randomCategory].omega1;
         double scale1 = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
         double newV1 = currentV1 * scale1;
 
         currentCategories[randomCategory].omega1 = newV1;
         hastings = std::log(scale1);
-
+    }
+    else{
         double currentV2 = currentCategories[randomCategory].omega2;
         double scale2 = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
         double newV2 = currentV2 * scale2;
 
         currentCategories[randomCategory].omega2 = newV2;
-        hastings += std::log(scale2);
-    }
-    else{
-        for(int n = 0; n < numGibbsUpdate; n++) {
-            int randomMember = (int)(rng.uniformRv() * numMembers);
-
-            int assignment = assignments[randomMember];
-            int deleted = unassignMember(randomMember); // This will also delete the group if empty
-            if(deleted >= 0){
-                model->getTransitionProbability()->deleteQ(deleted);
-            }
-
-            std::vector<double> conditionalL;
-            int numCats = currentCategories.size();
-
-            tf::Taskflow taskflow;
-
-            for(int i = 0; i < numCats; i++){
-                conditionalL.push_back(0.0);
-
-                taskflow.emplace([this, &conditionalL, i, randomMember](){
-                    double likelihood = model->testCategory(randomMember, i, false);
-                    conditionalL[i] = likelihood + std::log(currentCategories[i].size);
-                });
-            }
-
-            std::vector<double> omega1Vec;
-            std::vector<double> omega2Vec;
-            double alphaSplit = std::log(alpha/5);
-
-            model->getTransitionProbability()->allocateQ(numCats + 5);
-            for(int i = 0; i < 5; i++){
-                conditionalL.push_back(0.0);
-                double newOmega1 = Probability::Exponential::rv(&rng, omegaLambda);
-                double newOmega2 = Probability::Exponential::rv(&rng, omegaLambda);
-
-                addCategory(newOmega1, newOmega2);
-                omega1Vec.push_back(newOmega1);
-                omega2Vec.push_back(newOmega2);
-
-                taskflow.emplace([this, &conditionalL, i, randomMember, numCats, alphaSplit](){
-                    double likelihood = model->testCategory(randomMember, numCats+i, true);
-                    conditionalL[numCats + i] = likelihood + alphaSplit;
-                });
-            }
-
-            executor.run(taskflow).wait();
-
-            for(int i = 0; i < 5; i++)
-                currentCategories.pop_back();
-
-            //Do some adjustments here to get relative probabilities
-            double maxL = *std::max_element(conditionalL.begin(), conditionalL.end());
-            double total = 0.0;
-            for(double& d : conditionalL){
-                d -= maxL;
-                d = std::exp(d);
-                total += d;
-            }
-
-            double categoryDraw = total * rng.uniformRv();
-
-            total = 0.0;
-            for(int i = 0; i < conditionalL.size(); i++){
-                total += conditionalL[i];
-                if(total > categoryDraw){
-                    if(i < numCats) { //It already exists
-                        assignMember(randomMember, i);
-                        model->getTransitionProbability()->deleteNQ(5);
-                    }
-                    else {
-                        addCategory(omega1Vec[i - numCats], omega2Vec[i - numCats]);
-                        assignMember(randomMember, numCats);
-                        model->getTransitionProbability()->deleteNQ(4);
-                        model->regenerateTransitionProbs(randomMember, numCats);
-                    }
-                    break;
-                }
-            }
-        }
-        hastings = INFINITY;
+        hastings = std::log(scale2);
     }
 
     regeneratePrior();
 
     return hastings;
+}
+
+double DirichletProcessPrior::updateDPP(){
+    RandomVariable& rng = RandomVariable::randomVariableInstance();
+
+    this->dirty();
+
+    for(int n = 0; n < numGibbsUpdate; n++) {
+        int randomMember = (int)(rng.uniformRv() * numMembers);
+
+        int assignment = assignments[randomMember];
+        int deleted = unassignMember(randomMember); // This will also delete the group if empty
+        if(deleted >= 0){
+            model->getTransitionProbability()->deleteQ(deleted);
+        }
+
+        std::vector<double> conditionalL;
+        int numCats = currentCategories.size();
+
+        tf::Taskflow taskflow;
+
+        for(int i = 0; i < numCats; i++){
+            conditionalL.push_back(0.0);
+
+            taskflow.emplace([this, &conditionalL, i, randomMember](){
+                double likelihood = model->testCategory(randomMember, i, false);
+                conditionalL[i] = likelihood + std::log(currentCategories[i].size);
+            });
+        }
+
+        std::vector<double> omega1Vec;
+        std::vector<double> omega2Vec;
+        double alphaSplit = std::log(alpha/5);
+
+        model->getTransitionProbability()->allocateQ(numCats + 5);
+        for(int i = 0; i < 5; i++){
+            conditionalL.push_back(0.0);
+            double newOmega1 = Probability::Exponential::rv(&rng, omegaLambda);
+            double newOmega2 = Probability::Exponential::rv(&rng, omegaLambda);
+
+            addCategory(newOmega1, newOmega2);
+            omega1Vec.push_back(newOmega1);
+            omega2Vec.push_back(newOmega2);
+
+            taskflow.emplace([this, &conditionalL, i, randomMember, numCats, alphaSplit](){
+                double likelihood = model->testCategory(randomMember, numCats+i, true);
+                conditionalL[numCats + i] = likelihood + alphaSplit;
+            });
+        }
+
+        executor.run(taskflow).wait();
+
+        for(int i = 0; i < 5; i++)
+            currentCategories.pop_back();
+
+        //Do some adjustments here to get relative probabilities
+        double maxL = *std::max_element(conditionalL.begin(), conditionalL.end());
+        double total = 0.0;
+        for(double& d : conditionalL){
+            d -= maxL;
+            d = std::exp(d);
+            total += d;
+        }
+
+        double categoryDraw = total * rng.uniformRv();
+
+        total = 0.0;
+        for(int i = 0; i < conditionalL.size(); i++){
+            total += conditionalL[i];
+            if(total > categoryDraw){
+                if(i < numCats) { //It already exists
+                    assignMember(randomMember, i);
+                    model->getTransitionProbability()->deleteNQ(5);
+                }
+                else {
+                    addCategory(omega1Vec[i - numCats], omega2Vec[i - numCats]);
+                    assignMember(randomMember, numCats);
+                    model->getTransitionProbability()->deleteNQ(4);
+                    model->regenerateTransitionProbs(randomMember, numCats);
+                }
+                break;
+            }
+        }
+    }
+
+    regeneratePrior();
+
+    currentCategories.shrink_to_fit();
+
+    return INFINITY;
 }
 
 void DirichletProcessPrior::tune() {
@@ -304,6 +315,7 @@ void DirichletProcessPrior::tune() {
     else {
         omegaDelta /= (2.0 - omegaRate/0.44);
     }
+    
     omegaAcceptCount = 0;
     omegaCount = 0;
 }

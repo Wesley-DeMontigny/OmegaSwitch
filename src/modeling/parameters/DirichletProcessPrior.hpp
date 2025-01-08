@@ -24,7 +24,10 @@ class DirichletProcessPrior : public Parameter {
         void registerModel(Model* m);
         
         double lnPrior() {return currentLnPrior;}
-        double update();
+
+        double updateOmega();
+        double updateDPP();
+        
         void tune();
 
         void accept();
@@ -43,6 +46,9 @@ class DirichletProcessPrior : public Parameter {
         void assignMember(int member, int category);
 
         int getNumCategories(){return currentCategories.size();}
+
+        int omegaAcceptCount;
+        int omegaCount;
     protected:
         void regeneratePrior();
         Model* model;
@@ -51,8 +57,6 @@ class DirichletProcessPrior : public Parameter {
         double alpha;
         double omegaLambda;
 
-        int omegaAcceptCount;
-        int omegaCount;
         double omegaDelta;
 
         int numMembers;

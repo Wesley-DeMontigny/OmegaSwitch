@@ -10,36 +10,37 @@ class Settings;
 
 class CodonMultiMatrix : public Parameter {
     public:
-        CodonMultiMatrix(Settings settings, std::vector<double> pi);
+        CodonMultiMatrix(Settings settings);
         Matrix<double> Q(double omega1, double omega2);
         std::vector<double> stationary();
         void accept();
         void reject();
-        double update();
+        double updateR();
+        double updateK();
+        double updateStationary();
         void tune();
         double lnPrior();
         double kPrior() {return currentKPrior;}
         double rPrior() {return currentRPrior;}
-        bool updatingStationary() {return updateStationary;}
         std::vector<double> getStationary();
         std::vector<double> getRawStationary() {return currentStationary;}
         double getK() {return currentK;}
         double getR() {return currentR;}
+
+        int kCount;
+        int kAcceptCount;
+        int rCount;
+        int rAcceptCount;
+        int stationaryCount;
+        int stationaryAcceptCount;
     private:
         Matrix<double> currentQMatrix;
         Matrix<double> oldQMatrix;
 
         int moveChoice;
-        int kCount;
-        int kAcceptCount;
         double kDelta;
-        int rCount;
-        int rAcceptCount;
         double rDelta;
-        int stationaryCount;
-        int stationaryAcceptCount;
         double stationaryAlpha;
-        double stationaryOffset;
 
         double kLambda;
         double currentK;
@@ -55,14 +56,11 @@ class CodonMultiMatrix : public Parameter {
 
         std::vector<double> currentStationary;
         std::vector<double> oldStationary;
-        bool updateStationary;
 
         std::set<std::
         pair<int, int>> nonsynonymous;
         std::set<std::pair<int, int>> valid;
         std::set<std::pair<int, int>> transition;
-
-        std::vector<int> randomStates;
 };
 
 #endif

@@ -130,7 +130,7 @@ void Model::regenerateLikelihood(){
         transProb->allocateQ(numCats);
         for(int i = 0; i < numCats; i++){
             double omega1 = categories[i].omega1;
-            double omega2 = omega1 + categories[i].omega2;
+            double omega2 = categories[i].omega2;
             rateTaskflow.emplace([this, omega1, omega2, i](){
                 transProb->updateQ(rateMatrix->Q(omega1, omega2), i);
             });
@@ -144,7 +144,7 @@ void Model::regenerateLikelihood(){
         for(int i = 0; i < numCats; i++){
             if(categories[i].dirty){
                 double omega1 = categories[i].omega1;
-                double omega2 = omega1 + categories[i].omega2;
+                double omega2 = categories[i].omega2;
                 transProb->updateQ(rateMatrix->Q(omega1, omega2), i);
             }
         }
@@ -158,22 +158,10 @@ void Model::regenerateLikelihood(){
             int nIndex = n->getIndex();
             if(n->getNeedsTPUpdate() == true){
                 if(n != activeT->getRoot()) {
-                    if(!dpp->isDirty()) {
-                        activeTP[nIndex] ^= true;
-                        double v = activeT->getBranchLength(n);
-                        for(int i = 0; i < numCats; i++)
-                            transProb->setProbs(activeTP[nIndex], i, nIndex, v);
-                    }
-                    else {
-                        activeTP[nIndex] ^= true;
-                        double v = activeT->getBranchLength(n);
-                        for(int i = 0; i < numCats; i++){
-                            if(categories[i].dirty)
-                                transProb->setProbs(activeTP[nIndex], i, nIndex, v);
-                            else
-                                transProb->pullProbs(activeTP[nIndex], i, nIndex, v);
-                        }
-                    }
+                    activeTP[nIndex] ^= true;
+                    double v = activeT->getBranchLength(n);
+                    for(int i = 0; i < numCats; i++)
+                        transProb->setProbs(activeTP[nIndex], i, nIndex, v);
                 }
                 n->setNeedsTPUpdate(false);
             }
@@ -271,7 +259,7 @@ void Model::regenerateTransitionProbs(int site, int category){
     std::vector<Category> categories = dpp->getCategories();
 
     double omega1 = categories[category].omega1;
-    double omega2 = omega1 + categories[category].omega2;
+    double omega2 = categories[category].omega2;
     transProb->updateQ(rateMatrix->Q(omega1, omega2), category);
 
     for(Node* n : poSeq){
@@ -293,7 +281,7 @@ double Model::testCategory(int site, int category, bool update){
 
     if(update) {
         double omega1 = categories[category].omega1;
-        double omega2 = omega1 + categories[category].omega2;
+        double omega2 = categories[category].omega2;
         transProb->updateQ(rateMatrix->Q(omega1, omega2), category);
     }
 
@@ -480,10 +468,8 @@ void Model::tuneMoves(){
 std::string Model::tabularHeader(){
     std::string returnString = "Iteration\tPosterior\tLikelihood\tTree Prior\tDPP Prior\tK Prior\tR Prior";
     returnString += "\tK\tR";
-    if(rateMatrix->updatingStationary()){
-        for(int i = 0; i < 61; i++){
-            returnString += "\tPi[" + std::to_string(i) + "]";
-        }
+    for(int i = 0; i < 61; i++){
+        returnString += "\tPi[" + std::to_string(i) + "]";
     }
 
     return returnString + "\n";
@@ -495,11 +481,9 @@ std::string Model::tabularOut(int i){
                                std::to_string(dpp->lnPrior()) + "\t" + std::to_string(rateMatrix->kPrior()) + "\t" +
                                std::to_string(rateMatrix->rPrior());
     returnString += "\t" + std::to_string(rateMatrix->getK()) + "\t" + std::to_string(rateMatrix->getR());
-    if(rateMatrix->updatingStationary()){
-        std::vector<double> stationary = rateMatrix->getRawStationary();
-        for(double i : stationary){
-            returnString += "\t" + std::to_string(i);
-        }
+    std::vector<double> stationary = rateMatrix->getRawStationary();
+    for(double i : stationary){
+        returnString += "\t" + std::to_string(i);
     }
 
     return returnString + "\n";
@@ -526,7 +510,7 @@ std::string Model::dppOut(int i){
     returnString += std::to_string(categories.size());
     std::vector<int> assignments = dpp->getAssignments();
     for(int c : assignments){
-        returnString += "\t" + std::to_string(categories[c].omega1) + "\t" + std::to_string(categories[c].omega1 + categories[c].omega2);
+        returnString += "\t" + std::to_string(categories[c].omega1) + "\t" + std::to_string(categories[c].omega2);
     }
 
 
@@ -559,7 +543,7 @@ std::string Model::tipsOut(int i){
         for(int c = 0; c < numChar; c++) {
             double expectedOmega = 0;
             double omega1 = categories[assignments[c]].omega1;
-            double omega2 = omega1 + categories[assignments[c]].omega2;
+            double omega2 = categories[assignments[c]].omega2;
 
             for(int i = 0; i < stateSpace; i++) {
                 if(*rN > 0) {

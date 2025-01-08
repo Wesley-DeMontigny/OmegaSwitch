@@ -23,11 +23,13 @@ struct Settings {
     double          omegaLambda;
     double          dppAlpha;
     double          treeLengthLambda;
-    bool            updateStationary;
     int             numGibbsUpdate;
-    double          rateMatrixWeight;
+    double          kWeight;
+    double          rWeight;
+    double          omegaWeight;
     double          dppWeight;
     double          treeWeight;
+    double          stationaryWeight;
 
     bool            simulate;
     int             numTaxa;

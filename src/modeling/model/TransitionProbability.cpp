@@ -6,6 +6,7 @@
 TransitionProbability::TransitionProbability(const int nn, const int nC)
     : numStates(122), numNodes(nn), numCats(nC) {
 
+	//I might need to change to dynamic allocation to make this easier on memory
 	probs[0] = new Matrix<double>*[2*numNodes*numCats];
     probs[1] = probs[0] + numNodes;
 
@@ -74,17 +75,6 @@ void TransitionProbability::setProbs(const int state, const int rate, const int 
 		tiProbsComplexEigens(v, P, rate);
 }
 
-void TransitionProbability::pullProbs(const int state, const int rate, const int node, const double v) {
-	Matrix<double> P = *(probs[state][rate*numNodes + node]);
-	Matrix<double> P2 = *(probs[state ^ true][rate*numNodes + node]);
-
-	for (int i=0; i<numStates; i++) {
-		for (int j=0; j<numStates; j++) {
-			P(i,j) = P2(i,j);
-		}
-	}
-}
-
 /* This function calculates transition probabilities using
    complex eigenvalues and eigenvectors. */
 void TransitionProbability::tiProbsComplexEigens(const double v, Matrix<double>& P, const int mIndex) {
@@ -140,17 +130,6 @@ void TransitionProbability::allocateQ(int size){
 }
 
 void TransitionProbability::updateQ(Matrix<double> Q, const int index) {
-	
-	double scaler = 0.0;
-	for (int i=0; i<numStates; i++)
-		scaler += Q(i, i);
-			
-	// Rescale rate matrix
-	scaler = -1.0 / scaler;
-	for (int i=0; i<numStates; i++)
-		for (int j=0; j<numStates; j++)
-			Q(i, j) *= scaler;
-
 	isComplex[index] = eigens->update(Q, rateEigen[index], complexRateEigen[index]);
 }
 
@@ -218,6 +197,8 @@ std::vector<Matrix<double>> TransitionProbability::generateProbs(Matrix<double> 
 			}
 		}
 	}
+
+	return returnMatrices;
 }
 
 // Be sure you want to delete!!

@@ -71,7 +71,7 @@ double TreeParameter::update() {
 
     double hastings = 0.0;
     
-    if(randomMove < 0.8){
+    if(randomMove < 0.9){
         if(!fixedTree){
             moveChoice = 0;
             branchCount += 1;
@@ -268,22 +268,22 @@ double TreeParameter::update() {
 void TreeParameter::tune() {
     double rate1 = (double)branchAcceptCount/(double)branchCount;
 
-    if ( rate1 > 0.44 ) {
-        branchDelta *= (1.0 + ((rate1-0.44)/0.766));
+    if ( rate1 > 0.25 ) {
+        branchDelta *= (1.0 + ((rate1-0.25)/0.766));
     }
     else {
-        branchDelta /= (2.0 - rate1/0.44);
+        branchDelta /= (2.0 - rate1/0.25);
     }
     branchAcceptCount = 0;
     branchCount = 0;
 
     double rate2 = (double)treeAcceptCount/(double)treeCount;
 
-    if ( rate2 > 0.44 ) {
-        treeDelta *= (1.0 + ((rate2-0.44)/0.766));
+    if ( rate2 > 0.25 ) {
+        treeDelta *= (1.0 + ((rate2-0.25)/0.766));
     }
     else {
-        treeDelta /= (2.0 - rate2/0.44);
+        treeDelta /= (2.0 - rate2/0.25);
     }
     treeAcceptCount = 0;
     treeCount = 0;

@@ -5,11 +5,11 @@
 #include <vector>
 
 Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dppOutput(""), mcmcOutput(""), tipsOutput(""),
-                                              numIterations(100000), printFrequency(10), sampleFrequency(100),
-                                              burnInIterations(20000), tuneFrequency(500), rLambda(2.0),
+                                              numIterations(20000), printFrequency(10), sampleFrequency(100),
+                                              burnInIterations(5000), tuneFrequency(100), rLambda(2.0),
                                               kLambda(1.0), omegaLambda(5.0), dppAlpha(1), numGibbsUpdate(2), 
-                                              rWeight(2.0), kWeight(2.0), stationaryWeight(3.0),
-                                              omegaWeight(4.0), dppWeight(1.0), treeWeight(8.0),
+                                              rWeight(3.0), kWeight(3.0), stationaryWeight(4.0),
+                                              omegaWeight(4.0), dppWeight(1.0), treeWeight(5.0),
                                               treeLengthLambda(1.0), simulate(false), fixedTree(""), numTaxa(-1),
                                               numChar(-1), kValue(-1.0), rValue(-1.0) {
 
@@ -18,7 +18,6 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
         std::string arg = argv[i];
         settings.push_back(arg);
     }
-
 /*
     settings.push_back("-nexus");
     settings.push_back("/workspaces/Varying_Selection_DPP/publication_analyses/globin_analysis/globins.nex");
@@ -33,7 +32,6 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
     settings.push_back("-fixedTree");
     settings.push_back("((HakajeiHBB:1,(((DrerioHBB:1,CcarpioHBB:1):1,SsalarHBB:1):1,((BtaurusHBB:1,HsapiensHBB:1):1,(XborealisHBB:1,(CniloticusHBB:1,(CminorHBB:1,GgallusHBBA:1):1):1):1):1):1):1,((((((CminorHBA:1,GgallusHBAA:1):1,CniloticusHBA:1):1,XborealisHBA:1):1,(BtaurusHBA2:1,HsapiensHBA2:1):1):1,((DrerioHBA:1,CcarpioHBA:1):1,SsalarHBA:1):1):1,HakajeiHBA:1):1);");
 */
-
 /*
     settings.push_back("-nexus");
     settings.push_back("/workspaces/Varying_Selection_DPP/res/replicase.nex");
@@ -46,7 +44,6 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
     settings.push_back("-tipsOut");
     settings.push_back("/workspaces/Varying_Selection_DPP/res/tips.log");
 */
-
 /*
     settings.push_back("-simulate");
     settings.push_back("1");

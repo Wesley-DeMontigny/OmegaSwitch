@@ -12,7 +12,7 @@ CodonMultiMatrix::CodonMultiMatrix(Settings settings) :
                                    currentKPrior(0.0), oldKPrior(0.0), currentRPrior(0.0), oldRPrior(0.0), 
                                    moveChoice(-1), kCount(0), stationaryCount(0), 
                                    kAcceptCount(0), rCount(0), rAcceptCount(0), stationaryAcceptCount(0), 
-                                   kDelta(0.25), stationaryAlpha(25000), rDelta(0.25) {
+                                   kDelta(0.05), stationaryAlpha(75000), rDelta(0.05) {
     
     std::vector<int> aaMap = {8, 11, 8, 11, 16, 16, 16, 16, 14, 15, 14, 15, 7, 7, 10, 7, 13, 6, 13, 6, 12, 12, 12, 12, 14, 14, 14, 14, 9, 9, 9, 9, 3, 2, 3, 2, 0, 0, 0, 0, 5, 5, 5, 5, 17, 17, 17, 17, 19, 19, 15, 15, 15, 15, 1, 18, 1, 9, 4, 9, 4};  
     std::vector<const char*> codons = {"AAA", "AAC", "AAG", "AAT", "ACA", "ACC", "ACG", "ACT", "AGA", "AGC", "AGG", "AGT", "ATA", "ATC", "ATG", "ATT", "CAA", "CAC", "CAG", "CAT", "CCA", "CCC", "CCG", "CCT", "CGA", "CGC", "CGG", "CGT", "CTA", "CTC", "CTG", "CTT", "GAA", "GAC", "GAG", "GAT", "GCA", "GCC", "GCG", "GCT", "GGA", "GGC", "GGG", "GGT", "GTA", "GTC", "GTG", "GTT", "TAC", "TAT", "TCA", "TCC", "TCG", "TCT", "TGC", "TGG", "TGT", "TTA", "TTC", "TTG", "TTT"};
@@ -243,7 +243,7 @@ double CodonMultiMatrix::updateStationary() {
         currentQMatrix(coord.first, coord.second) *= currentK;
         currentQMatrix(coord.second, coord.first) *= currentK;
         currentQMatrix(coord.first + 61, coord.second + 61) *= currentK;
-        currentQMatrix(coord.second + 61, coord.first + 61) *= currentK;  
+        currentQMatrix(coord.second + 61, coord.first + 61) *= currentK;
     }
 
     return hastings;
@@ -294,33 +294,33 @@ std::vector<double> CodonMultiMatrix::getStationary(){
 
 void CodonMultiMatrix::tune(){
     double rRate = (double)rAcceptCount/(double)rCount;
-    if ( rRate > 0.44 ) {
-        rDelta *= (1.0 + ((rRate-0.44)/0.766));
+    if ( rRate > 0.25 ) {
+        rDelta *= (1.0 + ((rRate-0.25)/0.766));
     }
     else {
-        rDelta /= (2.0 - rRate/0.44);
+        rDelta /= (2.0 - rRate/0.25);
     }
     rAcceptCount = 0;
     rCount = 0;
 
     double kRate = (double)kAcceptCount/(double)kCount;
 
-    if ( kRate > 0.44 ) {
-        kDelta *= (1.0 + ((kRate-0.44)/0.766));
+    if ( kRate > 0.25 ) {
+        kDelta *= (1.0 + ((kRate-0.25)/0.766));
     }
     else {
-        kDelta /= (2.0 - kRate/0.44);
+        kDelta /= (2.0 - kRate/0.25);
     }
     kAcceptCount = 0;
     kCount = 0;
 
     double stationaryRate = (double)stationaryAcceptCount/(double)stationaryCount;
 
-    if ( stationaryRate > 0.44 ) {
-        stationaryAlpha /= (2.0 - stationaryRate/0.44);
+    if ( stationaryRate > 0.25 ) {
+        stationaryAlpha /= (2.0 - stationaryRate/0.25);
     }
     else {
-        stationaryAlpha *= (1.0 + ((stationaryRate-0.44)/0.766));
+        stationaryAlpha *= (1.0 + ((0.25-stationaryRate)/0.766));
     }
 
     stationaryAcceptCount = 0;

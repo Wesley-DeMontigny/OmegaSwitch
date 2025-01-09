@@ -167,6 +167,7 @@ void DirichletProcessPrior::accept() {
     moveChoice = -1;
 
     for(int i = 0; i < currentCategories.size(); i++){
+        currentCategories[i].members.shrink_to_fit();
         currentCategories[i].dirty = false;
     }
 
@@ -303,17 +304,21 @@ double DirichletProcessPrior::updateDPP(){
 
     currentCategories.shrink_to_fit();
 
+    for(int i = 0; i < currentCategories.size(); i++)
+        for(int m : currentCategories[i].members)
+            assignments[m] = i;
+
     return INFINITY;
 }
 
 void DirichletProcessPrior::tune() {
     double omegaRate = (double)omegaAcceptCount/(double)omegaCount;
 
-    if ( omegaRate > 0.44 ) {
-        omegaDelta *= (1.0 + ((omegaRate-0.44)/0.766));
+    if ( omegaRate > 0.25 ) {
+        omegaDelta *= (1.0 + ((omegaRate-0.25)/0.766));
     }
     else {
-        omegaDelta /= (2.0 - omegaRate/0.44);
+        omegaDelta /= (2.0 - omegaRate/0.25);
     }
     
     omegaAcceptCount = 0;

@@ -14,7 +14,7 @@
 DirichletProcessPrior::DirichletProcessPrior(int size, Settings s) : 
                                              alpha(s.dppAlpha), omegaLambda(s.omegaLambda), 
                                              numMembers(size), currentLnPrior(0.0), numGibbsUpdate(s.numGibbsUpdate), 
-                                             model(nullptr), omegaDelta(0.25), assignments(size, -1), omegaAcceptCount(0),
+                                             model(nullptr), omegaDelta(0.5), assignments(size, -1), omegaAcceptCount(0),
                                              omegaCount(0), moveChoice(-1) {}
 
 DirichletProcessPrior::~DirichletProcessPrior() {
@@ -193,24 +193,20 @@ double DirichletProcessPrior::updateOmega() {
 
     int randomCategory = (int)(rng.uniformRv() * currentCategories.size());
     currentCategories[randomCategory].dirty = true;
-    int randomOmega = (int)(rng.uniformRv() * 2);
 
-    if(randomOmega == 0){
-        double currentV1 = currentCategories[randomCategory].omega1;
-        double scale1 = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
-        double newV1 = currentV1 * scale1;
+    double currentV1 = currentCategories[randomCategory].omega1;
+    double scale1 = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
+    double newV1 = currentV1 * scale1;
 
-        currentCategories[randomCategory].omega1 = newV1;
-        hastings = std::log(scale1);
-    }
-    else{
-        double currentV2 = currentCategories[randomCategory].omega2;
-        double scale2 = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
-        double newV2 = currentV2 * scale2;
+    currentCategories[randomCategory].omega1 = newV1;
+    hastings = std::log(scale1);
 
-        currentCategories[randomCategory].omega2 = newV2;
-        hastings = std::log(scale2);
-    }
+    double currentV2 = currentCategories[randomCategory].omega2;
+    double scale2 = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
+    double newV2 = currentV2 * scale2;
+
+    currentCategories[randomCategory].omega2 = newV2;
+    hastings += std::log(scale2);
 
     regeneratePrior();
 
@@ -314,11 +310,11 @@ double DirichletProcessPrior::updateDPP(){
 void DirichletProcessPrior::tune() {
     double omegaRate = (double)omegaAcceptCount/(double)omegaCount;
 
-    if ( omegaRate > 0.25 ) {
-        omegaDelta *= (1.0 + ((omegaRate-0.25)/0.766));
+    if ( omegaRate > 0.33 ) {
+        omegaDelta *= (1.0 + ((omegaRate-0.33)/0.67));
     }
     else {
-        omegaDelta /= (2.0 - omegaRate/0.25);
+        omegaDelta /= (2.0 - omegaRate/0.33);
     }
     
     omegaAcceptCount = 0;

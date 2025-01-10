@@ -59,7 +59,6 @@ class Model {
         Alignment* aln;
         ConditionalLikelihood* postOrder;
         TransitionProbability* transProb;
-        double* reconstruction;
         double* rescaling;
         TreeParameter* tree;
         DirichletProcessPrior* dpp;

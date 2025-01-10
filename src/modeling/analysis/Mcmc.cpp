@@ -11,7 +11,7 @@
 #include <fstream>
 
 Mcmc::Mcmc(Model* m, TreeParameter* t, CodonMultiMatrix* cmm, DirichletProcessPrior* d, Settings& s) : 
-    model(m), dpp(d), codonMatrix(cmm), tree(t), metropolisUpdates(10) { 
+    model(m), dpp(d), codonMatrix(cmm), tree(t), metropolisUpdates(5) { 
     numIter = s.numIterations;
     numBurnIn = s.burnInIterations;
     printFreq = s.printFrequency;
@@ -145,7 +145,6 @@ void Mcmc::run(){
             fs.close();
             fs.clear();
 
-            model->reconstructTips();
             fs.open(tipsLog, std::ofstream::app);
             fs << model->tipsOut(n);
             fs.close();

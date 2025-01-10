@@ -12,7 +12,7 @@ CodonMultiMatrix::CodonMultiMatrix(Settings settings) :
                                    currentKPrior(0.0), oldKPrior(0.0), currentRPrior(0.0), oldRPrior(0.0), 
                                    moveChoice(-1), kCount(0), stationaryCount(0), 
                                    kAcceptCount(0), rCount(0), rAcceptCount(0), stationaryAcceptCount(0), 
-                                   kDelta(0.05), stationaryAlpha(75000), rDelta(0.05) {
+                                   kDelta(0.5), stationaryAlpha(75000), rDelta(0.5) {
     
     std::vector<int> aaMap = {8, 11, 8, 11, 16, 16, 16, 16, 14, 15, 14, 15, 7, 7, 10, 7, 13, 6, 13, 6, 12, 12, 12, 12, 14, 14, 14, 14, 9, 9, 9, 9, 3, 2, 3, 2, 0, 0, 0, 0, 5, 5, 5, 5, 17, 17, 17, 17, 19, 19, 15, 15, 15, 15, 1, 18, 1, 9, 4, 9, 4};  
     std::vector<const char*> codons = {"AAA", "AAC", "AAG", "AAT", "ACA", "ACC", "ACG", "ACT", "AGA", "AGC", "AGG", "AGT", "ATA", "ATC", "ATG", "ATT", "CAA", "CAC", "CAG", "CAT", "CCA", "CCC", "CCG", "CCT", "CGA", "CGC", "CGG", "CGT", "CTA", "CTC", "CTG", "CTT", "GAA", "GAC", "GAG", "GAT", "GCA", "GCC", "GCG", "GCT", "GGA", "GGC", "GGG", "GGT", "GTA", "GTC", "GTG", "GTT", "TAC", "TAT", "TCA", "TCC", "TCG", "TCT", "TGC", "TGG", "TGT", "TTA", "TTC", "TTG", "TTT"};
@@ -76,11 +76,6 @@ CodonMultiMatrix::CodonMultiMatrix(Settings settings) :
         currentQMatrix(coord.second, coord.first) = currentStationary[coord.first]/2;
         currentQMatrix(coord.first + 61, coord.second +  61) = currentStationary[coord.second]/2;
         currentQMatrix(coord.second + 61, coord.first + 61) = currentStationary[coord.first]/2;
-
-        currentQMatrix(coord.first, coord.first + 61) = currentR * currentStationary[coord.first]/2;
-        currentQMatrix(coord.first + 61, coord.first) = currentR * currentStationary[coord.first]/2;
-        currentQMatrix(coord.second, coord.second + 61) = currentR * currentStationary[coord.second]/2;
-        currentQMatrix(coord.second + 61, coord.second) = currentR * currentStationary[coord.second]/2;
     }
     for(auto coord : transition){
         currentQMatrix(coord.first, coord.second) *= currentK;
@@ -88,8 +83,12 @@ CodonMultiMatrix::CodonMultiMatrix(Settings settings) :
         currentQMatrix(coord.first + 61, coord.second + 61) *= currentK;
         currentQMatrix(coord.second + 61, coord.first + 61) *= currentK;  
     }
+    for(int i = 0; i < 61; i++){
+        currentQMatrix(i, i + 61) = currentR * currentStationary[i]/2;
+        currentQMatrix(i + 61, i) = currentR * currentStationary[i]/2;
+    }
     
-    oldQMatrix = currentQMatrix;
+    oldQMatrix = currentQMatrix.copy();
 
     dirty();
 }
@@ -101,7 +100,7 @@ void CodonMultiMatrix::accept() {
     oldR = currentR;
     oldRPrior = currentRPrior;
 
-    oldQMatrix = currentQMatrix;
+    oldQMatrix = currentQMatrix.copy();
 
     oldStationary = currentStationary;
 
@@ -126,7 +125,7 @@ void CodonMultiMatrix::reject() {
     currentRPrior = oldRPrior;
     currentR = oldR;
     
-    currentQMatrix = oldQMatrix;
+    currentQMatrix = oldQMatrix.copy();
 
     currentStationary = oldStationary;
 
@@ -183,11 +182,9 @@ double CodonMultiMatrix::updateR() {
 
     currentRPrior = Probability::Exponential::lnPdf(rLambda, currentR);
 
-    for(auto coord : valid){
-        currentQMatrix(coord.first, coord.first + 61) = currentR * currentStationary[coord.first]/2;
-        currentQMatrix(coord.first + 61, coord.first) = currentR * currentStationary[coord.first]/2;
-        currentQMatrix(coord.second, coord.second + 61) = currentR * currentStationary[coord.second]/2;
-        currentQMatrix(coord.second + 61, coord.second) = currentR * currentStationary[coord.second]/2;
+    for(int i = 0; i < 61; i++){
+        currentQMatrix(i, i + 61) = currentR * currentStationary[i]/2;
+        currentQMatrix(i + 61, i) = currentR * currentStationary[i]/2;
     }
 
     return hastings;
@@ -233,17 +230,16 @@ double CodonMultiMatrix::updateStationary() {
         currentQMatrix(coord.second, coord.first) = currentStationary[coord.first]/2;
         currentQMatrix(coord.first + 61, coord.second +  61) = currentStationary[coord.second]/2;
         currentQMatrix(coord.second + 61, coord.first + 61) = currentStationary[coord.first]/2;
-
-        currentQMatrix(coord.first, coord.first + 61) = currentR * currentStationary[coord.first]/2;
-        currentQMatrix(coord.first + 61, coord.first) = currentR * currentStationary[coord.first]/2;
-        currentQMatrix(coord.second, coord.second + 61) = currentR * currentStationary[coord.second]/2;
-        currentQMatrix(coord.second + 61, coord.second) = currentR * currentStationary[coord.second]/2;
     }
     for(auto coord : transition){
         currentQMatrix(coord.first, coord.second) *= currentK;
         currentQMatrix(coord.second, coord.first) *= currentK;
         currentQMatrix(coord.first + 61, coord.second + 61) *= currentK;
         currentQMatrix(coord.second + 61, coord.first + 61) *= currentK;
+    }
+    for(int i = 0; i < 61; i++){
+        currentQMatrix(i, i + 61) = currentR * currentStationary[i]/2;
+        currentQMatrix(i + 61, i) = currentR * currentStationary[i]/2;
     }
 
     return hastings;
@@ -294,33 +290,33 @@ std::vector<double> CodonMultiMatrix::getStationary(){
 
 void CodonMultiMatrix::tune(){
     double rRate = (double)rAcceptCount/(double)rCount;
-    if ( rRate > 0.25 ) {
-        rDelta *= (1.0 + ((rRate-0.25)/0.766));
+    if ( rRate > 0.33 ) {
+        rDelta *= (1.0 + ((rRate-0.33)/0.67));
     }
     else {
-        rDelta /= (2.0 - rRate/0.25);
+        rDelta /= (2.0 - rRate/0.33);
     }
     rAcceptCount = 0;
     rCount = 0;
 
     double kRate = (double)kAcceptCount/(double)kCount;
 
-    if ( kRate > 0.25 ) {
-        kDelta *= (1.0 + ((kRate-0.25)/0.766));
+    if ( kRate > 0.33 ) {
+        kDelta *= (1.0 + ((kRate-0.33)/0.67));
     }
     else {
-        kDelta /= (2.0 - kRate/0.25);
+        kDelta /= (2.0 - kRate/0.33);
     }
     kAcceptCount = 0;
     kCount = 0;
 
     double stationaryRate = (double)stationaryAcceptCount/(double)stationaryCount;
 
-    if ( stationaryRate > 0.25 ) {
-        stationaryAlpha /= (2.0 - stationaryRate/0.25);
+    if ( stationaryRate > 0.33 ) {
+        stationaryAlpha /= (1.0 + ((stationaryRate-0.33)/0.67));
     }
     else {
-        stationaryAlpha *= (1.0 + ((0.25-stationaryRate)/0.766));
+        stationaryAlpha *= (2.0 - stationaryRate/0.33);
     }
 
     stationaryAcceptCount = 0;

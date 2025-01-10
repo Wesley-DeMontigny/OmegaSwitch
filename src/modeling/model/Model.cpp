@@ -9,6 +9,7 @@
 #include "modeling/parameters/trees/TreeParameter.hpp"
 #include "modeling/parameters/CodonMultiMatrix.hpp"
 #include "modeling/parameters/DirichletProcessPrior.hpp"
+#include "core/RandomVariable.hpp"
 #include <cmath>
 #include <algorithm>
 #include <string>
@@ -38,10 +39,6 @@ Model::Model(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProce
     postOrder = new ConditionalLikelihood(aln, numNodes, 1);
     transProb = new TransitionProbability(numNodes, numChar + 5);
 
-    int reconstructionWidth = numNodes*numChar*stateSpace;
-    reconstruction = new double[reconstructionWidth];
-    std::fill(reconstruction, reconstruction + reconstructionWidth, 0.0);
-
     int rescaleWidth = numNodes*numChar;
     rescaling = new double[rescaleWidth * 2];
     std::fill(rescaling, rescaling + rescaleWidth * 2, 0.0);
@@ -55,7 +52,6 @@ Model::~Model(){
     delete postOrder;
     delete transProb;
     delete [] rescaling;
-    delete [] reconstruction;
     delete [] activeCL;
     delete [] activeTP;
 }
@@ -130,7 +126,7 @@ void Model::regenerateLikelihood(){
         transProb->allocateQ(numCats);
         for(int i = 0; i < numCats; i++){
             double omega1 = categories[i].omega1;
-            double omega2 = categories[i].omega2;
+            double omega2 = omega1 + categories[i].omega2;
             rateTaskflow.emplace([this, omega1, omega2, i](){
                 transProb->updateQ(rateMatrix->Q(omega1, omega2), i);
             });
@@ -144,7 +140,7 @@ void Model::regenerateLikelihood(){
         for(int i = 0; i < numCats; i++){
             if(categories[i].dirty){
                 double omega1 = categories[i].omega1;
-                double omega2 = categories[i].omega2;
+                double omega2 = omega1 + categories[i].omega2;
                 transProb->updateQ(rateMatrix->Q(omega1, omega2), i);
             }
         }
@@ -259,7 +255,7 @@ void Model::regenerateTransitionProbs(int site, int category){
     std::vector<Category> categories = dpp->getCategories();
 
     double omega1 = categories[category].omega1;
-    double omega2 = categories[category].omega2;
+    double omega2 = omega1 + categories[category].omega2;
     transProb->updateQ(rateMatrix->Q(omega1, omega2), category);
 
     for(Node* n : poSeq){
@@ -281,7 +277,7 @@ double Model::testCategory(int site, int category, bool update){
 
     if(update) {
         double omega1 = categories[category].omega1;
-        double omega2 = categories[category].omega2;
+        double omega2 = omega1 + categories[category].omega2;
         transProb->updateQ(rateMatrix->Q(omega1, omega2), category);
     }
 
@@ -375,90 +371,6 @@ double Model::testCategory(int site, int category, bool update){
     return lnL;
 }
 
-void Model::reconstructTips(){
-    TreeObject* activeT = tree->getTree();
-    std::vector<Node*>&  preOrderSeq = activeT->getPostOrderSeq();
-    std::reverse(preOrderSeq.begin(), preOrderSeq.end());
-    std::vector<int> assignments = dpp->getAssignments();
-    std::vector<Category> categories = dpp->getCategories();
-    int numCats = dpp->getNumCategories();
-
-    tf::Taskflow phyloTaskflow;
-    std::unordered_map<int, tf::Task> taskMap;
-
-    Node* root = activeT->getRoot();
-    taskMap.insert(std::make_pair(root->getIndex(), phyloTaskflow.emplace([root, this, numCats, categories, assignments, activeT](){
-        int rIndex = root->getIndex();
-        double* pR = (*postOrder)(rIndex, activeCL[rIndex], 0);
-        double* rR = reconstruction + rIndex*numChar*stateSpace;
-        std::vector<double> f = rateMatrix->getStationary();
-
-        for(int c = 0; c < numChar; c++){
-            double total = 0.0;
-            for(int i = 0; i < stateSpace; i++){
-                double product = f[i] * pR[i];
-                rR[i] = product;
-                total += product;
-            }
-            for(int i = 0; i < stateSpace; i++){
-                *rR /= total;
-                rR++;
-            }
-            pR += stateSpace;
-        }
-    })));
-
-    for(Node* n : preOrderSeq){
-        if(n != activeT->getRoot()){
-            taskMap.insert(std::make_pair(n->getIndex(), phyloTaskflow.emplace([n, this, numCats, categories, assignments, activeT](){
-                int nIndex = n->getIndex();
-                double* pN = (*postOrder)(nIndex, activeCL[nIndex], 0);
-                double* rN = reconstruction + nIndex*numChar*stateSpace;
-
-                int aIndex = n->getAncestor()->getIndex();
-                double* rA = reconstruction + aIndex*numChar*stateSpace;
-
-                std::vector<Matrix<double>> transProbMatrices;
-                for(int cat = 0; cat < numCats; cat++)
-                    transProbMatrices.push_back(*(*transProb)(activeTP[nIndex], cat, nIndex));
-                for(int c = 0; c < numChar; c++){
-                    Matrix<double> P = transProbMatrices[assignments[c]];
-                    double total = 0.0;
-                    for(int i = 0; i < stateSpace; i++){
-                        double sum = 0.0;
-                        double l = pN[i];
-                        for(int j = 0; j < stateSpace; j++){
-                            sum += P(j, i) * rA[j] * l; //Probability of going from ancestor j to current i times probability of ancestor j times condL?
-                        }
-                        rN[i] = sum;
-                        total += sum;
-                    }
-
-                    for(int i = 0; i < stateSpace; i++){
-                        *rN /= total;
-                        rN++;
-                    }
-
-                    pN += stateSpace;
-                    rA += stateSpace;
-                }
-            })));
-        }
-    }
-
-    for(Node* n : preOrderSeq){
-        if(n->getIsTip() == false){
-            for(Node* d : n->getNeighbors()){
-                if(d != n->getAncestor()){
-                    taskMap.at(n->getIndex()).precede(taskMap.at(d->getIndex()));
-                }
-            }
-        }
-    }
-
-    executor.run(phyloTaskflow).wait();
-}
-
 void Model::tuneMoves(){
     tree->tune();
     rateMatrix->tune();
@@ -532,35 +444,149 @@ std::string Model::tipsHeader(){
 }
 
 std::string Model::tipsOut(int i){
+    RandomVariable& rng = RandomVariable::randomVariableInstance();
+
     std::string returnString = std::to_string(i);
     std::vector<Node*> tips = tree->getTree()->getTips();
 
+    TreeObject* activeT = tree->getTree();
+    std::vector<Node*>&  preOrderSeq = activeT->getPostOrderSeq();
+    std::reverse(preOrderSeq.begin(), preOrderSeq.end());
     std::vector<int> assignments = dpp->getAssignments();
     std::vector<Category> categories = dpp->getCategories();
+    int numCats = dpp->getNumCategories();
 
-    for(Node* n : tips) {
-        double* rN = reconstruction + n->getIndex()*numChar*stateSpace;
-        for(int c = 0; c < numChar; c++) {
-            double expectedOmega = 0;
-            double omega1 = categories[assignments[c]].omega1;
-            double omega2 = categories[assignments[c]].omega2;
+    int* reconstructedStates = new int[numNodes*numChar];
+    double* reconstructedOmega = new double[numNodes*numChar];
 
-            for(int i = 0; i < stateSpace; i++) {
-                if(*rN > 0) {
-                    if(stateSpace < 61) {
-                        expectedOmega += omega1 * (*rN);
-                    }
-                    else {
-                        expectedOmega += omega2 * (*rN);
+    std::fill(reconstructedOmega, reconstructedOmega + numNodes*numChar, 0.0);
+
+    int numJointDraws = 10;
+
+    for(int d = 0; d < numJointDraws; d++){
+
+        std::fill(reconstructedStates, reconstructedStates + numNodes*numChar, -1);
+
+        tf::Taskflow phyloTaskflow;
+        std::unordered_map<int, tf::Task> taskMap;
+
+        Node* root = activeT->getRoot();
+        taskMap.insert(std::make_pair(root->getIndex(), phyloTaskflow.emplace([this, root, &rng, reconstructedStates, reconstructedOmega, assignments, categories](){
+            int rIndex = root->getIndex();
+            double* pR = (*postOrder)(rIndex, activeCL[rIndex], 0);
+            int* reconstructedP = reconstructedStates + rIndex*numChar;
+            double* omegaP = reconstructedOmega + rIndex*numChar;
+
+            for(int c = 0; c < numChar; c++){
+                double total = 0;
+                for(int i = 0; i < stateSpace; i++){
+                    total += pR[i];
+                }
+
+                double draw = rng.uniformRv() * total;
+
+                double sum = 0;
+                bool success = false;
+                for(int i = 0; i < stateSpace; i++){
+                    sum += pR[i];
+
+                    if(sum >= draw){
+                        *reconstructedP = i;
+                        if(i < 61){
+                            *omegaP += categories[assignments[c]].omega1;
+                        }
+                        else{
+                            *omegaP += categories[assignments[c]].omega1 + categories[assignments[c]].omega2;
+                        }
+                        success = true;
+                        break;
                     }
                 }
 
-                rN++;
-            }
+                if(success == false)
+                    Msg::error("Failed to reconstruct state!");
 
-            returnString += "\t" + std::to_string(expectedOmega);
+                pR += stateSpace;
+                reconstructedP++;
+                omegaP++;
+            }
+        })));
+
+        for(Node* n : preOrderSeq){
+            if(n != activeT->getRoot()){
+                taskMap.insert(std::make_pair(n->getIndex(), phyloTaskflow.emplace([this, n, &rng, reconstructedStates, reconstructedOmega, categories, assignments](){
+                    int nIndex = n->getIndex();
+                    double* pN = (*postOrder)(nIndex, activeCL[nIndex], 0);
+
+                    int* reconstructedP = reconstructedStates + nIndex*numChar;
+                    double* omegaP = reconstructedOmega + nIndex*numChar;
+
+                    int ancestorIndex = n->getAncestor()->getIndex();
+
+                    for(int c = 0; c < numChar; c++){
+                        Matrix<double> P = *(*transProb)(activeTP[nIndex], assignments[c], nIndex);
+                        int ancestorState = *(reconstructedStates + ancestorIndex*numChar + c);
+
+                        double total = 0;
+                        for(int i = 0; i < stateSpace; i++){
+                            total += P(ancestorState, i) * pN[i];
+                        }
+
+                        double draw = rng.uniformRv() * total;
+
+                        double sum = 0;
+                        bool success = false;
+                        for(int i = 0; i < stateSpace; i++){
+                            sum += P(ancestorState, i) * pN[i];
+
+                            if(sum >= draw){
+                                *reconstructedP = i;
+                                if(i < 61){
+                                    *omegaP += categories[assignments[c]].omega1;
+                                }
+                                else{
+                                    *omegaP += categories[assignments[c]].omega1 + categories[assignments[c]].omega2;
+                                }
+                                success = true;
+                                break;
+                            }
+                        }
+
+                        if(success == false)
+                            Msg::error("Failed to reconstruct state!");
+
+                        pN += stateSpace;
+                        reconstructedP++;
+                        omegaP++;
+                    }
+                })));
+            }
+        }
+
+        for(Node* n : preOrderSeq){
+            if(n->getIsTip() == false){
+                for(Node* d : n->getNeighbors()){
+                    if(d != n->getAncestor()){
+                        taskMap.at(n->getIndex()).precede(taskMap.at(d->getIndex()));
+                    }
+                }
+            }
+        }
+
+        executor.run(phyloTaskflow).wait();
+    }
+
+    for(Node* n : tips) {
+        int index = n->getIndex();
+        double* omegaP = reconstructedOmega + index*numChar;
+        for(int c = 0; c < numChar; c++) {
+            returnString += "\t" + std::to_string(*omegaP/numJointDraws);
+            omegaP++;
         }
     }
+
+    delete [] reconstructedStates;
+    delete [] reconstructedOmega;
 
     return returnString + "\n";
 }

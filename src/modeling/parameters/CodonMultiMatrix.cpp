@@ -245,7 +245,7 @@ double CodonMultiMatrix::updateStationary() {
     return hastings;
 }
 
-Matrix<double> CodonMultiMatrix::Q(double omega1, double omega2) {
+Matrix<double> CodonMultiMatrix::Q(double omega1, double omega2, int invariant) {
     Matrix<double> returnMatrix = currentQMatrix.copy();
 
     for(auto coord : nonsynonymous){
@@ -254,6 +254,13 @@ Matrix<double> CodonMultiMatrix::Q(double omega1, double omega2) {
 
         returnMatrix(coord.first + 61, coord.second + 61) *= omega2;
         returnMatrix(coord.second + 61, coord.first + 61) *= omega2; 
+    }
+
+    if(invariant == 1){
+        for(int i = 0; i < 61; i++){
+            returnMatrix(i, i + 61) = 0;
+            returnMatrix(i + 61, i) = 0;
+        }
     }
 
     double scaler = 0.0;

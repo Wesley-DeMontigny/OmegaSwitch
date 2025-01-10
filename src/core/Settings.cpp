@@ -5,11 +5,11 @@
 #include <vector>
 
 Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dppOutput(""), mcmcOutput(""), tipsOutput(""),
-                                              numIterations(30000), printFrequency(10), sampleFrequency(10),
+                                              numIterations(30000), printFrequency(10), sampleFrequency(100),
                                               burnInIterations(5000), tuneFrequency(500), rLambda(2.0),
-                                              kLambda(1.0), omegaLambda(5.0), dppAlpha(1.0), numGibbsUpdate(6), 
-                                              rWeight(4.0), kWeight(4.0), stationaryWeight(4.0),
-                                              omegaWeight(4.0), dppWeight(3.0), treeWeight(6.0),
+                                              kLambda(1.0), omegaLambda(5.0), dppAlpha(1.0), numGibbsUpdate(20), 
+                                              rWeight(5.0), kWeight(5.0), stationaryWeight(6.0),
+                                              omegaWeight(5.0), dppWeight(3.0), treeWeight(10.0), invariantWeight(3.0),
                                               treeLengthLambda(1.0), simulate(false), fixedTree(""), numTaxa(-1),
                                               numChar(-1), kValue(-1.0), rValue(-1.0) {
 
@@ -19,6 +19,7 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
         settings.push_back(arg);
     }
 
+/*
     settings.push_back("-nexus");
     settings.push_back("/workspaces/Varying_Selection_DPP/publication_analyses/globin_analysis/globins.nex");
     settings.push_back("-treeOut");
@@ -29,9 +30,11 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
     settings.push_back("/workspaces/Varying_Selection_DPP/res/dpp.log");
     settings.push_back("-tipsOut");
     settings.push_back("/workspaces/Varying_Selection_DPP/res/tips.log");
+    settings.push_back("-invarOut");
+    settings.push_back("/workspaces/Varying_Selection_DPP/res/invar.log");
     settings.push_back("-fixedTree");
     settings.push_back("((HakajeiHBB:1,(((DrerioHBB:1,CcarpioHBB:1):1,SsalarHBB:1):1,((BtaurusHBB:1,HsapiensHBB:1):1,(XborealisHBB:1,(CniloticusHBB:1,(CminorHBB:1,GgallusHBBA:1):1):1):1):1):1):1,((((((CminorHBA:1,GgallusHBAA:1):1,CniloticusHBA:1):1,XborealisHBA:1):1,(BtaurusHBA2:1,HsapiensHBA2:1):1):1,((DrerioHBA:1,CcarpioHBA:1):1,SsalarHBA:1):1):1,HakajeiHBA:1):1);");
-
+*/
 /*
     settings.push_back("-nexus");
     settings.push_back("/workspaces/Varying_Selection_DPP/res/replicase.nex");
@@ -81,6 +84,8 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                 dppOutput = settings[i];
             else if (currentArg == "-tipsOut")
                 tipsOutput = settings[i];
+            else if (currentArg == "-invarOut")
+                invariantOutput = settings[i];
             else if (currentArg == "-numIter")
                 numIterations = stoi(settings[i]);
             else if (currentArg == "-printFreq")
@@ -113,6 +118,8 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                 stationaryWeight = stod(settings[i]);
             else if (currentArg == "-treeWeight")
                 treeWeight = stod(settings[i]);
+            else if (currentArg == "-invarWeight")
+                invariantWeight = stod(settings[i]);
             else if (currentArg == "-numGibbsUpdate")
                 numGibbsUpdate = stoi(settings[i]);
             else if (currentArg == "-simulate")
@@ -197,7 +204,8 @@ void Settings::print(){
     std::cout << "   * -treeOut           : " << treeOutput << std::endl;
     std::cout << "   * -mcmcOut           : " << mcmcOutput << std::endl;
     std::cout << "   * -dppOut            : " << dppOutput << std::endl;
-    std::cout << "   * -tipsOut            : " << tipsOutput << std::endl;
+    std::cout << "   * -tipsOut           : " << tipsOutput << std::endl;
+    std::cout << "   * -invarOut          : " << invariantOutput << std::endl;
     std::cout << "   * -fixedTree         : " << fixedTree << std::endl;
     std::cout << std::endl;
     
@@ -224,6 +232,7 @@ void Settings::print(){
     std::cout << "   * -omegaWeight       : " << omegaWeight << std::endl;
     std::cout << "   * -stationaryWeight  : " << stationaryWeight << std::endl;
     std::cout << "   * -dppWeight         : " << dppWeight << std::endl;
+    std::cout << "   * -invarWeight       : " << invariantWeight << std::endl;
     std::cout << std::endl;
 
     std::cout << "Simulation:" << std::endl;
@@ -252,6 +261,7 @@ void Settings::usage(void) {
     std::cout << "   * -mcmcOut           : The output file name for the bulk of the MCMC trace, excluding the tree and DPP parameters." << std::endl;
     std::cout << "   * -dppOut            : The output file name for the DPP parameters." << std::endl;
     std::cout << "   * -tipsOut           : The output file name for the reconstructed tip stats." << std::endl;
+    std::cout << "   * -invarOut          : The output file name for the invariant site status." << std::endl;
     std::cout << "   * -fixedTree         : The NEWICK string corresponding to the fixed tree you wish to analyze." << std::endl;
     std::cout << std::endl;
 
@@ -278,6 +288,7 @@ void Settings::usage(void) {
     std::cout << "   * -omegaWeight       : How often to propose a move on the omega parameters." << std::endl;
     std::cout << "   * -stationaryWeight  : How often to propose a move on the stationary distribution." << std::endl;
     std::cout << "   * -dppWeight         : How often to propose a move on the DPP partitions." << std::endl;
+    std::cout << "   * -invarWeight       : How often to propose a move on the invariant assignments." << std::endl;
     std::cout << std::endl;
 
     std::cout << "Simulation:" << std::endl;

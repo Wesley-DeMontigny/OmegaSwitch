@@ -11,6 +11,7 @@ struct Settings {
     std::string     dppOutput;
     std::string     mcmcOutput;
     std::string     tipsOutput;
+    std::string     invariantOutput;
 
     std::string     fixedTree;
     int             numIterations;
@@ -30,6 +31,7 @@ struct Settings {
     double          dppWeight;
     double          treeWeight;
     double          stationaryWeight;
+    double          invariantWeight;
 
     bool            simulate;
     int             numTaxa;

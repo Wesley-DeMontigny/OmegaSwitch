@@ -11,7 +11,7 @@ class Settings;
 class CodonMultiMatrix : public Parameter {
     public:
         CodonMultiMatrix(Settings settings);
-        Matrix<double> Q(double omega1, double omega2);
+        Matrix<double> Q(double omega1, double omega2, int invariant);
         std::vector<double> stationary();
         void accept();
         void reject();

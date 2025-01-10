@@ -139,6 +139,12 @@ void TransitionProbability::deleteQ(const int index) {
 	rateEigen.erase(rateEigen.begin() + index);
 	complexRateEigen.erase(complexRateEigen.begin() + index);
 
+	//Delete the invariant one (should be in that index now)
+	isComplex.erase(isComplex.begin() + index);
+	rateEigen.erase(rateEigen.begin() + index);
+	complexRateEigen.erase(complexRateEigen.begin() + index);
+
+
 	isComplex.shrink_to_fit();
 	rateEigen.shrink_to_fit();
 	complexRateEigen.shrink_to_fit();
@@ -146,6 +152,10 @@ void TransitionProbability::deleteQ(const int index) {
 
 void TransitionProbability::deleteNQ(const int count) {
 	for(int i = 0; i < count; i++){
+		isComplex.pop_back();
+		rateEigen.pop_back();
+		complexRateEigen.pop_back();
+		//Delete invariant one
 		isComplex.pop_back();
 		rateEigen.pop_back();
 		complexRateEigen.pop_back();

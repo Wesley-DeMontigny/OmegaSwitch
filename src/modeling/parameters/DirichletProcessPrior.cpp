@@ -245,7 +245,7 @@ double DirichletProcessPrior::updateDPP(){
         std::vector<double> omega2Vec;
         double alphaSplit = std::log(alpha/5);
 
-        model->getTransitionProbability()->allocateQ(numCats + 5);
+        model->getTransitionProbability()->allocateQ((numCats + 5)*2);
         for(int i = 0; i < 5; i++){
             conditionalL.push_back(0.0);
             double newOmega1 = Probability::Exponential::rv(&rng, omegaLambda);

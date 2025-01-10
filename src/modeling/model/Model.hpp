@@ -10,11 +10,12 @@ class RandomVariable;
 class RateMatrix;
 class CodonMultiMatrix;
 class DirichletProcessPrior;
+class Settings;
 
 class Model {
     public:
         Model(void) = delete;
-        Model(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProcessPrior* d);
+        Model(Settings s, Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProcessPrior* d);
         ~Model();
 
         double lnLikelihood() {return currentLikelihood;}
@@ -37,6 +38,8 @@ class Model {
         void reject();
         void tuneMoves();
 
+        double updateInvariance();
+
         std::string tabularHeader();
         std::string tabularOut(int i);
         std::string treeHeader();
@@ -45,6 +48,8 @@ class Model {
         std::string dppOut(int i);
         std::string tipsHeader();
         std::string tipsOut(int i);
+        std::string invarHeader();
+        std::string invarOut(int i);
     protected:
         double oldLikelihood;
         double currentLikelihood;
@@ -54,6 +59,9 @@ class Model {
         int numNodes;
         bool* activeTP;
         bool* activeCL;
+        bool* isInvariant;
+        bool invariantUpdate;
+        int numGibbsUpdate;
         tf::Executor executor;
         CodonMultiMatrix* rateMatrix;
         Alignment* aln;

@@ -21,6 +21,7 @@ Mcmc::Mcmc(Model* m, TreeParameter* t, CodonMultiMatrix* cmm, DirichletProcessPr
     treeLog = s.treeOutput;
     dppLog = s.dppOutput;
     tipsLog = s.tipsOutput;
+    invarLog = s.invariantOutput;
 
     kChoice = s.kWeight;
     rChoice = s.rWeight + kChoice;
@@ -28,6 +29,7 @@ Mcmc::Mcmc(Model* m, TreeParameter* t, CodonMultiMatrix* cmm, DirichletProcessPr
     treeChoice = s.treeWeight + omegaChoice;
     stationaryChoice = s.stationaryWeight + treeChoice;
     dppChoice = s.dppWeight + stationaryChoice;
+    invarChoice = s.invariantWeight + dppChoice;
 }
 
 void Mcmc::burnin(){
@@ -55,44 +57,60 @@ void Mcmc::burnin(){
 
         std::function<double()> updater;
 
+        double randomMove = rng.uniformRv() * invarChoice;
 
-        double randomMove = rng.uniformRv() * dppChoice;
-        if(randomMove < kChoice){
-            updater = [this]() { return codonMatrix->updateK(); };
-        }
-        else if(randomMove < rChoice){
-            updater = [this]() { return codonMatrix->updateR(); };
-        }
-        else if(randomMove < omegaChoice){
-            updater = [this]() { return dpp->updateOmega(); };
-        }
-        else if(randomMove < treeChoice){
-            updater = [this]() { return tree->update(); };
-        }
-        else if(randomMove < stationaryChoice){
-            updater = [this]() { return codonMatrix->updateStationary(); };
-        }
-        else if(randomMove < dppChoice){
-            updater = [this]() { return dpp->updateDPP(); };
-        }
-        
+        if(randomMove < stationaryChoice){
+            if(randomMove < kChoice){
+                updater = [this]() { return codonMatrix->updateK(); };
+            }
+            else if(randomMove < rChoice){
+                updater = [this]() { return codonMatrix->updateR(); };
+            }
+            else if(randomMove < omegaChoice){
+                updater = [this]() { return dpp->updateOmega(); };
+            }
+            else if(randomMove < treeChoice){
+                updater = [this]() { return tree->update(); };
+            }
+            else if(randomMove < stationaryChoice){
+                updater = [this]() { return codonMatrix->updateStationary(); };
+            }
+            
 
-        for(int i = 0; i < metropolisUpdates; i++){
-            double lnProposalRatio = updater();
+            for(int i = 0; i < metropolisUpdates; i++){
+                double lnProposalRatio = updater();
+                model->regenerateLikelihood();
+
+                double newLnPosterior = model->lnLikelihood() + model->lnPrior();
+
+                double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
+                double lnR = lnProposalRatio + lnPosteriorRatio;
+
+                if(std::log(rng.uniformRv()) < lnR){
+                    model->accept();
+                    currentLnPosterior = newLnPosterior;
+                }
+                else{
+                    model->reject();
+                }
+            }
+        }
+        else {
+            if(randomMove < dppChoice){
+                dpp->updateDPP();
+            }
+            else if(randomMove < invarChoice){
+                model->updateInvariance();
+            }
+
+            model->regenerateLikelihood();
+
             model->regenerateLikelihood();
 
             double newLnPosterior = model->lnLikelihood() + model->lnPrior();
 
             double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
-            double lnR = lnProposalRatio + lnPosteriorRatio;
-
-            if(std::log(rng.uniformRv()) < lnR){
-                model->accept();
-                currentLnPosterior = newLnPosterior;
-            }
-            else{
-                model->reject();
-            }
+            currentLnPosterior = newLnPosterior;
         }
     }
 }
@@ -125,6 +143,10 @@ void Mcmc::run(){
     fs << model->tipsHeader();
     fs.close();
 
+    fs.open(invarLog, std::ofstream::out);
+    fs << model->invarHeader();
+    fs.close();
+
     for(int n = 1; n <= numIter; n++){
         if(n % printFreq == 0){
             std::cout << model->tabularOut(n);
@@ -149,47 +171,67 @@ void Mcmc::run(){
             fs << model->tipsOut(n);
             fs.close();
             fs.clear();
+
+            fs.open(invarLog, std::ofstream::app);
+            fs << model->invarOut(n);
+            fs.close();
+            fs.clear();
         }
 
         std::function<double()> updater;
 
-        double randomMove = rng.uniformRv() * dppChoice;
-        if(randomMove < kChoice){
-            updater = [this]() { return codonMatrix->updateK(); };
-        }
-        else if(randomMove < rChoice){
-            updater = [this]() { return codonMatrix->updateR(); };
-        }
-        else if(randomMove < omegaChoice){
-            updater = [this]() { return dpp->updateOmega(); };
-        }
-        else if(randomMove < treeChoice){
-            updater = [this]() { return tree->update(); };
-        }
-        else if(randomMove < stationaryChoice){
-            updater = [this]() { return codonMatrix->updateStationary(); };
-        }
-        else if(randomMove < dppChoice){
-            updater = [this]() { return dpp->updateDPP(); };
-        }
-        
+        double randomMove = rng.uniformRv() * invarChoice;
 
-        for(int i = 0; i < metropolisUpdates; i++){
-            double lnProposalRatio = updater();
+        if(randomMove < stationaryChoice){
+            if(randomMove < kChoice){
+                updater = [this]() { return codonMatrix->updateK(); };
+            }
+            else if(randomMove < rChoice){
+                updater = [this]() { return codonMatrix->updateR(); };
+            }
+            else if(randomMove < omegaChoice){
+                updater = [this]() { return dpp->updateOmega(); };
+            }
+            else if(randomMove < treeChoice){
+                updater = [this]() { return tree->update(); };
+            }
+            else if(randomMove < stationaryChoice){
+                updater = [this]() { return codonMatrix->updateStationary(); };
+            }
+            
+
+            for(int i = 0; i < metropolisUpdates; i++){
+                double lnProposalRatio = updater();
+                model->regenerateLikelihood();
+
+                double newLnPosterior = model->lnLikelihood() + model->lnPrior();
+
+                double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
+                double lnR = lnProposalRatio + lnPosteriorRatio;
+
+                if(std::log(rng.uniformRv()) < lnR){
+                    model->accept();
+                    currentLnPosterior = newLnPosterior;
+                }
+                else{
+                    model->reject();
+                }
+            }
+        }
+        else {
+            if(randomMove < dppChoice){
+                dpp->updateDPP();
+            }
+            else if(randomMove < invarChoice){
+                model->updateInvariance();
+            }
+
             model->regenerateLikelihood();
 
             double newLnPosterior = model->lnLikelihood() + model->lnPrior();
 
             double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
-            double lnR = lnProposalRatio + lnPosteriorRatio;
-
-            if(std::log(rng.uniformRv()) < lnR){
-                model->accept();
-                currentLnPosterior = newLnPosterior;
-            }
-            else{
-                model->reject();
-            }
+            currentLnPosterior = newLnPosterior;
         }
     }
 }

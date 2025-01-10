@@ -10,6 +10,7 @@
 #include "modeling/parameters/CodonMultiMatrix.hpp"
 #include "modeling/parameters/DirichletProcessPrior.hpp"
 #include "core/RandomVariable.hpp"
+#include "core/Settings.hpp"
 #include <cmath>
 #include <algorithm>
 #include <string>
@@ -17,7 +18,11 @@
 #include <unordered_map>
 #include <chrono>
 
-Model::Model(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProcessPrior* d) : aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0), dpp(d), numChar(0) {
+Model::Model(Settings s, Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProcessPrior* d) : 
+            aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0),
+            dpp(d), numChar(0), invariantUpdate(false), numGibbsUpdate(s.numGibbsUpdate) {
+
+    RandomVariable& rng = RandomVariable::randomVariableInstance();
 
     TreeObject* activeT = tree->getTree();
     stateSpace = 122;
@@ -37,11 +42,16 @@ Model::Model(Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProce
         activeTP[i] = false;
     }
     postOrder = new ConditionalLikelihood(aln, numNodes, 1);
-    transProb = new TransitionProbability(numNodes, numChar + 5);
+    transProb = new TransitionProbability(numNodes, (numChar + 5)*2);
 
     int rescaleWidth = numNodes*numChar;
     rescaling = new double[rescaleWidth * 2];
     std::fill(rescaling, rescaling + rescaleWidth * 2, 0.0);
+
+    isInvariant = new bool[numChar];
+    for(int i = 0; i < numChar; i++){
+        isInvariant[i] = rng.uniformRv() > 0.5;
+    }
 
     activeT->updateAll();
 
@@ -54,6 +64,7 @@ Model::~Model(){
     delete [] rescaling;
     delete [] activeCL;
     delete [] activeTP;
+    delete [] isInvariant;
 }
 
 void Model::accept() {
@@ -80,6 +91,8 @@ void Model::accept() {
     }
 
     transProb->accept();
+
+    invariantUpdate = false;
 }
 
 void Model::reject() {
@@ -106,10 +119,140 @@ void Model::reject() {
     }
 
     transProb->reject();
+
+    invariantUpdate = false;
 }
 
 double Model::lnPrior(){
     return dpp->lnPrior() + tree->lnPrior() + rateMatrix->lnPrior();
+}
+
+double Model::updateInvariance() {
+    RandomVariable& rng = RandomVariable::randomVariableInstance();
+    
+    TreeObject* activeT = tree->getTree();
+    std::vector<Node*>&  poSeq = activeT->getPostOrderSeq();
+    std::vector<int> assignments = dpp->getAssignments();
+
+    for(int site = 0; site < numChar; site++){
+        std::vector<double> likelihoods(2, 0.0);
+
+        int invariant = (int)isInvariant[site];
+
+        //First lets work with the invariant likelihood we have
+        {
+            int rIndex = activeT->getRoot()->getIndex();
+            double* pR = (*postOrder)(rIndex, activeCL[rIndex], 0) + site * stateSpace;
+            std::vector<double> f = rateMatrix->getStationary();
+
+            double lnL = 0.0;
+            for(int i = 0; i < stateSpace; i++){
+                lnL += pR[i]*f[i];
+            }
+            lnL = std::log(lnL);
+
+            for(Node* n : poSeq){
+                lnL += *(rescaling + (numChar * n->getIndex()) + site);
+            }
+
+            likelihoods[0] = lnL;
+        }
+        //Now lets calculate the likelihood for the other invariant state
+        {
+            int category = assignments[site];
+
+            double* siteBuffer = new double[numNodes * stateSpace];
+            std::fill(siteBuffer, siteBuffer + (numNodes * stateSpace), 1.0);
+
+            double* rescaleBuffer = new double[numNodes];
+            std::fill(rescaleBuffer, rescaleBuffer + numNodes, 0.0);
+
+            for(Node* n : poSeq){
+                int nIndex = n->getIndex();
+                
+                double* pNN = siteBuffer + (nIndex * stateSpace);
+                if(n->getIsTip() == false){
+
+                    std::set<Node*>& nNeighbors = n->getNeighbors();
+
+                    for(Node* d : nNeighbors){
+                        if(d != n->getAncestor()){
+                            int dIndex = d->getIndex();
+                            double* pN = pNN;
+                            double* pD = siteBuffer + (dIndex * stateSpace);
+
+                            Matrix<double> P = *(*transProb)(activeTP[dIndex], category*2 + (invariant ^ true), dIndex);
+                            for(int i = 0; i < stateSpace; i++){
+                                double sum = 0.0;
+                                for(int j = 0; j < stateSpace; j++){
+                                    sum += P(i, j) * pD[j];
+                                }
+                                (*pN) *= sum;
+                                pN++;
+                            }
+                        }
+                    }
+
+                    double* rescalePointer = rescaleBuffer + nIndex;
+
+                    double max = *pNN;
+                    pNN++;
+                    for(int i = 1; i < stateSpace; i++){
+                        if(*pNN > max)
+                            max = *pNN;
+                        pNN++;
+                    }
+                    if(max < 1e-10){
+                        pNN -= stateSpace;
+                        for(int i = 1; i < stateSpace; i++){
+                            *pNN /= max;
+                            pNN++;
+                        }
+                        *rescalePointer = std::log(max);
+                    }
+                }
+                else {
+                    double* pTip = (*postOrder)(nIndex, activeCL[nIndex], 0) + site*stateSpace;
+                    for(int i = 0; i < stateSpace; i++){
+                        *pNN = *pTip;
+                        pTip++;
+                        pNN++;
+                    }
+                }
+            }
+
+            int rIndex = activeT->getRoot()->getIndex();
+            std::vector<double> f = rateMatrix->getStationary();
+            double lnL = 0.0;
+            double* siteRoot = siteBuffer + (rIndex * stateSpace);
+
+            for(int i = 0; i < stateSpace; i++){
+                lnL += siteRoot[i]*f[i];
+            }
+            lnL = std::log(lnL);
+
+            double* rescaleBufferPointer = rescaleBuffer;
+            for(int i = 0; i < numNodes; i++){
+                lnL += *rescaleBufferPointer;
+                rescaleBufferPointer++;
+            }
+
+            delete [] siteBuffer;
+
+            delete [] rescaleBuffer;
+
+            likelihoods[1] = lnL;
+        }
+
+        double total = likelihoods[0] + likelihoods[1];
+        double draw = rng.uniformRv() * total;
+
+        if(draw > likelihoods[0])
+            isInvariant[site] = !((bool)invariant);
+    }
+
+    invariantUpdate = true;
+    return INFINITY;
 }
 
 void Model::regenerateLikelihood(){
@@ -123,12 +266,13 @@ void Model::regenerateLikelihood(){
     if(rateMatrix->isDirty()){
         tf::Taskflow rateTaskflow;
         activeT->updateAll();
-        transProb->allocateQ(numCats);
+        transProb->allocateQ(numCats*2);
         for(int i = 0; i < numCats; i++){
             double omega1 = categories[i].omega1;
             double omega2 = omega1 + categories[i].omega2;
             rateTaskflow.emplace([this, omega1, omega2, i](){
-                transProb->updateQ(rateMatrix->Q(omega1, omega2), i);
+                for(int inv = 0; inv < 2; inv++)
+                    transProb->updateQ(rateMatrix->Q(omega1, omega2, inv), i*2 + inv);
             });
         }
 
@@ -136,12 +280,13 @@ void Model::regenerateLikelihood(){
     }
     else if(dpp->isDirty()){
         activeT->updateAll();
-        transProb->allocateQ(numCats);
+        transProb->allocateQ(numCats*2);
         for(int i = 0; i < numCats; i++){
             if(categories[i].dirty){
                 double omega1 = categories[i].omega1;
                 double omega2 = omega1 + categories[i].omega2;
-                transProb->updateQ(rateMatrix->Q(omega1, omega2), i);
+                for(int inv = 0; inv < 2; inv++)
+                    transProb->updateQ(rateMatrix->Q(omega1, omega2, inv), i*2 + inv);
             }
         }
     }
@@ -156,12 +301,14 @@ void Model::regenerateLikelihood(){
                 if(n != activeT->getRoot()) {
                     activeTP[nIndex] ^= true;
                     double v = activeT->getBranchLength(n);
-                    for(int i = 0; i < numCats; i++)
-                        transProb->setProbs(activeTP[nIndex], i, nIndex, v);
+                    for(int i = 0; i < numCats; i++){
+                        transProb->setProbs(activeTP[nIndex], i*2, nIndex, v);
+                        transProb->setProbs(activeTP[nIndex], i*2 + 1, nIndex, v);
+                    }
                 }
                 n->setNeedsTPUpdate(false);
             }
-            if(n->getNeedsCLUpdate() == true){
+            if(n->getNeedsCLUpdate() == true || (invariantUpdate && n->getIsTip() == false)){
                 activeCL[nIndex] ^= true;
                 double* pNN = (*postOrder)(nIndex, activeCL[nIndex], 0);
                 std::fill(pNN, pNN + (numChar * stateSpace), 1.0);
@@ -174,10 +321,13 @@ void Model::regenerateLikelihood(){
                         double* pD = (*postOrder)(dIndex, activeCL[dIndex], 0);
 
                         std::vector<Matrix<double>> transProbMatrices;
-                        for(int cat = 0; cat < numCats; cat++)
-                            transProbMatrices.push_back(*(*transProb)(activeTP[dIndex], cat, dIndex));
+                        for(int cat = 0; cat < numCats; cat++){
+                            transProbMatrices.push_back(*(*transProb)(activeTP[dIndex], cat*2, dIndex));
+                            transProbMatrices.push_back(*(*transProb)(activeTP[dIndex], cat*2 + 1, dIndex));
+                        }
                         for(int c = 0; c < numChar; c++){
-                            Matrix<double> P = transProbMatrices[assignments[c]];
+                            int invariant = (int)isInvariant[c];
+                            Matrix<double> P = transProbMatrices[assignments[c]*2 + invariant];
                             for(int i = 0; i < stateSpace; i++){
                                 double sum = 0.0;
                                 for(int j = 0; j < stateSpace; j++){
@@ -256,14 +406,17 @@ void Model::regenerateTransitionProbs(int site, int category){
 
     double omega1 = categories[category].omega1;
     double omega2 = omega1 + categories[category].omega2;
-    transProb->updateQ(rateMatrix->Q(omega1, omega2), category);
+    
+    for(int i = 0; i < 2; i++)
+        transProb->updateQ(rateMatrix->Q(omega1, omega2, i), category*2 + i);
 
     for(Node* n : poSeq){
         int nIndex = n->getIndex();
 
         if(n != activeT->getRoot()){
             double v = activeT->getBranchLength(n);
-            transProb->setProbs(activeTP[nIndex], category, nIndex, v);
+            transProb->setProbs(activeTP[nIndex], category*2, nIndex, v);
+            transProb->setProbs(activeTP[nIndex], category*2 + 1, nIndex, v);
         }
     }
 }
@@ -275,10 +428,12 @@ double Model::testCategory(int site, int category, bool update){
     std::vector<Node*>&  poSeq = activeT->getPostOrderSeq();
     std::vector<Category> categories = dpp->getCategories();
 
+    int invariant = (int)isInvariant[site];
+
     if(update) {
         double omega1 = categories[category].omega1;
         double omega2 = omega1 + categories[category].omega2;
-        transProb->updateQ(rateMatrix->Q(omega1, omega2), category);
+        transProb->updateQ(rateMatrix->Q(omega1, omega2, invariant), category*2 + 1);
     }
 
     double* siteBuffer = new double[numNodes * stateSpace];
@@ -293,7 +448,7 @@ double Model::testCategory(int site, int category, bool update){
         if(update){
             if(n != activeT->getRoot()){
                 double v = activeT->getBranchLength(n);
-                transProb->setProbs(activeTP[nIndex], category, nIndex, v);
+                transProb->setProbs(activeTP[nIndex], category*2 + invariant, nIndex, v);
             }
         }
         
@@ -308,7 +463,7 @@ double Model::testCategory(int site, int category, bool update){
                     double* pN = pNN;
                     double* pD = siteBuffer + (dIndex * stateSpace);
 
-                    Matrix<double> P = *(*transProb)(activeTP[dIndex], category, dIndex);
+                    Matrix<double> P = *(*transProb)(activeTP[dIndex], category*2 + invariant, dIndex);
                     for(int i = 0; i < stateSpace; i++){
                         double sum = 0.0;
                         for(int j = 0; j < stateSpace; j++){
@@ -524,7 +679,8 @@ std::string Model::tipsOut(int i){
                     int ancestorIndex = n->getAncestor()->getIndex();
 
                     for(int c = 0; c < numChar; c++){
-                        Matrix<double> P = *(*transProb)(activeTP[nIndex], assignments[c], nIndex);
+                        int invariant = (int)isInvariant[c];
+                        Matrix<double> P = *(*transProb)(activeTP[nIndex], assignments[c]*2 + invariant, nIndex);
                         int ancestorState = *(reconstructedStates + ancestorIndex*numChar + c);
 
                         double total = 0;
@@ -587,6 +743,23 @@ std::string Model::tipsOut(int i){
 
     delete [] reconstructedStates;
     delete [] reconstructedOmega;
+
+    return returnString + "\n";
+}
+
+std::string Model::invarHeader(){
+    std::string returnString = "Iteration\tPosterior";
+    for(int i = 0; i < numChar; i++)
+        returnString += "\tInvariant[" + std::to_string(i) + "]";
+    return returnString + "\n";
+}
+
+std::string Model::invarOut(int i){
+    std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood);
+
+    for(int i = 0; i < numChar; i++){
+        returnString += "\t" + std::to_string(isInvariant[i]);
+    }
 
     return returnString + "\n";
 }

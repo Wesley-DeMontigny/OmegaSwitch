@@ -105,12 +105,12 @@ void Mcmc::burnin(){
 
             model->regenerateLikelihood();
 
-            model->regenerateLikelihood();
-
             double newLnPosterior = model->lnLikelihood() + model->lnPrior();
 
             double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
             currentLnPosterior = newLnPosterior;
+
+            model->accept();
         }
     }
 }
@@ -232,6 +232,8 @@ void Mcmc::run(){
 
             double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
             currentLnPosterior = newLnPosterior;
+
+            model->accept();
         }
     }
 }

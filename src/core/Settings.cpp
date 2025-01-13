@@ -6,10 +6,10 @@
 
 Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dppOutput(""), mcmcOutput(""), tipsOutput(""),
                                               numIterations(30000), printFrequency(10), sampleFrequency(100),
-                                              burnInIterations(5000), tuneFrequency(500), rLambda(2.0),
-                                              kLambda(1.0), omegaLambda(5.0), dppAlpha(1.0), numGibbsUpdate(20), 
+                                              burnInIterations(5000), tuneFrequency(500), rAlpha(1.5),
+                                              kAlpha(1.5), omegaLambda(5.0), dppAlpha(1.0), numGibbsUpdate(20), 
                                               rWeight(5.0), kWeight(5.0), stationaryWeight(6.0),
-                                              omegaWeight(5.0), dppWeight(3.0), treeWeight(10.0), invariantWeight(3.0),
+                                              omegaWeight(5.0), dppWeight(3.0), treeWeight(10.0), invariantWeight(1.0),
                                               treeLengthLambda(1.0), simulate(false), fixedTree(""), numTaxa(-1),
                                               numChar(-1), kValue(-1.0), rValue(-1.0) {
 
@@ -18,7 +18,6 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
         std::string arg = argv[i];
         settings.push_back(arg);
     }
-
 /*
     settings.push_back("-nexus");
     settings.push_back("/workspaces/Varying_Selection_DPP/publication_analyses/globin_analysis/globins.nex");
@@ -100,10 +99,10 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                 treeLengthLambda = stod(settings[i]);
             else if (currentArg == "-omegaLambda")
                 omegaLambda = stod(settings[i]);
-            else if (currentArg == "-kLambda")
-                kLambda = stod(settings[i]);
-            else if (currentArg == "-rLambda")
-                rLambda = stod(settings[i]);
+            else if (currentArg == "-kAlpha")
+                kAlpha = stod(settings[i]);
+            else if (currentArg == "-rAlpha")
+                rAlpha = stod(settings[i]);
             else if (currentArg == "-dppAlpha")
                 dppAlpha = stod(settings[i]);
              else if (currentArg == "-dppWeight")
@@ -212,8 +211,8 @@ void Settings::print(){
     std::cout << "Model Parameters:" << std::endl;
     std::cout << "   * -treeLambda        : " << treeLengthLambda << std::endl;
     std::cout << "   * -omegaLambda       : " << omegaLambda << std::endl;
-    std::cout << "   * -kLamdba           : " << kLambda << std::endl;
-    std::cout << "   * -rLambda           : " << rLambda << std::endl;
+    std::cout << "   * -kAlpha            : " << kAlpha << std::endl;
+    std::cout << "   * -rAlpha            : " << rAlpha << std::endl;
     std::cout << "   * -dppAlpha          : " << dppAlpha << std::endl;
     std::cout << "   * -kValue            : " << kValue << std::endl;
     std::cout << "   * -rValue            : " << rValue << std::endl;
@@ -268,8 +267,8 @@ void Settings::usage(void) {
     std::cout << "Model Parameters:" << std::endl;
     std::cout << "   * -treeLambda        : Lambda parameter for the tree length exponential prior." << std::endl;
     std::cout << "   * -omegaLambda       : Lambda parameter for the dN/dS exponential prior." << std::endl;
-    std::cout << "   * -kLamdba           : Lambda parameter for the transition/transversion ratio exponential prior." << std::endl;
-    std::cout << "   * -rLambda           : Lambda parameter for the matrix-swapping exponential prior." << std::endl;
+    std::cout << "   * -kAlpha            : Alpha parameter for the transition/transversion ratio gamma prior." << std::endl;
+    std::cout << "   * -rAlpha            : Alpha parameter for the matrix-swapping gamma prior." << std::endl;
     std::cout << "   * -dppAlpha          : The alpha parameter of the DPP." << std::endl;
     std::cout << "   * -kValue            : The starting value for the K parameter." << std::endl;
     std::cout << "   * -rValue            : The starting value for the R parameter." << std::endl;

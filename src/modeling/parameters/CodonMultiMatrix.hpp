@@ -42,13 +42,13 @@ class CodonMultiMatrix : public Parameter {
         double rDelta;
         double stationaryAlpha;
 
-        double kLambda;
+        double kAlpha;
         double currentK;
         double oldK;
         double currentKPrior;
         double oldKPrior;
 
-        double rLambda;
+        double rAlpha;
         double currentR;
         double oldR;
         double currentRPrior;

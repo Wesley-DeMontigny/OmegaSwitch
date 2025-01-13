@@ -42,7 +42,7 @@ Model::Model(Settings s, Alignment* a, TreeParameter* t, CodonMultiMatrix* m, Di
         activeTP[i] = false;
     }
     postOrder = new ConditionalLikelihood(aln, numNodes, 1);
-    transProb = new TransitionProbability(numNodes, (numChar + 5)*2);
+    transProb = new TransitionProbability(numNodes);
 
     int rescaleWidth = numNodes*numChar;
     rescaling = new double[rescaleWidth * 2];
@@ -181,7 +181,7 @@ double Model::updateInvariance() {
                             double* pN = pNN;
                             double* pD = siteBuffer + (dIndex * stateSpace);
 
-                            Matrix<double> P = *(*transProb)(activeTP[dIndex], category*2 + (invariant ^ true), dIndex);
+                            Matrix<double> P = (*transProb)(activeTP[dIndex], category, dIndex, invariant);
                             for(int i = 0; i < stateSpace; i++){
                                 double sum = 0.0;
                                 for(int j = 0; j < stateSpace; j++){
@@ -244,8 +244,15 @@ double Model::updateInvariance() {
             likelihoods[1] = lnL;
         }
 
-        double total = likelihoods[0] + likelihoods[1];
-        double draw = rng.uniformRv() * total;
+        double maxL = *std::max_element(likelihoods.begin(), likelihoods.end());
+        double total = 0.0;
+        for(double& d : likelihoods){
+            d -= maxL;
+            d = std::exp(d);
+            total += d;
+        }
+
+        double draw = total * rng.uniformRv();
 
         if(draw > likelihoods[0])
             isInvariant[site] = !((bool)invariant);
@@ -266,13 +273,13 @@ void Model::regenerateLikelihood(){
     if(rateMatrix->isDirty()){
         tf::Taskflow rateTaskflow;
         activeT->updateAll();
-        transProb->allocateQ(numCats*2);
+        transProb->allocateQ(numCats);
         for(int i = 0; i < numCats; i++){
             double omega1 = categories[i].omega1;
             double omega2 = omega1 + categories[i].omega2;
             rateTaskflow.emplace([this, omega1, omega2, i](){
                 for(int inv = 0; inv < 2; inv++)
-                    transProb->updateQ(rateMatrix->Q(omega1, omega2, inv), i*2 + inv);
+                    transProb->updateQ(rateMatrix->Q(omega1, omega2, inv), i, inv);
             });
         }
 
@@ -280,13 +287,13 @@ void Model::regenerateLikelihood(){
     }
     else if(dpp->isDirty()){
         activeT->updateAll();
-        transProb->allocateQ(numCats*2);
+        transProb->allocateQ(numCats);
         for(int i = 0; i < numCats; i++){
             if(categories[i].dirty){
                 double omega1 = categories[i].omega1;
                 double omega2 = omega1 + categories[i].omega2;
                 for(int inv = 0; inv < 2; inv++)
-                    transProb->updateQ(rateMatrix->Q(omega1, omega2, inv), i*2 + inv);
+                    transProb->updateQ(rateMatrix->Q(omega1, omega2, inv), i, inv);
             }
         }
     }
@@ -302,8 +309,7 @@ void Model::regenerateLikelihood(){
                     activeTP[nIndex] ^= true;
                     double v = activeT->getBranchLength(n);
                     for(int i = 0; i < numCats; i++){
-                        transProb->setProbs(activeTP[nIndex], i*2, nIndex, v);
-                        transProb->setProbs(activeTP[nIndex], i*2 + 1, nIndex, v);
+                        transProb->setProbs(activeTP[nIndex], i, nIndex, v);
                     }
                 }
                 n->setNeedsTPUpdate(false);
@@ -320,14 +326,9 @@ void Model::regenerateLikelihood(){
                         double* pN = pNN;
                         double* pD = (*postOrder)(dIndex, activeCL[dIndex], 0);
 
-                        std::vector<Matrix<double>> transProbMatrices;
-                        for(int cat = 0; cat < numCats; cat++){
-                            transProbMatrices.push_back(*(*transProb)(activeTP[dIndex], cat*2, dIndex));
-                            transProbMatrices.push_back(*(*transProb)(activeTP[dIndex], cat*2 + 1, dIndex));
-                        }
                         for(int c = 0; c < numChar; c++){
                             int invariant = (int)isInvariant[c];
-                            Matrix<double> P = transProbMatrices[assignments[c]*2 + invariant];
+                            Matrix<double> P = (*transProb)(activeTP[dIndex], assignments[c], dIndex, invariant);
                             for(int i = 0; i < stateSpace; i++){
                                 double sum = 0.0;
                                 for(int j = 0; j < stateSpace; j++){
@@ -408,15 +409,14 @@ void Model::regenerateTransitionProbs(int site, int category){
     double omega2 = omega1 + categories[category].omega2;
     
     for(int i = 0; i < 2; i++)
-        transProb->updateQ(rateMatrix->Q(omega1, omega2, i), category*2 + i);
+        transProb->updateQ(rateMatrix->Q(omega1, omega2, i), category, i);
 
     for(Node* n : poSeq){
         int nIndex = n->getIndex();
 
         if(n != activeT->getRoot()){
             double v = activeT->getBranchLength(n);
-            transProb->setProbs(activeTP[nIndex], category*2, nIndex, v);
-            transProb->setProbs(activeTP[nIndex], category*2 + 1, nIndex, v);
+            transProb->setProbs(activeTP[nIndex], category, nIndex, v);
         }
     }
 }
@@ -433,7 +433,7 @@ double Model::testCategory(int site, int category, bool update){
     if(update) {
         double omega1 = categories[category].omega1;
         double omega2 = omega1 + categories[category].omega2;
-        transProb->updateQ(rateMatrix->Q(omega1, omega2, invariant), category*2 + 1);
+        transProb->updateQ(rateMatrix->Q(omega1, omega2, invariant), category, invariant);
     }
 
     double* siteBuffer = new double[numNodes * stateSpace];
@@ -448,7 +448,7 @@ double Model::testCategory(int site, int category, bool update){
         if(update){
             if(n != activeT->getRoot()){
                 double v = activeT->getBranchLength(n);
-                transProb->setProbs(activeTP[nIndex], category*2 + invariant, nIndex, v);
+                transProb->setProbs(activeTP[nIndex], category, nIndex, v);
             }
         }
         
@@ -463,7 +463,7 @@ double Model::testCategory(int site, int category, bool update){
                     double* pN = pNN;
                     double* pD = siteBuffer + (dIndex * stateSpace);
 
-                    Matrix<double> P = *(*transProb)(activeTP[dIndex], category*2 + invariant, dIndex);
+                    Matrix<double> P = (*transProb)(activeTP[dIndex], category, dIndex, invariant);
                     for(int i = 0; i < stateSpace; i++){
                         double sum = 0.0;
                         for(int j = 0; j < stateSpace; j++){
@@ -680,7 +680,7 @@ std::string Model::tipsOut(int i){
 
                     for(int c = 0; c < numChar; c++){
                         int invariant = (int)isInvariant[c];
-                        Matrix<double> P = *(*transProb)(activeTP[nIndex], assignments[c]*2 + invariant, nIndex);
+                        Matrix<double> P = (*transProb)(activeTP[nIndex], assignments[c], nIndex, invariant);
                         int ancestorState = *(reconstructedStates + ancestorIndex*numChar + c);
 
                         double total = 0;

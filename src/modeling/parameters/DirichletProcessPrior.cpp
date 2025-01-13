@@ -15,100 +15,55 @@ DirichletProcessPrior::DirichletProcessPrior(int size, Settings s) :
                                              alpha(s.dppAlpha), omegaLambda(s.omegaLambda), 
                                              numMembers(size), currentLnPrior(0.0), numGibbsUpdate(s.numGibbsUpdate), 
                                              model(nullptr), omegaDelta(0.5), assignments(size, -1), omegaAcceptCount(0),
-                                             omegaCount(0), moveChoice(-1) {}
-
-DirichletProcessPrior::~DirichletProcessPrior() {
-    
-}
-
-void DirichletProcessPrior::registerModel(Model* m) {
-    model = m;
-    double expectedCategories = alpha * std::log(1 + numMembers/alpha);
-    std::cout << "Initializing Dirichlet Process With E(Categories) = " << expectedCategories << std::endl;
-    double flooredCategories = (double)(int)expectedCategories;
-    double quantile = 1.0/flooredCategories * numMembers;
-    std::cout << "Binning Sites By Heterogeneity With " << flooredCategories << " Bins" << std::endl;
-
-    std::vector<double> heterogeneity;
-    std::vector<int> aaMap = {8, 11, 8, 11, 16, 16, 16, 16, 14, 15, 14, 15, 7, 7, 10, 7, 13, 6, 13, 6, 12, 12, 12, 12, 14, 14, 14, 14, 9, 9, 9, 9, 3, 2, 3, 2, 0, 0, 0, 0, 5, 5, 5, 5, 17, 17, 17, 17, 19, 19, 15, 15, 15, 15, 1, 18, 1, 9, 4, 9, 4};  
-
-    ConditionalLikelihood* condL = model->getConditionalLikelihood();
-    int numTaxa = model->getNumTaxa();
-
-    for(int i = 0; i < numMembers; i++){
-        std::set<int> seenAA;
-        for(int j = 0; j < numTaxa; j++){
-            double* p = (*condL)(j, 0, 0) + i * 61;
-            for(int k = 0; k < 61; k++){
-                if(p[k] == 1.0){
-                    seenAA.insert(aaMap[k]);
-                    break;
-                }
-            }
-        }
-        heterogeneity.push_back(seenAA.size());
-    }
-
-    std::vector<double> sortedVector(heterogeneity);
-    std::sort(sortedVector.begin(), sortedVector.end());
+                                             omegaCount(0), moveChoice(-1) {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
-    for(int i = 0; i < flooredCategories; i++){
-        double newOmega1 = Probability::Exponential::rv(&rng, omegaLambda);
-        double newOmega2 = Probability::Exponential::rv(&rng, omegaLambda);
-        Category newCat = {newOmega1, newOmega2, 0, {}, false}; //Set false so dirty ones aren't copied into "old"
-        currentCategories.push_back(newCat);
-    }
+    for(int i = 0; i < size; i++){
+        double randomVal = rng.uniformRv();
+        double total = alpha/(i + alpha);
 
-    std::vector<std::pair<double, int>> indexedHeterogeneity;
-    for (int i = 0; i < heterogeneity.size(); i++) {
-        indexedHeterogeneity.emplace_back(heterogeneity[i], i);
-    }
+        // If new category
+        if(total > randomVal){
+            Category newCat = {Probability::Exponential::rv(&rng, omegaLambda),
+                               Probability::Exponential::rv(&rng, omegaLambda),
+                               1, {i}, true};
+            currentCategories.push_back(newCat);
+            continue;
+        }
 
-    std::sort(indexedHeterogeneity.begin(), indexedHeterogeneity.end(),
-            [](const std::pair<double, int>& a, const std::pair<double, int>& b) {
-                return a.first < b.first;
-            });
+        for(Category &c : currentCategories){
+            total += c.size/(i+alpha);
 
-    std::vector<int> sortedIndices;
-    for (const auto& pair : indexedHeterogeneity) {
-        sortedIndices.push_back(pair.second);
-    }
-
-    std::vector<int> thresholds;
-    for (int q = 1; q <= flooredCategories; q++) {
-        int thresholdIndex = std::min((int)(q * quantile), (int)(sortedIndices.size() - 1));
-        thresholds.push_back(thresholdIndex);
-    }
-
-    for (int i = 0; i < sortedIndices.size(); i++) {
-        for (int c = 0; c < thresholds.size(); c++) {
-            if (i < thresholds[c]) {
-                assignments[sortedIndices[i]] = c;
-                assignMember(sortedIndices[i], c);
-                currentCategories[c].members.push_back(sortedIndices[i]);
-                currentCategories[c].size++;
+            //If old category
+            if(total > randomVal){
+                c.size++;
+                c.members.push_back(i);
                 break;
             }
         }
-        if (assignments[sortedIndices[i]] == -1) {
-            int finalIndex = thresholds.size() - 1;
-            assignments[sortedIndices[i]] = finalIndex;
-            currentCategories[finalIndex].members.push_back(sortedIndices[i]);
-            currentCategories[finalIndex].size++;
-        }
     }
+
+    for(int i = 0; i < numMembers; i++)
+        assignments.push_back(-1);
+
+
+    int numCats = currentCategories.size();
+    for(int i = 0; i < numCats; i++)
+        for(int m : currentCategories[i].members)
+            assignments[m] = i;
+    
+    this->dirty();
 
     regeneratePrior();
 
     oldCategories = currentCategories;
     oldLnPrior = currentLnPrior;
-
-    this->dirty();
-    for(Category& c : currentCategories)
-        c.dirty = true;
 }
+
+DirichletProcessPrior::~DirichletProcessPrior() {}
+
+void DirichletProcessPrior::registerModel(Model* m) { model = m; }
 
 void DirichletProcessPrior::regeneratePrior(){
     int numCats = currentCategories.size();
@@ -221,7 +176,6 @@ double DirichletProcessPrior::updateDPP(){
     for(int n = 0; n < numGibbsUpdate; n++) {
         int randomMember = (int)(rng.uniformRv() * numMembers);
 
-        int assignment = assignments[randomMember];
         int deleted = unassignMember(randomMember); // This will also delete the group if empty
         if(deleted >= 0){
             model->getTransitionProbability()->deleteQ(deleted);
@@ -245,7 +199,7 @@ double DirichletProcessPrior::updateDPP(){
         std::vector<double> omega2Vec;
         double alphaSplit = std::log(alpha/5);
 
-        model->getTransitionProbability()->allocateQ((numCats + 5)*2);
+        model->getTransitionProbability()->allocateQ(numCats + 5);
         for(int i = 0; i < 5; i++){
             conditionalL.push_back(0.0);
             double newOmega1 = Probability::Exponential::rv(&rng, omegaLambda);
@@ -300,9 +254,17 @@ double DirichletProcessPrior::updateDPP(){
 
     currentCategories.shrink_to_fit();
 
-    for(int i = 0; i < currentCategories.size(); i++)
-        for(int m : currentCategories[i].members)
+    for(int i = 0; i < numMembers; i++)
+        assignments[i] = -1;
+
+    for(int i = 0; i < currentCategories.size(); i++){
+        for(int m : currentCategories[i].members){
+            if(assignments[m] != -1)
+                Msg::error("Duplicate Assignments!");
+            else
             assignments[m] = i;
+        }
+    }
 
     return INFINITY;
 }

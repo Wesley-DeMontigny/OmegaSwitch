@@ -8,7 +8,7 @@
 
 CodonMultiMatrix::CodonMultiMatrix(Settings settings) : 
                                    currentQMatrix(122, 122, 0.0), oldQMatrix(122, 122, 0.0), 
-                                   currentStationary(61, -1), oldStationary(61, -1), kLambda(settings.kLambda), rLambda(settings.rLambda),
+                                   currentStationary(61, -1), oldStationary(61, -1), kAlpha(settings.kAlpha), rAlpha(settings.rAlpha),
                                    currentKPrior(0.0), oldKPrior(0.0), currentRPrior(0.0), oldRPrior(0.0), 
                                    moveChoice(-1), kCount(0), stationaryCount(0), 
                                    kAcceptCount(0), rCount(0), rAcceptCount(0), stationaryAcceptCount(0), 
@@ -48,20 +48,20 @@ CodonMultiMatrix::CodonMultiMatrix(Settings settings) :
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
     if(settings.kValue == -1)
-        currentK = Probability::Exponential::rv(&rng, kLambda);
+        currentK = Probability::Gamma::rv(&rng, kAlpha, 1);
     else
         currentK = settings.kValue;
     oldK = currentK;
-    currentKPrior = Probability::Exponential::lnPdf(kLambda, currentK);
+    currentKPrior = Probability::Gamma::lnPdf(kAlpha, 1, currentK);
     oldKPrior = currentKPrior;
 
 
     if(settings.rValue == -1)
-        currentR = Probability::Exponential::rv(&rng, rLambda);
+        currentR = Probability::Gamma::rv(&rng, rAlpha, 1);
     else
         currentR = settings.kValue;
     oldR = currentR;
-    currentRPrior = Probability::Exponential::lnPdf(rLambda, currentR);
+    currentRPrior = Probability::Gamma::lnPdf(rAlpha, 1, currentR);
     oldRPrior = currentRPrior;
 
     std::vector<double> alpha;
@@ -152,7 +152,7 @@ double CodonMultiMatrix::updateK() {
 
     this->dirty();
 
-    currentKPrior = Probability::Exponential::lnPdf(kLambda, currentK);
+    currentKPrior = Probability::Gamma::lnPdf(kAlpha, 1, currentK);
 
     for(auto coord : transition){
         currentQMatrix(coord.first, coord.second) = currentStationary[coord.second]/2 * currentK;
@@ -180,7 +180,7 @@ double CodonMultiMatrix::updateR() {
 
     this->dirty();
 
-    currentRPrior = Probability::Exponential::lnPdf(rLambda, currentR);
+    currentRPrior = Probability::Gamma::lnPdf(rAlpha, 1, currentR);
 
     for(int i = 0; i < 61; i++){
         currentQMatrix(i, i + 61) = currentR * currentStationary[i]/2;

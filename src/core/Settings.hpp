@@ -19,8 +19,8 @@ struct Settings {
     int             sampleFrequency;
     int             burnInIterations;
     int             tuneFrequency;
-    double          rLambda;
-    double          kLambda;
+    double          rAlpha;
+    double          kAlpha;
     double          omegaLambda;
     double          dppAlpha;
     double          treeLengthLambda;

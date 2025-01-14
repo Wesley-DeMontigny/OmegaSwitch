@@ -11,7 +11,6 @@ struct Settings {
     std::string     dppOutput;
     std::string     mcmcOutput;
     std::string     tipsOutput;
-    std::string     invariantOutput;
 
     std::string     fixedTree;
     int             numIterations;
@@ -19,8 +18,8 @@ struct Settings {
     int             sampleFrequency;
     int             burnInIterations;
     int             tuneFrequency;
-    double          rAlpha;
-    double          kAlpha;
+    double          kLambda;
+    double          rLambda;
     double          omegaLambda;
     double          dppAlpha;
     double          treeLengthLambda;
@@ -31,13 +30,11 @@ struct Settings {
     double          dppWeight;
     double          treeWeight;
     double          stationaryWeight;
-    double          invariantWeight;
 
     bool            simulate;
     int             numTaxa;
     int             numChar;
     double          kValue;
-    double          rValue;
     std::vector<int> assignmentVector;
     std::vector<double> omega1Vector;
     std::vector<double> omega2Vector;

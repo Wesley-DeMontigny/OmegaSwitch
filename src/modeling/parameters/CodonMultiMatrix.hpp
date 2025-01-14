@@ -11,26 +11,21 @@ class Settings;
 class CodonMultiMatrix : public Parameter {
     public:
         CodonMultiMatrix(Settings settings);
-        Matrix<double> Q(double omega1, double omega2, int invariant);
+        Matrix<double> Q(double omega1, double omega2, double r);
         std::vector<double> stationary();
         void accept();
         void reject();
-        double updateR();
         double updateK();
         double updateStationary();
         void tune();
         double lnPrior();
         double kPrior() {return currentKPrior;}
-        double rPrior() {return currentRPrior;}
         std::vector<double> getStationary();
         std::vector<double> getRawStationary() {return currentStationary;}
         double getK() {return currentK;}
-        double getR() {return currentR;}
 
         int kCount;
         int kAcceptCount;
-        int rCount;
-        int rAcceptCount;
         int stationaryCount;
         int stationaryAcceptCount;
     private:
@@ -42,17 +37,11 @@ class CodonMultiMatrix : public Parameter {
         double rDelta;
         double stationaryAlpha;
 
-        double kAlpha;
+        double kLambda;
         double currentK;
         double oldK;
         double currentKPrior;
         double oldKPrior;
-
-        double rAlpha;
-        double currentR;
-        double oldR;
-        double currentRPrior;
-        double oldRPrior;
 
         std::vector<double> currentStationary;
         std::vector<double> oldStationary;

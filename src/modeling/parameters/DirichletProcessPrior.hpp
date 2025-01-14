@@ -10,6 +10,7 @@ class Settings;
 struct Category {
     double omega1;
     double omega2;
+    double r;
     int size;
     std::vector<int> members;
     bool dirty;
@@ -26,6 +27,7 @@ class DirichletProcessPrior : public Parameter {
         double lnPrior() {return currentLnPrior;}
 
         double updateOmega();
+        double updateR();
         double updateDPP();
         
         void tune();
@@ -36,7 +38,7 @@ class DirichletProcessPrior : public Parameter {
         double getAlpha() {return alpha;}
 
         int getCategorySize(int index);
-        void addCategory(double omega1, double omega2);
+        void addCategory(double omega1, double omega2, double r);
 
         std::vector<Category> getCategories() {return currentCategories;}
         std::vector<int> getAssignments() { return assignments;}
@@ -49,6 +51,8 @@ class DirichletProcessPrior : public Parameter {
 
         int omegaAcceptCount;
         int omegaCount;
+        int rAcceptCount;
+        int rCount;
     protected:
         void regeneratePrior();
         Model* model;
@@ -56,8 +60,10 @@ class DirichletProcessPrior : public Parameter {
         double oldLnPrior;
         double alpha;
         double omegaLambda;
+        double rLambda;
 
         double omegaDelta;
+        double rDelta;
 
         int numMembers;
         int numGibbsUpdate;

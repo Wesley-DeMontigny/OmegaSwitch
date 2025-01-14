@@ -21,8 +21,7 @@ TransitionProbability::TransitionProbability(const int nn)
 	eigens = new EigenSystem(122);
 	
 	allocateQ(1);
-	updateQ(Q, 0, 0);
-	updateQ(Q, 0, 1);
+	updateQ(Q, 0);
 	accept();
 }
 
@@ -42,7 +41,6 @@ TransitionProbability::~TransitionProbability(void) {
 
 void TransitionProbability::accept(void) {
 	isOldComplex = isComplex;
-	isOldInvarComplex = isInvarComplex;
 	for(int i = 0; i < isComplex.size(); i++){
 		if(!isComplex[i]){
 			memcpy(rateEigen[i].oldC_ijk, rateEigen[i].c_ijk, numStates*numStates*numStates*sizeof(double));
@@ -52,20 +50,11 @@ void TransitionProbability::accept(void) {
 			memcpy(complexRateEigen[i].oldCC_ijk, complexRateEigen[i].cc_ijk, numStates*numStates*numStates*sizeof(std::complex<double>));
 			memcpy(complexRateEigen[i].oldCeigenvalue, complexRateEigen[i].ceigenvalue, numStates*sizeof(std::complex<double>));
 		}
-		if(!isInvarComplex[i]){
-			memcpy(invarRateEigen[i].oldC_ijk, invarRateEigen[i].c_ijk, numStates*numStates*numStates*sizeof(double));
-			memcpy(invarRateEigen[i].oldEigenvalue, invarRateEigen[i].eigenvalue, numStates*sizeof(double));
-		}
-		else {
-			memcpy(invarComplexRateEigen[i].oldCC_ijk, invarComplexRateEigen[i].cc_ijk, numStates*numStates*numStates*sizeof(std::complex<double>));
-			memcpy(invarComplexRateEigen[i].oldCeigenvalue, invarComplexRateEigen[i].ceigenvalue, numStates*sizeof(std::complex<double>));
-		}
 	}
 }
 
 void TransitionProbability::reject(void) {	
 	isComplex = isOldComplex;
-	isInvarComplex = isOldInvarComplex;
 	for(int i = 0; i < isOldComplex.size(); i++){
 		if(!isComplex[i]){
 			memcpy(rateEigen[i].c_ijk, rateEigen[i].oldC_ijk, numStates*numStates*numStates*sizeof(double));
@@ -75,28 +64,15 @@ void TransitionProbability::reject(void) {
 			memcpy(complexRateEigen[i].cc_ijk, complexRateEigen[i].oldCC_ijk, numStates*numStates*numStates*sizeof(std::complex<double>));
 			memcpy(complexRateEigen[i].ceigenvalue, complexRateEigen[i].oldCeigenvalue, numStates*sizeof(std::complex<double>));
 		}
-		if(!isInvarComplex[i]){
-			memcpy(invarRateEigen[i].c_ijk, invarRateEigen[i].oldC_ijk, numStates*numStates*numStates*sizeof(double));
-			memcpy(invarRateEigen[i].eigenvalue, invarRateEigen[i].oldEigenvalue, numStates*sizeof(double));
-		}
-		else {
-			memcpy(invarComplexRateEigen[i].cc_ijk, invarComplexRateEigen[i].oldCC_ijk, numStates*numStates*numStates*sizeof(std::complex<double>));
-			memcpy(invarComplexRateEigen[i].ceigenvalue, invarComplexRateEigen[i].oldCeigenvalue, numStates*sizeof(std::complex<double>));
-		}
 	}
 }
 
 void TransitionProbability::setProbs(const int state, const int rate, const int node, const double v) {
-	Matrix<double> P0 = (*this)(state, rate, node, 0);
-	Matrix<double> P1 = (*this)(state, rate, node, 1);
+	Matrix<double> P0 = (*this)(state, rate, node);
 	if (!isComplex[rate])
 		tiProbsEigens(v, P0, rateEigen[rate]);
 	else
 		tiProbsComplexEigens(v, P0, complexRateEigen[rate]);
-	if (!isInvarComplex[rate])
-		tiProbsEigens(v, P1, invarRateEigen[rate]);
-	else
-		tiProbsComplexEigens(v, P1, invarComplexRateEigen[rate]);
 }
 
 /* This function calculates transition probabilities using
@@ -149,13 +125,10 @@ void TransitionProbability::allocateQ(int size){
 			isComplex.push_back(false);
 			rateEigen.push_back(RateEigen(numStates));
 			complexRateEigen.push_back(ComplexRateEigen(numStates));
-			isInvarComplex.push_back(false);
-			invarRateEigen.push_back(RateEigen(numStates));
-			invarComplexRateEigen.push_back(ComplexRateEigen(numStates));
 
-			probs1.push_back(new Matrix<double>[2*numNodes]);
-			probs2.push_back(new Matrix<double>[2*numNodes]);
-			for(int j = 0; j < 2*numNodes; j++){
+			probs1.push_back(new Matrix<double>[numNodes]);
+			probs2.push_back(new Matrix<double>[numNodes]);
+			for(int j = 0; j < numNodes; j++){
 				probs1.back()[j] = Matrix<double>(numStates, numStates, 0.0);
        	 		probs2.back()[j] = Matrix<double>(numStates, numStates, 0.0);
 			}
@@ -165,19 +138,13 @@ void TransitionProbability::allocateQ(int size){
 	isComplex.shrink_to_fit();
 	rateEigen.shrink_to_fit();
 	complexRateEigen.shrink_to_fit();
-	isInvarComplex.shrink_to_fit();
-	invarRateEigen.shrink_to_fit();
-	invarComplexRateEigen.shrink_to_fit();
 	probs1.shrink_to_fit();
 	probs2.shrink_to_fit();
 
 }
 
-void TransitionProbability::updateQ(Matrix<double> Q, const int index, const int i) {
-	if(i == 0)
-		isComplex[index] = eigens->update(Q, rateEigen[index], complexRateEigen[index]);
-	else
-		isInvarComplex[index] = eigens->update(Q, invarRateEigen[index], invarComplexRateEigen[index]);
+void TransitionProbability::updateQ(Matrix<double> Q, const int index) {
+	isComplex[index] = eigens->update(Q, rateEigen[index], complexRateEigen[index]);
 }
 
 // Be sure you want to delete!!
@@ -185,9 +152,6 @@ void TransitionProbability::deleteQ(const int index) {
 	isComplex.erase(isComplex.begin() + index);
 	rateEigen.erase(rateEigen.begin() + index);
 	complexRateEigen.erase(complexRateEigen.begin() + index);
-	isInvarComplex.erase(isInvarComplex.begin() + index);
-	invarRateEigen.erase(invarRateEigen.begin() + index);
-	invarComplexRateEigen.erase(invarComplexRateEigen.begin() + index);
 
 	auto prob_it1 = probs1.begin() + index;
 	delete [] *prob_it1;
@@ -202,9 +166,6 @@ void TransitionProbability::deleteQ(const int index) {
 	complexRateEigen.shrink_to_fit();
 	probs1.shrink_to_fit();
 	probs2.shrink_to_fit();
-	isInvarComplex.shrink_to_fit();
-	invarRateEigen.shrink_to_fit();
-	invarComplexRateEigen.shrink_to_fit();
 }
 
 void TransitionProbability::deleteNQ(const int count) {
@@ -212,9 +173,6 @@ void TransitionProbability::deleteNQ(const int count) {
 		isComplex.pop_back();
 		rateEigen.pop_back();
 		complexRateEigen.pop_back();
-		isInvarComplex.pop_back();
-		invarRateEigen.pop_back();
-		invarComplexRateEigen.pop_back();
 
 		auto probs_it1 = std::prev(probs1.end());
 		delete [] *probs_it1;
@@ -230,7 +188,4 @@ void TransitionProbability::deleteNQ(const int count) {
 	complexRateEigen.shrink_to_fit();
 	probs1.shrink_to_fit();
 	probs2.shrink_to_fit();
-	isInvarComplex.shrink_to_fit();
-	invarRateEigen.shrink_to_fit();
-	invarComplexRateEigen.shrink_to_fit();
 }

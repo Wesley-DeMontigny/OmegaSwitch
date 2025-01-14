@@ -6,12 +6,12 @@
 
 Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dppOutput(""), mcmcOutput(""), tipsOutput(""),
                                               numIterations(30000), printFrequency(10), sampleFrequency(100),
-                                              burnInIterations(5000), tuneFrequency(500), rAlpha(1.5),
-                                              kAlpha(1.5), omegaLambda(5.0), dppAlpha(1.0), numGibbsUpdate(20), 
-                                              rWeight(5.0), kWeight(5.0), stationaryWeight(6.0),
-                                              omegaWeight(5.0), dppWeight(3.0), treeWeight(10.0), invariantWeight(1.0),
+                                              burnInIterations(5000), tuneFrequency(250), rLambda(5.0),
+                                              kLambda(5.0), omegaLambda(5.0), dppAlpha(1.0), numGibbsUpdate(20), 
+                                              rWeight(5.0), kWeight(6.0), stationaryWeight(6.0),
+                                              omegaWeight(6.0), dppWeight(2.0), treeWeight(10.0),
                                               treeLengthLambda(1.0), simulate(false), fixedTree(""), numTaxa(-1),
-                                              numChar(-1), kValue(-1.0), rValue(-1.0) {
+                                              numChar(-1), kValue(-1.0) {
 
     std::vector<std::string> settings;
     for (int i=1; i<argc; i++) {
@@ -29,8 +29,6 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
     settings.push_back("/workspaces/Varying_Selection_DPP/res/dpp.log");
     settings.push_back("-tipsOut");
     settings.push_back("/workspaces/Varying_Selection_DPP/res/tips.log");
-    settings.push_back("-invarOut");
-    settings.push_back("/workspaces/Varying_Selection_DPP/res/invar.log");
     settings.push_back("-fixedTree");
     settings.push_back("((HakajeiHBB:1,(((DrerioHBB:1,CcarpioHBB:1):1,SsalarHBB:1):1,((BtaurusHBB:1,HsapiensHBB:1):1,(XborealisHBB:1,(CniloticusHBB:1,(CminorHBB:1,GgallusHBBA:1):1):1):1):1):1):1,((((((CminorHBA:1,GgallusHBAA:1):1,CniloticusHBA:1):1,XborealisHBA:1):1,(BtaurusHBA2:1,HsapiensHBA2:1):1):1,((DrerioHBA:1,CcarpioHBA:1):1,SsalarHBA:1):1):1,HakajeiHBA:1):1);");
 */
@@ -83,8 +81,6 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                 dppOutput = settings[i];
             else if (currentArg == "-tipsOut")
                 tipsOutput = settings[i];
-            else if (currentArg == "-invarOut")
-                invariantOutput = settings[i];
             else if (currentArg == "-numIter")
                 numIterations = stoi(settings[i]);
             else if (currentArg == "-printFreq")
@@ -99,10 +95,10 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                 treeLengthLambda = stod(settings[i]);
             else if (currentArg == "-omegaLambda")
                 omegaLambda = stod(settings[i]);
-            else if (currentArg == "-kAlpha")
-                kAlpha = stod(settings[i]);
-            else if (currentArg == "-rAlpha")
-                rAlpha = stod(settings[i]);
+            else if (currentArg == "-kLambda")
+                kLambda = stod(settings[i]);
+            else if (currentArg == "-rLambda")
+                rLambda = stod(settings[i]);
             else if (currentArg == "-dppAlpha")
                 dppAlpha = stod(settings[i]);
              else if (currentArg == "-dppWeight")
@@ -117,8 +113,6 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                 stationaryWeight = stod(settings[i]);
             else if (currentArg == "-treeWeight")
                 treeWeight = stod(settings[i]);
-            else if (currentArg == "-invarWeight")
-                invariantWeight = stod(settings[i]);
             else if (currentArg == "-numGibbsUpdate")
                 numGibbsUpdate = stoi(settings[i]);
             else if (currentArg == "-simulate")
@@ -131,8 +125,6 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                 numChar = stoi(settings[i]);
             else if (currentArg == "-kValue")
                 kValue = stod(settings[i]);
-            else if (currentArg == "-rValue")
-                rValue = stod(settings[i]);
             else if (currentArg == "-omega1Vector"){
                 std::string currentString = "";
                 for(int c = 0; c < settings[i].size(); c++){
@@ -204,18 +196,16 @@ void Settings::print(){
     std::cout << "   * -mcmcOut           : " << mcmcOutput << std::endl;
     std::cout << "   * -dppOut            : " << dppOutput << std::endl;
     std::cout << "   * -tipsOut           : " << tipsOutput << std::endl;
-    std::cout << "   * -invarOut          : " << invariantOutput << std::endl;
     std::cout << "   * -fixedTree         : " << fixedTree << std::endl;
     std::cout << std::endl;
     
     std::cout << "Model Parameters:" << std::endl;
     std::cout << "   * -treeLambda        : " << treeLengthLambda << std::endl;
     std::cout << "   * -omegaLambda       : " << omegaLambda << std::endl;
-    std::cout << "   * -kAlpha            : " << kAlpha << std::endl;
-    std::cout << "   * -rAlpha            : " << rAlpha << std::endl;
+    std::cout << "   * -kLambda           : " << kLambda << std::endl;
+    std::cout << "   * -rLambda           : " << rLambda << std::endl;
     std::cout << "   * -dppAlpha          : " << dppAlpha << std::endl;
     std::cout << "   * -kValue            : " << kValue << std::endl;
-    std::cout << "   * -rValue            : " << rValue << std::endl;
     std::cout << std::endl;
     
     std::cout << "Sampling Options:" << std::endl;
@@ -231,7 +221,6 @@ void Settings::print(){
     std::cout << "   * -omegaWeight       : " << omegaWeight << std::endl;
     std::cout << "   * -stationaryWeight  : " << stationaryWeight << std::endl;
     std::cout << "   * -dppWeight         : " << dppWeight << std::endl;
-    std::cout << "   * -invarWeight       : " << invariantWeight << std::endl;
     std::cout << std::endl;
 
     std::cout << "Simulation:" << std::endl;
@@ -260,18 +249,16 @@ void Settings::usage(void) {
     std::cout << "   * -mcmcOut           : The output file name for the bulk of the MCMC trace, excluding the tree and DPP parameters." << std::endl;
     std::cout << "   * -dppOut            : The output file name for the DPP parameters." << std::endl;
     std::cout << "   * -tipsOut           : The output file name for the reconstructed tip stats." << std::endl;
-    std::cout << "   * -invarOut          : The output file name for the invariant site status." << std::endl;
     std::cout << "   * -fixedTree         : The NEWICK string corresponding to the fixed tree you wish to analyze." << std::endl;
     std::cout << std::endl;
 
     std::cout << "Model Parameters:" << std::endl;
     std::cout << "   * -treeLambda        : Lambda parameter for the tree length exponential prior." << std::endl;
     std::cout << "   * -omegaLambda       : Lambda parameter for the dN/dS exponential prior." << std::endl;
-    std::cout << "   * -kAlpha            : Alpha parameter for the transition/transversion ratio gamma prior." << std::endl;
-    std::cout << "   * -rAlpha            : Alpha parameter for the matrix-swapping gamma prior." << std::endl;
+    std::cout << "   * -kAlpha            : Lambda parameter for the transition/transversion ratio exponential prior." << std::endl;
+    std::cout << "   * -rAlpha            : Lambda parameter for the matrix-swapping exponential prior." << std::endl;
     std::cout << "   * -dppAlpha          : The alpha parameter of the DPP." << std::endl;
     std::cout << "   * -kValue            : The starting value for the K parameter." << std::endl;
-    std::cout << "   * -rValue            : The starting value for the R parameter." << std::endl;
     std::cout << std::endl;
     
     std::cout << "Sampling Options:" << std::endl;
@@ -287,7 +274,6 @@ void Settings::usage(void) {
     std::cout << "   * -omegaWeight       : How often to propose a move on the omega parameters." << std::endl;
     std::cout << "   * -stationaryWeight  : How often to propose a move on the stationary distribution." << std::endl;
     std::cout << "   * -dppWeight         : How often to propose a move on the DPP partitions." << std::endl;
-    std::cout << "   * -invarWeight       : How often to propose a move on the invariant assignments." << std::endl;
     std::cout << std::endl;
 
     std::cout << "Simulation:" << std::endl;

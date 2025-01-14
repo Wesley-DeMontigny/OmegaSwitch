@@ -31,7 +31,6 @@ class Mcmc{
         double rChoice;
         double dppChoice;
         double omegaChoice;
-        double invarChoice;
 
         TreeParameter* tree;
         CodonMultiMatrix* codonMatrix;
@@ -41,7 +40,6 @@ class Mcmc{
         std::string treeLog;
         std::string dppLog;
         std::string tipsLog;
-        std::string invarLog;
 
         Model* model;
 };

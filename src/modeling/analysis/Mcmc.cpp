@@ -21,7 +21,6 @@ Mcmc::Mcmc(Model* m, TreeParameter* t, CodonMultiMatrix* cmm, DirichletProcessPr
     treeLog = s.treeOutput;
     dppLog = s.dppOutput;
     tipsLog = s.tipsOutput;
-    invarLog = s.invariantOutput;
 
     kChoice = s.kWeight;
     rChoice = s.rWeight + kChoice;
@@ -29,7 +28,6 @@ Mcmc::Mcmc(Model* m, TreeParameter* t, CodonMultiMatrix* cmm, DirichletProcessPr
     treeChoice = s.treeWeight + omegaChoice;
     stationaryChoice = s.stationaryWeight + treeChoice;
     dppChoice = s.dppWeight + stationaryChoice;
-    invarChoice = s.invariantWeight + dppChoice;
 }
 
 void Mcmc::burnin(){
@@ -48,7 +46,7 @@ void Mcmc::burnin(){
                          "\tBranch Rate=" << (double)tree->branchAcceptCount/(double)tree->branchCount <<
                          "\tStationary Rate=" << (double)codonMatrix->stationaryAcceptCount/(double)codonMatrix->stationaryCount <<
                          "\tK Rate=" << (double)codonMatrix->kAcceptCount/(double)codonMatrix->kCount <<
-                         "\tR Rate=" << (double)codonMatrix->rAcceptCount/(double)codonMatrix->rCount <<
+                         "\tR Rate=" << (double)dpp->rAcceptCount/(double)dpp->rCount <<
                          "\tOmega Rate=" << (double)dpp->omegaAcceptCount/(double)dpp->omegaCount << std::endl;
         }
         if(n % tuneFreq == 0){
@@ -57,14 +55,14 @@ void Mcmc::burnin(){
 
         std::function<double()> updater;
 
-        double randomMove = rng.uniformRv() * invarChoice;
+        double randomMove = rng.uniformRv() * dppChoice;
 
         if(randomMove < stationaryChoice){
             if(randomMove < kChoice){
                 updater = [this]() { return codonMatrix->updateK(); };
             }
             else if(randomMove < rChoice){
-                updater = [this]() { return codonMatrix->updateR(); };
+                updater = [this]() { return dpp->updateR(); };
             }
             else if(randomMove < omegaChoice){
                 updater = [this]() { return dpp->updateOmega(); };
@@ -96,12 +94,7 @@ void Mcmc::burnin(){
             }
         }
         else {
-            if(randomMove < dppChoice){
-                dpp->updateDPP();
-            }
-            else if(randomMove < invarChoice){
-                model->updateInvariance();
-            }
+            dpp->updateDPP();
 
             model->regenerateLikelihood();
 
@@ -143,10 +136,6 @@ void Mcmc::run(){
     fs << model->tipsHeader();
     fs.close();
 
-    fs.open(invarLog, std::ofstream::out);
-    fs << model->invarHeader();
-    fs.close();
-
     for(int n = 1; n <= numIter; n++){
         if(n % printFreq == 0){
             std::cout << model->tabularOut(n);
@@ -171,23 +160,18 @@ void Mcmc::run(){
             fs << model->tipsOut(n);
             fs.close();
             fs.clear();
-
-            fs.open(invarLog, std::ofstream::app);
-            fs << model->invarOut(n);
-            fs.close();
-            fs.clear();
         }
 
         std::function<double()> updater;
 
-        double randomMove = rng.uniformRv() * invarChoice;
+        double randomMove = rng.uniformRv() * dppChoice;
 
         if(randomMove < stationaryChoice){
             if(randomMove < kChoice){
                 updater = [this]() { return codonMatrix->updateK(); };
             }
             else if(randomMove < rChoice){
-                updater = [this]() { return codonMatrix->updateR(); };
+                updater = [this]() { return dpp->updateR(); };
             }
             else if(randomMove < omegaChoice){
                 updater = [this]() { return dpp->updateOmega(); };
@@ -219,12 +203,7 @@ void Mcmc::run(){
             }
         }
         else {
-            if(randomMove < dppChoice){
-                dpp->updateDPP();
-            }
-            else if(randomMove < invarChoice){
-                model->updateInvariance();
-            }
+            dpp->updateDPP();
 
             model->regenerateLikelihood();
 

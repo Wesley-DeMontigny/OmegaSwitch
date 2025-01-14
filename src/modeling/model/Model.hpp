@@ -38,8 +38,6 @@ class Model {
         void reject();
         void tuneMoves();
 
-        double updateInvariance();
-
         std::string tabularHeader();
         std::string tabularOut(int i);
         std::string treeHeader();
@@ -48,8 +46,6 @@ class Model {
         std::string dppOut(int i);
         std::string tipsHeader();
         std::string tipsOut(int i);
-        std::string invarHeader();
-        std::string invarOut(int i);
     protected:
         double oldLikelihood;
         double currentLikelihood;
@@ -59,8 +55,6 @@ class Model {
         int numNodes;
         bool* activeTP;
         bool* activeCL;
-        bool* isInvariant;
-        bool invariantUpdate;
         int numGibbsUpdate;
         tf::Executor executor;
         CodonMultiMatrix* rateMatrix;

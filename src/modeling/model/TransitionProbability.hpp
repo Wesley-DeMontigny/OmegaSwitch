@@ -12,9 +12,9 @@ class TransitionProbability {
 	public:
                                 TransitionProbability(const int nn);
                                ~TransitionProbability ();
-        Matrix<double>          operator()(int s, int r, int n, int i) { 
-                                                                    if (s == 0) return probs1[r][numNodes*i + n]; 
-                                                                    else return probs2[r][numNodes*i + n];
+        Matrix<double>          operator()(int s, int r, int n) { 
+                                                                    if (s == 0) return probs1[r][n]; 
+                                                                    else return probs2[r][n];
                                                                 }
         int                     getNumStates(void) { return numStates; }
         int                     getNumMatrices(void) {return isComplex.size();}
@@ -22,7 +22,7 @@ class TransitionProbability {
         void                    reject(void);                                                                                   
         void                    setProbs(const int state, const int r, const int node, const double v);
         std::vector<Matrix<double>>     generateProbs(Matrix<double> Q, std::vector<double> branches);
-        void                    updateQ(Matrix<double> Q, const int index, const int i);
+        void                    updateQ(Matrix<double> Q, const int index);
         void                    deleteQ(const int index);
         void                    deleteNQ(const int count);
         void                    allocateQ(int size);
@@ -33,13 +33,8 @@ class TransitionProbability {
         std::vector<ComplexRateEigen> complexRateEigen;
         std::vector<bool>       isComplex;
         std::vector<bool>       isOldComplex;
-        std::vector<RateEigen>  invarRateEigen;
-        std::vector<ComplexRateEigen> invarComplexRateEigen;
-        std::vector<bool>       isInvarComplex;
-        std::vector<bool>       isOldInvarComplex;
         int                     numNodes;
         int                     numStates;
-        //Matrix<double>**        probs[2];
         std::vector<Matrix<double>*> probs1;
         std::vector<Matrix<double>*> probs2;
         void                    tiProbsComplexEigens(const double v, Matrix<double> &P, ComplexRateEigen& rE);

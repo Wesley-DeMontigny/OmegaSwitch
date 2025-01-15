@@ -275,7 +275,7 @@ void CodonMultiMatrix::tune(){
         stationaryAlpha *= (2.0 - stationaryRate/0.33);
     }
 
-    stationaryAlpha = std::fmin(100, stationaryRate);
+    stationaryAlpha = std::fmin(100.0, stationaryAlpha);
 
     stationaryAcceptCount = 0;
     stationaryCount = 0;

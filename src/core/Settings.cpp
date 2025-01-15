@@ -30,7 +30,7 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
     settings.push_back("-tipsOut");
     settings.push_back("/workspaces/Varying_Selection_DPP/res/tips.log");
     settings.push_back("-fixedTree");
-    settings.push_back("((HakajeiHBB:1,(((DrerioHBB:1,CcarpioHBB:1):1,SsalarHBB:1):1,((BtaurusHBB:1,HsapiensHBB:1):1,(XborealisHBB:1,(CniloticusHBB:1,(CminorHBB:1,GgallusHBBA:1):1):1):1):1):1):1,((((((CminorHBA:1,GgallusHBAA:1):1,CniloticusHBA:1):1,XborealisHBA:1):1,(BtaurusHBA2:1,HsapiensHBA2:1):1):1,((DrerioHBA:1,CcarpioHBA:1):1,SsalarHBA:1):1):1,HakajeiHBA:1):1);");
+    settings.push_back("(((((((HBACmydas:1,HBAPcastaneus:1):1,HBACniloticus:1):1,(HBAAindicus:1,(HBACminor:1,HBAGgallus:1):1):1):1,(HBABtaurus:1,HBAHsapiens:1):1):1,(HBABbombina:1,HBAXborealis:1):1):1,((HBADrerio:1,HBACcarpio:1):1,HBASsalar:1):1):1,((((((HBBCmydas:1,HBBPcastaneus:1):1,HBBCniloticus:1):1,(HBBAindicus:1,(HBBCminor:1,HBBGgallus:1):1):1):1,(HBBBtaurus:1,HBBHsapiens:1):1):1,(HBBBbombina:1,HBBXborealis:1):1):1,((HBBDrerio:1,HBBCcarpio:1):1,HBBSsalar:1):1):1);");
 */
 /*
     settings.push_back("-nexus");

@@ -28,13 +28,13 @@ Mcmc::Mcmc(Model* m, TreeParameter* t, CodonMultiMatrix* cmm, DirichletProcessPr
     treeChoice = s.treeWeight + omegaChoice;
     stationaryChoice = s.stationaryWeight + treeChoice;
     dppChoice = s.dppWeight + stationaryChoice;
+
+    model->regenerateLikelihood();
+    model->accept();
 }
 
 void Mcmc::burnin(){
     RandomVariable& rng = RandomVariable::randomVariableInstance();
-
-    model->regenerateLikelihood();
-    model->accept();
 
     double currentLnPosterior = model->lnLikelihood() + model->lnPrior();
 
@@ -53,11 +53,11 @@ void Mcmc::burnin(){
             model->tuneMoves();
         }
 
-        std::function<double()> updater;
-
         double randomMove = rng.uniformRv() * dppChoice;
 
         if(randomMove < stationaryChoice){
+            std::function<double()> updater;
+
             if(randomMove < kChoice){
                 updater = [this]() { return codonMatrix->updateK(); };
             }
@@ -97,12 +97,7 @@ void Mcmc::burnin(){
             dpp->updateDPP();
 
             model->regenerateLikelihood();
-
-            double newLnPosterior = model->lnLikelihood() + model->lnPrior();
-
-            double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
-            currentLnPosterior = newLnPosterior;
-
+            currentLnPosterior = model->lnLikelihood() + model->lnPrior();
             model->accept();
         }
     }
@@ -110,9 +105,6 @@ void Mcmc::burnin(){
 
 void Mcmc::run(){
     RandomVariable& rng = RandomVariable::randomVariableInstance();
-
-    model->regenerateLikelihood();
-    model->accept();
 
     double currentLnPosterior = model->lnLikelihood() + model->lnPrior();
 
@@ -162,11 +154,10 @@ void Mcmc::run(){
             fs.clear();
         }
 
-        std::function<double()> updater;
-
         double randomMove = rng.uniformRv() * dppChoice;
 
         if(randomMove < stationaryChoice){
+            std::function<double()> updater;
             if(randomMove < kChoice){
                 updater = [this]() { return codonMatrix->updateK(); };
             }
@@ -206,12 +197,7 @@ void Mcmc::run(){
             dpp->updateDPP();
 
             model->regenerateLikelihood();
-
-            double newLnPosterior = model->lnLikelihood() + model->lnPrior();
-
-            double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
-            currentLnPosterior = newLnPosterior;
-
+            currentLnPosterior = model->lnLikelihood() + model->lnPrior();
             model->accept();
         }
     }

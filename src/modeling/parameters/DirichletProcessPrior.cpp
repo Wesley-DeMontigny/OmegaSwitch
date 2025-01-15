@@ -45,10 +45,6 @@ DirichletProcessPrior::DirichletProcessPrior(int size, Settings s) :
         }
     }
 
-    for(int i = 0; i < numMembers; i++)
-        assignments.push_back(-1);
-
-
     int numCats = currentCategories.size();
     for(int i = 0; i < numCats; i++)
         for(int m : currentCategories[i].members)
@@ -263,6 +259,7 @@ double DirichletProcessPrior::updateDPP(){
         double categoryDraw = total * rng.uniformRv();
 
         total = 0.0;
+        bool assigned = false;
         for(int i = 0; i < conditionalL.size(); i++){
             total += conditionalL[i];
             if(total > categoryDraw){

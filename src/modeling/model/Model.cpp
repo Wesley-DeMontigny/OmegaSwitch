@@ -295,15 +295,29 @@ double Model::testCategory(int site, int category, bool update){
     double* rescaleBuffer = new double[numNodes];
     std::fill(rescaleBuffer, rescaleBuffer + numNodes, 0.0);
 
+    // Some setup
     for(Node* n : poSeq){
         int nIndex = n->getIndex();
-
         if(update){
             if(n != activeT->getRoot()){
                 double v = activeT->getBranchLength(n);
                 transProb->setProbs(activeTP[nIndex], category, nIndex, v);
             }
         }
+
+        if(n->getIsTip()){
+            double* dataPointer = (*postOrder)(nIndex, activeCL[nIndex], 0) + site*stateSpace;
+            double* sitePointer = siteBuffer + nIndex*stateSpace;
+            for(int i = 0; i < stateSpace; i++){
+                *sitePointer = *dataPointer;
+                dataPointer++;
+                sitePointer++;
+            }
+        }
+    }
+
+    for(Node* n : poSeq){
+        int nIndex = n->getIndex();
         
         double* pNN = siteBuffer + (nIndex * stateSpace);
         if(n->getIsTip() == false){
@@ -344,14 +358,6 @@ double Model::testCategory(int site, int category, bool update){
                     pNN++;
                 }
                 *rescalePointer = std::log(max);
-            }
-        }
-        else {
-            double* pTip = (*postOrder)(nIndex, activeCL[nIndex], 0) + site*stateSpace;
-            for(int i = 0; i < stateSpace; i++){
-                *pNN = *pTip;
-                pTip++;
-                pNN++;
             }
         }
     }

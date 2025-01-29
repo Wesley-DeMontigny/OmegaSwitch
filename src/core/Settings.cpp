@@ -8,10 +8,10 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                                               numIterations(30000), printFrequency(10), sampleFrequency(100),
                                               burnInIterations(5000), tuneFrequency(250), rLambda(5.0),
                                               kLambda(5.0), omegaLambda(5.0), dppAlpha(1.0), numGibbsUpdate(20), 
-                                              rWeight(5.0), kWeight(6.0), stationaryWeight(6.0),
+                                              rWeight(4.0), kWeight(4.0), stationaryWeight(6.0),
                                               omegaWeight(6.0), dppWeight(2.0), treeWeight(10.0),
                                               treeLengthLambda(1.0), simulate(false), fixedTree(""), numTaxa(-1),
-                                              numChar(-1), kValue(-1.0) {
+                                              numChar(-1), kValue(-1.0), rValue(-1.0) {
 
     std::vector<std::string> settings;
     for (int i=1; i<argc; i++) {
@@ -125,6 +125,8 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                 numChar = stoi(settings[i]);
             else if (currentArg == "-kValue")
                 kValue = stod(settings[i]);
+            else if (currentArg == "-rValue")
+                rValue = stod(settings[i]);
             else if (currentArg == "-omega1Vector"){
                 std::string currentString = "";
                 for(int c = 0; c < settings[i].size(); c++){
@@ -206,6 +208,7 @@ void Settings::print(){
     std::cout << "   * -rLambda           : " << rLambda << std::endl;
     std::cout << "   * -dppAlpha          : " << dppAlpha << std::endl;
     std::cout << "   * -kValue            : " << kValue << std::endl;
+    std::cout << "   * -rValue            : " << rValue << std::endl;
     std::cout << std::endl;
     
     std::cout << "Sampling Options:" << std::endl;
@@ -259,6 +262,7 @@ void Settings::usage(void) {
     std::cout << "   * -rAlpha            : Lambda parameter for the matrix-swapping exponential prior." << std::endl;
     std::cout << "   * -dppAlpha          : The alpha parameter of the DPP." << std::endl;
     std::cout << "   * -kValue            : The starting value for the K parameter." << std::endl;
+    std::cout << "   * -rValue            : The starting value for the R parameter." << std::endl;
     std::cout << std::endl;
     
     std::cout << "Sampling Options:" << std::endl;

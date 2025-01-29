@@ -12,10 +12,10 @@
 #include <algorithm>
 
 DirichletProcessPrior::DirichletProcessPrior(int size, Settings s) : 
-                                             alpha(s.dppAlpha), omegaLambda(s.omegaLambda), rLambda(s.rLambda),
+                                             alpha(s.dppAlpha), omegaLambda(s.omegaLambda),
                                              numMembers(size), currentLnPrior(0.0), numGibbsUpdate(s.numGibbsUpdate), 
-                                             model(nullptr), omegaDelta(0.5), rDelta(0.5), assignments(size, -1), omegaAcceptCount(0),
-                                             omegaCount(0), rAcceptCount(0), rCount(0), moveChoice(-1), executor(10) {
+                                             model(nullptr), omegaDelta(0.5), assignments(size, -1), omegaAcceptCount(0),
+                                             omegaCount(0), moveChoice(-1), executor(10) {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
@@ -27,7 +27,6 @@ DirichletProcessPrior::DirichletProcessPrior(int size, Settings s) :
         if(total > randomVal){
             Category newCat = {Probability::Exponential::rv(&rng, omegaLambda),
                                Probability::Exponential::rv(&rng, omegaLambda),
-                               Probability::Exponential::rv(&rng, rLambda),
                                1, {i}, true};
             currentCategories.push_back(newCat);
             continue;
@@ -71,7 +70,6 @@ void DirichletProcessPrior::regeneratePrior(){
         currentLnPrior += Math::lnFactorial(c.size - 1);
         currentLnPrior += Probability::Exponential::lnPdf(omegaLambda, c.omega1);
         currentLnPrior += Probability::Exponential::lnPdf(omegaLambda, c.omega2);
-        currentLnPrior += Probability::Exponential::lnPdf(rLambda, c.r);
     }
 }
 
@@ -82,10 +80,10 @@ void DirichletProcessPrior::removeCategory(int index){
     currentCategories.erase(currentCategories.begin() + index);
 }
 
-void DirichletProcessPrior::addCategory(double omega1, double omega2, double r){
+void DirichletProcessPrior::addCategory(double omega1, double omega2){
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
-    Category newCat = {omega1, omega2, r, 0, {}, true};
+    Category newCat = {omega1, omega2, 0, {}, true};
     currentCategories.push_back(newCat);
 }
 
@@ -115,9 +113,6 @@ void DirichletProcessPrior::assignMember(int member, int category){
 void DirichletProcessPrior::accept() {
     if(moveChoice == 0){
         omegaAcceptCount += 1;
-    }
-    else if(moveChoice == 1){
-        rAcceptCount += 1;
     }
 
     moveChoice = -1;
@@ -169,30 +164,6 @@ double DirichletProcessPrior::updateOmega() {
     return hastings;
 }
 
-double DirichletProcessPrior::updateR() {
-    RandomVariable& rng = RandomVariable::randomVariableInstance();
-
-    this->dirty();
-    double hastings = 0.0;
-    
-    moveChoice = 1;
-    rCount += 1;
-
-    int randomCategory = (int)(rng.uniformRv() * currentCategories.size());
-    currentCategories[randomCategory].dirty = true;
-
-    double currentV = currentCategories[randomCategory].r;
-    double scale = std::exp(rDelta * (rng.uniformRv() - 0.5));
-    double newV = currentV * scale;
-
-    currentCategories[randomCategory].r = newV;
-    hastings = std::log(scale);
-
-    regeneratePrior();
-
-    return hastings;
-}
-
 double DirichletProcessPrior::updateDPP(){
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
@@ -230,12 +201,11 @@ double DirichletProcessPrior::updateDPP(){
             conditionalL.push_back(0.0);
             double newOmega1 = Probability::Exponential::rv(&rng, omegaLambda);
             double newOmega2 = Probability::Exponential::rv(&rng, omegaLambda);
-            double newR = Probability::Exponential::rv(&rng, rLambda);
 
-            addCategory(newOmega1, newOmega2, newR);
+            addCategory(newOmega1, newOmega2);
             omega1Vec.push_back(newOmega1);
             omega2Vec.push_back(newOmega2);
-            rVec.push_back(newR);
+
             taskflow.emplace([this, &conditionalL, i, randomMember, numCats, alphaSplit](){
                 double likelihood = model->testCategory(randomMember, numCats+i, true);
                 conditionalL[numCats + i] = likelihood + alphaSplit;
@@ -268,7 +238,7 @@ double DirichletProcessPrior::updateDPP(){
                     model->getTransitionProbability()->deleteNQ(10);
                 }
                 else {
-                    addCategory(omega1Vec[i - numCats], omega2Vec[i - numCats], rVec[i - numCats]);
+                    addCategory(omega1Vec[i - numCats], omega2Vec[i - numCats]);
                     assignMember(randomMember, numCats);
                     model->getTransitionProbability()->deleteNQ(9);
                     model->regenerateTransitionProbs(randomMember, numCats);
@@ -309,16 +279,4 @@ void DirichletProcessPrior::tune() {
     
     omegaAcceptCount = 0;
     omegaCount = 0;
-
-    double rRate = (double)rAcceptCount/(double)rCount;
-
-    if ( rRate > 0.33 ) {
-        rDelta *= (1.0 + ((rRate-0.33)/0.67));
-    }
-    else {
-        rDelta /= (2.0 - rRate/0.33);
-    }
-    
-    rAcceptCount = 0;
-    rCount = 0;
 }

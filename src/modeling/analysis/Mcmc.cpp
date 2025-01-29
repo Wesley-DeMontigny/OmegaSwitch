@@ -46,7 +46,7 @@ void Mcmc::burnin(){
                          "\tBranch Rate=" << (double)tree->branchAcceptCount/(double)tree->branchCount <<
                          "\tStationary Rate=" << (double)codonMatrix->stationaryAcceptCount/(double)codonMatrix->stationaryCount <<
                          "\tK Rate=" << (double)codonMatrix->kAcceptCount/(double)codonMatrix->kCount <<
-                         "\tR Rate=" << (double)dpp->rAcceptCount/(double)dpp->rCount <<
+                         "\tR Rate=" << (double)codonMatrix->rAcceptCount/(double)codonMatrix->rCount <<
                          "\tOmega Rate=" << (double)dpp->omegaAcceptCount/(double)dpp->omegaCount << std::endl;
         }
         if(n % tuneFreq == 0){
@@ -62,7 +62,7 @@ void Mcmc::burnin(){
                 updater = [this]() { return codonMatrix->updateK(); };
             }
             else if(randomMove < rChoice){
-                updater = [this]() { return dpp->updateR(); };
+                updater = [this]() { return codonMatrix->updateR(); };
             }
             else if(randomMove < omegaChoice){
                 updater = [this]() { return dpp->updateOmega(); };
@@ -162,7 +162,7 @@ void Mcmc::run(){
                 updater = [this]() { return codonMatrix->updateK(); };
             }
             else if(randomMove < rChoice){
-                updater = [this]() { return dpp->updateR(); };
+                updater = [this]() { return codonMatrix->updateR(); };
             }
             else if(randomMove < omegaChoice){
                 updater = [this]() { return dpp->updateOmega(); };

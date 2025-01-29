@@ -132,9 +132,8 @@ void Model::regenerateLikelihood(){
         for(int i = 0; i < numCats; i++){
             double omega1 = categories[i].omega1;
             double omega2 = omega1 + categories[i].omega2;
-            double r = categories[i].r;
-            rateTaskflow.emplace([this, omega1, omega2, r, i](){
-                transProb->updateQ(rateMatrix->Q(omega1, omega2, r), i);
+            rateTaskflow.emplace([this, omega1, omega2, i](){
+                transProb->updateQ(rateMatrix->Q(omega1, omega2), i);
             });
         }
 
@@ -147,8 +146,7 @@ void Model::regenerateLikelihood(){
             if(categories[i].dirty){
                 double omega1 = categories[i].omega1;
                 double omega2 = omega1 + categories[i].omega2;
-                double r = categories[i].r;
-                transProb->updateQ(rateMatrix->Q(omega1, omega2, r), i);
+                transProb->updateQ(rateMatrix->Q(omega1, omega2), i);
             }
         }
     }
@@ -261,9 +259,8 @@ void Model::regenerateTransitionProbs(int site, int category){
 
     double omega1 = categories[category].omega1;
     double omega2 = omega1 + categories[category].omega2;
-    double r = categories[category].r;
     
-    transProb->updateQ(rateMatrix->Q(omega1, omega2, r), category);
+    transProb->updateQ(rateMatrix->Q(omega1, omega2), category);
 
     for(Node* n : poSeq){
         int nIndex = n->getIndex();
@@ -285,8 +282,7 @@ double Model::testCategory(int site, int category, bool update){
     if(update) {
         double omega1 = categories[category].omega1;
         double omega2 = omega1 + categories[category].omega2;
-        double r = categories[category].r;
-        transProb->updateQ(rateMatrix->Q(omega1, omega2, r), category);
+        transProb->updateQ(rateMatrix->Q(omega1, omega2), category);
     }
 
     double* siteBuffer = new double[numNodes * stateSpace];
@@ -392,7 +388,7 @@ void Model::tuneMoves(){
 }
 
 std::string Model::tabularHeader(){
-    std::string returnString = "Iteration\tPosterior\tLikelihood\tTree Prior\tDPP Prior\tK Prior\tK";
+    std::string returnString = "Iteration\tPosterior\tLikelihood\tTree Prior\tDPP Prior\tK Prior\tR Prior\tK\tR";
     for(int i = 0; i < 61; i++){
         returnString += "\tPi[" + std::to_string(i) + "]";
     }
@@ -404,7 +400,8 @@ std::string Model::tabularOut(int i){
     std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" +
                                std::to_string(currentLikelihood) + "\t" + std::to_string(tree->lnPrior()) + "\t" +
                                std::to_string(dpp->lnPrior()) + "\t" + std::to_string(rateMatrix->kPrior()) + "\t" + 
-                               std::to_string(rateMatrix->getK());
+                               std::to_string(rateMatrix->rPrior()) + "\t" + std::to_string(rateMatrix->getK()) + "\t" +
+                               std::to_string(rateMatrix->getR()) ;
     std::vector<double> stationary = rateMatrix->getRawStationary();
     for(double i : stationary){
         returnString += "\t" + std::to_string(i);
@@ -424,7 +421,7 @@ std::string Model::treeOut(int i){
 std::string Model::dppHeader(){
     std::string returnString = "Iteration\tPosterior\tCategoryCount";
     for(int i = 0; i < numChar; i++)
-        returnString += "\tOmega1[" + std::to_string(i) + "]" + "\tOmega2[" + std::to_string(i) + "]" + "\tR[" + std::to_string(i) + "]";
+        returnString += "\tOmega1[" + std::to_string(i) + "]" + "\tOmega2[" + std::to_string(i) + "]";
     return returnString + "\n";
 }
 
@@ -434,8 +431,7 @@ std::string Model::dppOut(int i){
     returnString += std::to_string(categories.size());
     std::vector<int> assignments = dpp->getAssignments();
     for(int c : assignments){
-        returnString += "\t" + std::to_string(categories[c].omega1) + "\t" + std::to_string(categories[c].omega2) + 
-                        "\t" + std::to_string(categories[c].r);
+        returnString += "\t" + std::to_string(categories[c].omega1) + "\t" + std::to_string(categories[c].omega2);
     }
 
 

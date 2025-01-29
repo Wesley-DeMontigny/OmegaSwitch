@@ -35,6 +35,7 @@ struct Settings {
     int             numTaxa;
     int             numChar;
     double          kValue;
+    double          rValue;
     std::vector<int> assignmentVector;
     std::vector<double> omega1Vector;
     std::vector<double> omega2Vector;

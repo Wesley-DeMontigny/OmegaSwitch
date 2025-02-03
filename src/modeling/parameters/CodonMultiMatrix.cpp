@@ -82,8 +82,8 @@ CodonMultiMatrix::CodonMultiMatrix(Settings settings) :
         currentQMatrix(coord.second + 61, coord.first + 61) *= currentK;  
     }
     for(int i = 0; i < 61; i++){
-        currentQMatrix(i, i) = currentStationary[i]/2 * currentR;
-        currentQMatrix(i + 61, i + 61) = currentStationary[i]/2 * currentR;
+        currentQMatrix(i, i + 61) = currentStationary[i]/2 * currentR;
+        currentQMatrix(i + 61, i) = currentStationary[i]/2 * currentR;
     }
     
     oldQMatrix = currentQMatrix.copy();
@@ -179,8 +179,8 @@ double CodonMultiMatrix::updateR() {
     currentRPrior = Probability::Exponential::lnPdf(rLambda, currentR);
 
     for(int i = 0; i < 61; i++){
-        currentQMatrix(i, i) = currentStationary[i]/2 * currentR;
-        currentQMatrix(i + 61, i + 61) = currentStationary[i]/2 * currentR;
+        currentQMatrix(i, i + 61) = currentStationary[i]/2 * currentR;
+        currentQMatrix(i + 61, i) = currentStationary[i]/2 * currentR;
     }
 
     return hastings;
@@ -247,8 +247,8 @@ double CodonMultiMatrix::updateStationary() {
         currentQMatrix(coord.second + 61, coord.first + 61) *= currentK;
     }
     for(int i = 0; i < 61; i++){
-        currentQMatrix(i, i) = currentStationary[i]/2 * currentR;
-        currentQMatrix(i + 61, i + 61) = currentStationary[i]/2 * currentR;
+        currentQMatrix(i, i + 61) = currentStationary[i]/2 * currentR;
+        currentQMatrix(i + 61, i) = currentStationary[i]/2 * currentR;
     }
 
     return hastings;

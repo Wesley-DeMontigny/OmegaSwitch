@@ -42,6 +42,10 @@ class CodonMultiMatrix : public Parameter {
         double rDelta;
         double stationaryAlpha;
 
+        std::vector<int> randomStates;
+
+        bool normalizeMatrix;
+
         double kLambda;
         double currentK;
         double oldK;

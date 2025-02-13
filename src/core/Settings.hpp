@@ -13,6 +13,7 @@ struct Settings {
     std::string     tipsOutput;
 
     std::string     fixedTree;
+    bool            normalizeRates;
     int             numIterations;
     int             printFrequency;
     int             sampleFrequency;

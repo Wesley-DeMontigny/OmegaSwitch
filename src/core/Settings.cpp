@@ -32,34 +32,6 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
     settings.push_back("-fixedTree");
     settings.push_back("(((((((HBACmydas:1,HBAPcastaneus:1):1,HBACniloticus:1):1,(HBAAindicus:1,(HBACminor:1,HBAGgallus:1):1):1):1,(HBABtaurus:1,HBAHsapiens:1):1):1,(HBABbombina:1,HBAXborealis:1):1):1,((HBADrerio:1,HBACcarpio:1):1,HBASsalar:1):1):1,((((((HBBCmydas:1,HBBPcastaneus:1):1,HBBCniloticus:1):1,(HBBAindicus:1,(HBBCminor:1,HBBGgallus:1):1):1):1,(HBBBtaurus:1,HBBHsapiens:1):1):1,(HBBBbombina:1,HBBXborealis:1):1):1,((HBBDrerio:1,HBBCcarpio:1):1,HBBSsalar:1):1):1);");
 */
-/*
-    settings.push_back("-nexus");
-    settings.push_back("/workspaces/Varying_Selection_DPP/res/replicase.nex");
-    settings.push_back("-treeOut");
-    settings.push_back("/workspaces/Varying_Selection_DPP/res/trees.trees");
-    settings.push_back("-mcmcOut");
-    settings.push_back("/workspaces/Varying_Selection_DPP/res/analysis.log");
-    settings.push_back("-dppOut");
-    settings.push_back("/workspaces/Varying_Selection_DPP/res/dpp.log");
-    settings.push_back("-tipsOut");
-    settings.push_back("/workspaces/Varying_Selection_DPP/res/tips.log");
-*/
-/*
-    settings.push_back("-simulate");
-    settings.push_back("1");
-    settings.push_back("-omega1Vector");
-    settings.push_back("2.0,0.5");
-    settings.push_back("-numChar");
-    settings.push_back("250");
-    settings.push_back("-omega2Vector");
-    settings.push_back("1.0,0.25");
-    settings.push_back("-kValue");
-    settings.push_back("2.5");
-    settings.push_back("-rValue");
-    settings.push_back("0.15");
-    settings.push_back("-treeLambda");
-    settings.push_back("0.5");
-*/
 
     if (settings.size() == 0) {
         usage();
@@ -119,6 +91,8 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                 simulate = stoi(settings[i]) == 1;
             else if (currentArg == "-fixedTree")
                 fixedTree = settings[i];
+            else if (currentArg == "-normalizeRates")
+            normalizeRates = stoi(settings[i]) == 1;
             else if (currentArg == "-numTaxa")
                 numTaxa = stoi(settings[i]);
             else if (currentArg == "-numChar")

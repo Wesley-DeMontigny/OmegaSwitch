@@ -11,7 +11,7 @@ CodonMultiMatrix::CodonMultiMatrix(Settings settings) :
                                    currentStationary(61, -1), oldStationary(61, -1), kLambda(settings.kLambda), rLambda(settings.rLambda),
                                    currentKPrior(0.0), oldKPrior(0.0), currentRPrior(0.0), oldRPrior(0.0), moveChoice(-1), kCount(0),
                                    stationaryCount(0), rCount(0), kAcceptCount(0),stationaryAcceptCount(0), rAcceptCount(0), kDelta(0.5), 
-                                   stationaryAlpha(25), rDelta(0.5) {
+                                   stationaryAlpha(500), rDelta(0.5), normalizeMatrix(settings.normalizeRates) {
     
     std::vector<int> aaMap = {8, 11, 8, 11, 16, 16, 16, 16, 14, 15, 14, 15, 7, 7, 10, 7, 13, 6, 13, 6, 12, 12, 12, 12, 14, 14, 14, 14, 9, 9, 9, 9, 3, 2, 3, 2, 0, 0, 0, 0, 5, 5, 5, 5, 17, 17, 17, 17, 19, 19, 15, 15, 15, 15, 1, 18, 1, 9, 4, 9, 4};  
     std::vector<const char*> codons = {"AAA", "AAC", "AAG", "AAT", "ACA", "ACC", "ACG", "ACT", "AGA", "AGC", "AGG", "AGT", "ATA", "ATC", "ATG", "ATT", "CAA", "CAC", "CAG", "CAT", "CCA", "CCC", "CCG", "CCT", "CGA", "CGC", "CGG", "CGT", "CTA", "CTC", "CTG", "CTT", "GAA", "GAC", "GAG", "GAT", "GCA", "GCC", "GCG", "GCT", "GGA", "GGC", "GGG", "GGT", "GTA", "GTC", "GTG", "GTT", "TAC", "TAT", "TCA", "TCC", "TCG", "TCT", "TGC", "TGG", "TGT", "TTA", "TTC", "TTG", "TTT"};
@@ -87,6 +87,9 @@ CodonMultiMatrix::CodonMultiMatrix(Settings settings) :
     }
     
     oldQMatrix = currentQMatrix.copy();
+
+    for(int i = 0; i < 61; i++)
+        randomStates.push_back(i);
 
     dirty();
 }
@@ -188,51 +191,72 @@ double CodonMultiMatrix::updateR() {
 
 double CodonMultiMatrix::updateStationary() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
+    double hastings = 0.0;
 
     moveChoice = 1;
     stationaryCount += 1;
-
     this->dirty();
 
-    int i = (int)(rng.uniformRv() * 61);
+    std::vector<int> drawSet(randomStates);
+    std::vector<int> randomIndices;
 
-    double oldVal = currentStationary[i];
+    for(int c = 0; c < 5; c++){
+        int i = (int)(rng.uniformRv() * drawSet.size());
+        randomIndices.push_back(drawSet[i]);
+        drawSet.erase(drawSet.begin() + i);
+    }
 
-    double a = stationaryAlpha + 1.0;
-    double b = (stationaryAlpha / oldVal) - a + 2.0;
-    double newVal = Probability::Beta::rv(&rng, a, b);
+    std::vector<double> x(6, 0.0);
+    std::vector<double> alphaForward(6, 0.0);
+    std::vector<double> alphaReverse(6, 0.0);
+    std::vector<double> z(6, 0.0);
 
-    currentStationary[i] = newVal;
 
-    double scalingFactor = (1.0 - newVal)/(1.0 - oldVal);
+    for(int i = 0; i < 61; i++) {
+        auto it = std::find(randomIndices.begin(), randomIndices.end(), i);
+        if(it != randomIndices.end()) {
+            x[it - randomIndices.begin()] += currentStationary[i];
+        }
+        else {
+            x[5] += currentStationary[i];
+        }
+    }
 
+    for(int i = 0; i < x.size(); i++) {
+        alphaForward[i] = (x[i] * stationaryAlpha) + 0.001;
+    }
+    
+    Probability::Dirichlet::rv(&rng, alphaForward, z);
+
+    for(int i = 0; i < z.size(); i++) {
+        alphaReverse[i] = (z[i] * stationaryAlpha) + 0.001;
+    }
+
+    double factor = z[z.size()-1] / x[x.size()-1];
     double sum = 0.0;
-    double hastings = 0.0;
-    for(int j = 0; j < 61; j++){
-        if(j != i)
-            currentStationary[j] = currentStationary[j] * scalingFactor;
+    for(int i = 0; i < 61; i++) {
+        auto it = std::find(randomIndices.begin(), randomIndices.end(), i);
+        if(it != randomIndices.end()) {
+            currentStationary[i] = z[it - randomIndices.begin()];
+        }
+        else {
+            currentStationary[i] = currentStationary[i] * factor;
+        }
 
-        if(currentStationary[j] < 1e-10)
-            return -1.0 * INFINITY;
-        
-        sum += currentStationary[j];
+        sum += currentStationary[i];
     }
 
-    //Normalize to make sure this doesn't drift from 1.0
-    for (int j = 0; j < 61; j++) {
-        currentStationary[j] = currentStationary[j]/sum;
+    // Try to rescale to avoid things shrinking to zero
+    for(int i = 0; i < 61; i++) {
+        currentStationary[i] = currentStationary[i]/sum;
+
+        if(currentStationary[i] < 1E-25) {
+            return -1 * INFINITY;
+        }
     }
 
-    // The probability of getting our new value
-    double forward = Probability::Beta::lnPdf(a, b, newVal);
-    double newA = stationaryAlpha + 1.0;
-    double newB = (stationaryAlpha / newVal) - a + 2.0;
-    // The probability of getting our old value in the future
-    double backward = Probability::Beta::lnPdf(newA, newB, oldVal);
-    
-    hastings = backward - forward;
-    
-    hastings += 59 * std::log(scalingFactor) - 60 * std::log(sum);
+    hastings  = Probability::Dirichlet::lnPdf(alphaReverse, x) - Probability::Dirichlet::lnPdf(alphaForward, z);
+    hastings += 55 * log(factor);
 
     for(auto coord : valid){
         currentQMatrix(coord.first, coord.second) = currentStationary[coord.second]/2;
@@ -276,11 +300,13 @@ Matrix<double> CodonMultiMatrix::Q(double omega1, double omega2) {
         returnMatrix(i , i) = total * -1;
         scaler += returnMatrix(i, i);
     }
-			
-	scaler = -1.0 / scaler;
-	for (int i = 0; i < 122; i++)
-		for (int j = 0; j < 122; j++)
-			returnMatrix(i, j) *= scaler;
+	
+    if(normalizeMatrix){
+        scaler = -1.0 / scaler;
+        for (int i = 0; i < 122; i++)
+            for (int j = 0; j < 122; j++)
+                returnMatrix(i, j) *= scaler;
+    }
 
     return returnMatrix;
 }
@@ -329,7 +355,7 @@ void CodonMultiMatrix::tune(){
         stationaryAlpha *= (2.0 - stationaryRate/0.33);
     }
 
-    stationaryAlpha = std::fmin(100.0, stationaryAlpha);
+    stationaryAlpha = std::fmin(1000.0, stationaryAlpha);
 
     stationaryAcceptCount = 0;
     stationaryCount = 0;

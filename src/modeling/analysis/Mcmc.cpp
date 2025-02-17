@@ -44,7 +44,8 @@ void Mcmc::burnin(){
             std::cout << "Accept Rates Since Last Tuning Iteration:\t" << 
                          "Tree Rate=" << (double)tree->treeAcceptCount/(double)tree->treeCount << 
                          "\tBranch Rate=" << (double)tree->branchAcceptCount/(double)tree->branchCount <<
-                         "\tStationary Rate=" << (double)codonMatrix->stationaryAcceptCount/(double)codonMatrix->stationaryCount <<
+                         "\tStationary Beta Rate=" << (double)codonMatrix->stationaryBetaAcceptCount/(double)codonMatrix->stationaryBetaCount <<
+                         "\tStationary Dirichlet Rate=" << (double)codonMatrix->stationaryDirichletAcceptCount/(double)codonMatrix->stationaryDirichletCount <<
                          "\tK Rate=" << (double)codonMatrix->kAcceptCount/(double)codonMatrix->kCount <<
                          "\tR Rate=" << (double)codonMatrix->rAcceptCount/(double)codonMatrix->rCount <<
                          "\tOmega Rate=" << (double)dpp->omegaAcceptCount/(double)dpp->omegaCount << std::endl;

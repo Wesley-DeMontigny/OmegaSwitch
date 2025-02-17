@@ -31,8 +31,10 @@ class CodonMultiMatrix : public Parameter {
         int kAcceptCount;
         int rCount;
         int rAcceptCount;
-        int stationaryCount;
-        int stationaryAcceptCount;
+        int stationaryDirichletCount;
+        int stationaryDirichletAcceptCount;
+        int stationaryBetaCount;
+        int stationaryBetaAcceptCount;
     private:
         Matrix<double> currentQMatrix;
         Matrix<double> oldQMatrix;
@@ -40,11 +42,12 @@ class CodonMultiMatrix : public Parameter {
         int moveChoice;
         double kDelta;
         double rDelta;
-        double stationaryAlpha;
+        double stationaryDirichletAlpha;
+        double stationaryBetaAlpha;
 
         std::vector<int> randomStates;
 
-        bool normalizeMatrix;
+        double molecularClock;
 
         double kLambda;
         double currentK;

@@ -13,7 +13,9 @@ struct Settings {
     std::string     tipsOutput;
 
     std::string     fixedTree;
-    bool            normalizeRates;
+    double          molecularClock;
+    double          treeLength;
+    std::vector<double> dateVec;
     int             numIterations;
     int             printFrequency;
     int             sampleFrequency;

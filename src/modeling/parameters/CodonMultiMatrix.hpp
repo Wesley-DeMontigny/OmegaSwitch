@@ -47,8 +47,6 @@ class CodonMultiMatrix : public Parameter {
 
         std::vector<int> randomStates;
 
-        double molecularClock;
-
         double kLambda;
         double currentK;
         double oldK;

@@ -275,6 +275,10 @@ std::vector<double> TreeObject::getBranchLengths(){
     return returnVec;
 }
 
+std::map<Node*, double> TreeObject::getBranchLengthMapping(){
+    return branchLengths;
+}
+
 std::string TreeObject::getNewick() const{
     std::stringstream strm;
     writeNode(root, strm);

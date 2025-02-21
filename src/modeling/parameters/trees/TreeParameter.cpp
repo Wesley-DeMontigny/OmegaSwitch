@@ -8,7 +8,7 @@
 
 TreeParameter::TreeParameter(Alignment* aln, std::string newick, double l) : lambda(l), currentPrior(0.0), oldPrior(0.0), 
                                                          branchDelta(0.5), moveChoice(-1), branchCount(0), branchAcceptCount(0), 
-                                                         treeCount(0), treeAcceptCount(0), treeDelta(0.5) {
+                                                         treeCount(0), treeAcceptCount(0), treeAlpha(10000) {
     fixedTree = newick != "";
     if(!fixedTree)
         trees[0] = new TreeObject(aln);
@@ -71,7 +71,7 @@ double TreeParameter::update() {
 
     double hastings = 0.0;
     
-    if(randomMove < 0.9){
+    if(randomMove < 0.5){
         if(!fixedTree){
             moveChoice = 0;
             branchCount += 1;
@@ -239,20 +239,40 @@ double TreeParameter::update() {
     else {
         moveChoice = 1;
         treeCount += 1;
-        std::vector<Node*> nodes = trees[0]->getPostOrderSeq();
+        std::map<Node*, double> branchMapping = trees[0]->getBranchLengthMapping();
         trees[0]->updateAll();
         this->dirty();
-        
-        Node* root = trees[0]->getRoot();
-        double scale = std::exp(treeDelta * (rng.uniformRv() - 0.5));
 
-        for(Node* n : trees[0]->getPostOrderSeq()){
-            if(n != root){
-                trees[0]->setBranchLength(n, trees[0]->getBranchLength(n) * scale);
-            }
+        std::vector<double> values;
+        std::vector<Node*> nodeIndices;
+        double totalLength = 0.0;
+        for(auto mapping : branchMapping){
+            double l = mapping.second;
+            nodeIndices.push_back(mapping.first);
+            values.push_back(l);
+            totalLength += l;
         }
 
-        hastings = (trees[0]->getNumNodes()-1) * std::log(scale);
+        std::vector<double> alphaForward(values.size(), 0.0);
+        std::vector<double> alphaReverse(values.size(), 0.0);
+        std::vector<double> z(values.size(), 0.0);
+
+        for(int i = 0; i < values.size(); i++) {
+            values[i] /= totalLength;
+            alphaForward[i] = values[i] * treeAlpha;
+        }
+        
+        Probability::Dirichlet::rv(&rng, alphaForward, z);
+
+        for(int i = 0; i < z.size(); i++) {
+            alphaReverse[i] = z[i] * treeAlpha;
+        }
+        
+        hastings  = Probability::Dirichlet::lnPdf(alphaReverse, values) - Probability::Dirichlet::lnPdf(alphaForward, z);
+
+        for(int i = 0; i < values.size(); i++){
+            trees[0]->setBranchLength(nodeIndices[i], z[i] * totalLength);
+        }
     }
 
     std::vector<double> values = trees[0]->getBranchLengths();
@@ -280,10 +300,10 @@ void TreeParameter::tune() {
     double rate2 = (double)treeAcceptCount/(double)treeCount;
 
     if ( rate2 > 0.33 ) {
-        treeDelta *= (1.0 + ((rate2-0.33)/0.67));
+        treeAlpha /= (1.0 + ((rate2-0.33)/0.67));
     }
     else {
-        treeDelta /= (2.0 - rate2/0.33);
+        treeAlpha *= (2.0 - rate2/0.33);
     }
     treeAcceptCount = 0;
     treeCount = 0;

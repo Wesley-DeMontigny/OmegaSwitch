@@ -11,7 +11,7 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                                               rWeight(4.0), kWeight(4.0), stationaryWeight(6.0),
                                               omegaWeight(6.0), dppWeight(2.0), treeWeight(10.0),
                                               treeLengthLambda(1.0), simulate(false), fixedTree(""), numTaxa(-1),
-                                              numChar(-1), kValue(-1.0), rValue(-1.0), molecularClock(-1) {
+                                              numChar(-1), kValue(-1.0), rValue(-1.0) {
 
     std::vector<std::string> settings;
     for (int i=1; i<argc; i++) {
@@ -91,23 +91,6 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                 simulate = stoi(settings[i]) == 1;
             else if (currentArg == "-fixedTree")
                 fixedTree = settings[i];
-            else if (currentArg == "-molecularClock")
-                molecularClock = stod(settings[i]);
-            else if (currentArg == "-fixTreeLength")
-                treeLength = stod(settings[i]);
-            else if (currentArg == "-dateVec"){
-                std::string currentString = "";
-                for(int c = 0; c < settings[i].size(); c++){
-                    if(settings[i][c] == ','){
-                        dateVec.push_back(stod(currentString));
-                        currentString = "";
-                    }
-                    else{
-                        currentString += settings[i][c];
-                    }
-                }
-                dateVec.push_back(stod(currentString));
-            }
             else if (currentArg == "-numTaxa")
                 numTaxa = stoi(settings[i]);
             else if (currentArg == "-numChar")

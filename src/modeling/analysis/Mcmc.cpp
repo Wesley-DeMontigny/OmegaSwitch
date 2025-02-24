@@ -41,15 +41,16 @@ void Mcmc::burnin(){
     for(int n = 1; n <= numBurnIn; n++){
         if(n % printFreq == 0){
             std::cout << "Burn-in Iteration " << n << ": " << currentLnPosterior << std::endl;
-            std::cout << "Accept Rates Since Last Tuning Iteration:\t" << 
-                         "Tree Rate=" << (double)tree->treeAcceptCount/(double)tree->treeCount << 
+            std::cout << "Accept Rates Since Last Tuning Iteration:" << 
+                         "\tTree Rate=" << (double)tree->treeAcceptCount/(double)tree->treeCount << 
                          "\tBranch Rate=" << (double)tree->branchAcceptCount/(double)tree->branchCount <<
                          "\tStationary Beta Rate=" << (double)codonMatrix->stationaryBetaAcceptCount/(double)codonMatrix->stationaryBetaCount <<
                          "\tStationary Dirichlet Rate=" << (double)codonMatrix->stationaryDirichletAcceptCount/(double)codonMatrix->stationaryDirichletCount <<
                          "\tK Rate=" << (double)codonMatrix->kAcceptCount/(double)codonMatrix->kCount <<
                          "\tR Rate=" << (double)codonMatrix->rAcceptCount/(double)codonMatrix->rCount <<
                          "\tOmega1 Rate=" << (double)dpp->omega1AcceptCount/(double)dpp->omega1Count <<
-                         "\tOmega2 Rate=" << (double)dpp->omega2AcceptCount/(double)dpp->omega2Count << std::endl;
+                         "\tOmega2 Rate=" << (double)dpp->omega2AcceptCount/(double)dpp->omega2Count << 
+                         "\tOmega Exchange Rate=" << (double)dpp->omegaExchangeAcceptCount/(double)dpp->omegaExchangeCount << std::endl;
         }
         if(n % tuneFreq == 0){
             model->tuneMoves();

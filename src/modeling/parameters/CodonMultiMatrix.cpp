@@ -104,21 +104,19 @@ void CodonMultiMatrix::accept() {
 
     oldStationary = currentStationary;
 
-    if(moveChoice != -1){
-        if(moveChoice == 0){
-            kAcceptCount += 1;
-        }
-        else if(moveChoice == 1){
-            stationaryDirichletAcceptCount += 1;
-        }
-        else if(moveChoice == 2){
-            rAcceptCount += 1;
-        }
-        else if(moveChoice == 3){
-            stationaryBetaAcceptCount += 1;
-        }
-        moveChoice = -1;
+    if(moveChoice == 0){
+        kAcceptCount += 1;
     }
+    else if(moveChoice == 1){
+        stationaryDirichletAcceptCount += 1;
+    }
+    else if(moveChoice == 2){
+        rAcceptCount += 1;
+    }
+    else if(moveChoice == 3){
+        stationaryBetaAcceptCount += 1;
+    }
+    moveChoice = -1;
 }
 
 void CodonMultiMatrix::reject() {

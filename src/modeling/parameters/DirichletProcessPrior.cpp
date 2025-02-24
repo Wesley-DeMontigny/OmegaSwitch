@@ -14,8 +14,9 @@
 DirichletProcessPrior::DirichletProcessPrior(int size, Settings s) : 
                                              alpha(s.dppAlpha), omegaLambda(s.omegaLambda),
                                              numMembers(size), currentLnPrior(0.0), numGibbsUpdate(s.numGibbsUpdate), 
-                                             model(nullptr), omega1Delta(0.5), omega2Delta(0.5), assignments(size, -1), 
-                                             omega1AcceptCount(0), omega2AcceptCount(0), omega1Count(0), omega2Count(0), 
+                                             model(nullptr), omega1Delta(0.5), omega2Delta(0.5), omegaAlpha(100), 
+                                             assignments(size, -1), omegaExchangeAcceptCount(0), omega1AcceptCount(0), 
+                                             omega2AcceptCount(0), omega1Count(0), omega2Count(0), omegaExchangeCount(0),
                                              moveChoice(-1), executor(10) {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
@@ -118,6 +119,9 @@ void DirichletProcessPrior::accept() {
     else if(moveChoice == 1){
         omega2AcceptCount += 1;
     }
+    else if(moveChoice == 2) {
+        omegaExchangeAcceptCount += 1;
+    }
 
     moveChoice = -1;
 
@@ -144,28 +148,55 @@ double DirichletProcessPrior::updateOmega() {
     double hastings = 0.0;
 
     int randomCategory = (int)(rng.uniformRv() * currentCategories.size());
-    int randomOmega = (int)(rng.uniformRv() * 2);
-    currentCategories[randomCategory].dirty = true;
+    double randomMove = rng.uniformRv();
 
-    if(randomOmega == 0){
-        moveChoice = 0;
-        omega1Count += 1;
-        double currentV1 = currentCategories[randomCategory].omega1;
-        double scale1 = std::exp(omega1Delta * (rng.uniformRv() - 0.5));
-        double newV1 = currentV1 * scale1;
+    if(randomMove < 0.5){
+        int randomOmega = (int)(rng.uniformRv() * 2);
+        currentCategories[randomCategory].dirty = true;
 
-        currentCategories[randomCategory].omega1 = newV1;
-        hastings = std::log(scale1);
+        if(randomOmega == 0){
+            moveChoice = 0;
+            omega1Count += 1;
+            double currentV1 = currentCategories[randomCategory].omega1;
+            double scale1 = std::exp(omega1Delta * (rng.uniformRv() - 0.5));
+            double newV1 = currentV1 * scale1;
+
+            currentCategories[randomCategory].omega1 = newV1;
+            hastings = std::log(scale1);
+        }
+        else {
+            moveChoice = 1;
+            omega2Count += 1;
+            double currentV2 = currentCategories[randomCategory].omega2;
+            double scale2 = std::exp(omega2Delta * (rng.uniformRv() - 0.5));
+            double newV2 = currentV2 * scale2;
+
+            currentCategories[randomCategory].omega2 = newV2;
+            hastings = std::log(scale2);
+        }
     }
     else {
-        moveChoice = 1;
-        omega2Count += 1;
-        double currentV2 = currentCategories[randomCategory].omega2;
-        double scale2 = std::exp(omega2Delta * (rng.uniformRv() - 0.5));
-        double newV2 = currentV2 * scale2;
+        moveChoice = 2;
+        omegaExchangeCount += 1;
 
-        currentCategories[randomCategory].omega2 = newV2;
-        hastings = std::log(scale2);
+        double total = currentCategories[randomCategory].omega1 + currentCategories[randomCategory].omega2;
+
+        double oldVal = currentCategories[randomCategory].omega1/total;
+    
+        double a = omegaAlpha + 1.0;
+        double b = (omegaAlpha / oldVal) - a + 2.0;
+        double newVal = Probability::Beta::rv(&rng, a, b);
+
+        currentCategories[randomCategory].omega1 = newVal * total;
+        currentCategories[randomCategory].omega2 = (1-newVal) * total;
+    
+        double forward = Probability::Beta::lnPdf(a, b, newVal);
+        double newA = omegaAlpha + 1.0;
+        double newB = (omegaAlpha / newVal) - a + 2.0;
+
+        double backward = Probability::Beta::lnPdf(newA, newB, oldVal);
+        
+        hastings = backward - forward;
     }
 
     regeneratePrior();
@@ -300,4 +331,16 @@ void DirichletProcessPrior::tune() {
     
     omega2AcceptCount = 0;
     omega2Count = 0;
+
+    double omegaExchangeRate = (double)omegaExchangeAcceptCount/(double)omegaExchangeCount;
+
+    if ( omegaExchangeRate > 0.33 ) {
+        omegaAlpha /= (1.0 + ((omegaExchangeRate-0.33)/0.67));
+    }
+    else {
+        omegaAlpha *= (2.0 - omegaExchangeRate/0.33);
+    }
+    
+    omegaExchangeAcceptCount = 0;
+    omegaExchangeCount = 0;
 }

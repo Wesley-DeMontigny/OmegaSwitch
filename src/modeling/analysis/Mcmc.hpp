@@ -23,7 +23,8 @@ class Mcmc{
         int printFreq;
         int tuneFreq;
         int sampleFreq;
-        int metropolisUpdates;
+        int generalUpdates;
+        int stationaryUpdates;
 
         double treeChoice;
         double stationaryChoice;

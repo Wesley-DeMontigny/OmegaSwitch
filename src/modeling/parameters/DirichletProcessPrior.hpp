@@ -47,8 +47,10 @@ class DirichletProcessPrior : public Parameter {
 
         int getNumCategories(){return currentCategories.size();}
 
-        int omegaAcceptCount;
-        int omegaCount;
+        int omega1AcceptCount;
+        int omega1Count;
+        int omega2AcceptCount;
+        int omega2Count;
     protected:
         void regeneratePrior();
         Model* model;
@@ -57,7 +59,8 @@ class DirichletProcessPrior : public Parameter {
         double alpha;
         double omegaLambda;
 
-        double omegaDelta;
+        double omega1Delta;
+        double omega2Delta;
 
         int numMembers;
         int numGibbsUpdate;

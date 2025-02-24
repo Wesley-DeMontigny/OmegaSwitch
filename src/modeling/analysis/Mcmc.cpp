@@ -11,7 +11,7 @@
 #include <fstream>
 
 Mcmc::Mcmc(Model* m, TreeParameter* t, CodonMultiMatrix* cmm, DirichletProcessPrior* d, Settings& s) : 
-    model(m), dpp(d), codonMatrix(cmm), tree(t), metropolisUpdates(5) { 
+    model(m), dpp(d), codonMatrix(cmm), tree(t), generalUpdates(5), stationaryUpdates(20) { 
     numIter = s.numIterations;
     numBurnIn = s.burnInIterations;
     printFreq = s.printFrequency;
@@ -24,9 +24,9 @@ Mcmc::Mcmc(Model* m, TreeParameter* t, CodonMultiMatrix* cmm, DirichletProcessPr
 
     kChoice = s.kWeight;
     rChoice = s.rWeight + kChoice;
-    omegaChoice = s.omegaWeight + rChoice;
-    treeChoice = s.treeWeight + omegaChoice;
-    stationaryChoice = s.stationaryWeight + treeChoice;
+    treeChoice = s.treeWeight + rChoice;
+    omegaChoice = s.omegaWeight + treeChoice;
+    stationaryChoice = s.stationaryWeight + omegaChoice;
     dppChoice = s.dppWeight + stationaryChoice;
 
     model->regenerateLikelihood();
@@ -48,7 +48,8 @@ void Mcmc::burnin(){
                          "\tStationary Dirichlet Rate=" << (double)codonMatrix->stationaryDirichletAcceptCount/(double)codonMatrix->stationaryDirichletCount <<
                          "\tK Rate=" << (double)codonMatrix->kAcceptCount/(double)codonMatrix->kCount <<
                          "\tR Rate=" << (double)codonMatrix->rAcceptCount/(double)codonMatrix->rCount <<
-                         "\tOmega Rate=" << (double)dpp->omegaAcceptCount/(double)dpp->omegaCount << std::endl;
+                         "\tOmega1 Rate=" << (double)dpp->omega1AcceptCount/(double)dpp->omega1Count <<
+                         "\tOmega2 Rate=" << (double)dpp->omega2AcceptCount/(double)dpp->omega2Count << std::endl;
         }
         if(n % tuneFreq == 0){
             model->tuneMoves();
@@ -56,7 +57,7 @@ void Mcmc::burnin(){
 
         double randomMove = rng.uniformRv() * dppChoice;
 
-        if(randomMove < stationaryChoice){
+        if(randomMove < treeChoice){
             std::function<double()> updater;
 
             if(randomMove < kChoice){
@@ -65,19 +66,51 @@ void Mcmc::burnin(){
             else if(randomMove < rChoice){
                 updater = [this]() { return codonMatrix->updateR(); };
             }
-            else if(randomMove < omegaChoice){
-                updater = [this]() { return dpp->updateOmega(); };
-            }
-            else if(randomMove < treeChoice){
+            else {
                 updater = [this]() { return tree->update(); };
-            }
-            else if(randomMove < stationaryChoice){
-                updater = [this]() { return codonMatrix->updateStationary(); };
             }
             
 
-            for(int i = 0; i < metropolisUpdates; i++){
+            for(int i = 0; i < generalUpdates; i++){
                 double lnProposalRatio = updater();
+                model->regenerateLikelihood();
+
+                double newLnPosterior = model->lnLikelihood() + model->lnPrior();
+
+                double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
+                double lnR = lnProposalRatio + lnPosteriorRatio;
+
+                if(std::log(rng.uniformRv()) < lnR){
+                    model->accept();
+                    currentLnPosterior = newLnPosterior;
+                }
+                else{
+                    model->reject();
+                }
+            }
+        }
+        else if(randomMove < omegaChoice){
+            for(int i = 0; i < dpp->getNumCategories(); i++){
+                double lnProposalRatio = dpp->updateOmega();
+                model->regenerateLikelihood();
+
+                double newLnPosterior = model->lnLikelihood() + model->lnPrior();
+
+                double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
+                double lnR = lnProposalRatio + lnPosteriorRatio;
+
+                if(std::log(rng.uniformRv()) < lnR){
+                    model->accept();
+                    currentLnPosterior = newLnPosterior;
+                }
+                else{
+                    model->reject();
+                }
+            }
+        }
+        else if(randomMove < stationaryChoice){
+            for(int i = 0; i < stationaryUpdates; i++){
+                double lnProposalRatio = codonMatrix->updateStationary();
                 model->regenerateLikelihood();
 
                 double newLnPosterior = model->lnLikelihood() + model->lnPrior();
@@ -157,27 +190,60 @@ void Mcmc::run(){
 
         double randomMove = rng.uniformRv() * dppChoice;
 
-        if(randomMove < stationaryChoice){
+        if(randomMove < treeChoice){
             std::function<double()> updater;
+
             if(randomMove < kChoice){
                 updater = [this]() { return codonMatrix->updateK(); };
             }
             else if(randomMove < rChoice){
                 updater = [this]() { return codonMatrix->updateR(); };
             }
-            else if(randomMove < omegaChoice){
-                updater = [this]() { return dpp->updateOmega(); };
-            }
-            else if(randomMove < treeChoice){
+            else {
                 updater = [this]() { return tree->update(); };
-            }
-            else if(randomMove < stationaryChoice){
-                updater = [this]() { return codonMatrix->updateStationary(); };
             }
             
 
-            for(int i = 0; i < metropolisUpdates; i++){
+            for(int i = 0; i < generalUpdates; i++){
                 double lnProposalRatio = updater();
+                model->regenerateLikelihood();
+
+                double newLnPosterior = model->lnLikelihood() + model->lnPrior();
+
+                double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
+                double lnR = lnProposalRatio + lnPosteriorRatio;
+
+                if(std::log(rng.uniformRv()) < lnR){
+                    model->accept();
+                    currentLnPosterior = newLnPosterior;
+                }
+                else{
+                    model->reject();
+                }
+            }
+        }
+        else if(randomMove < omegaChoice){
+            for(int i = 0; i < dpp->getNumCategories()*2; i++){
+                double lnProposalRatio = dpp->updateOmega();
+                model->regenerateLikelihood();
+
+                double newLnPosterior = model->lnLikelihood() + model->lnPrior();
+
+                double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
+                double lnR = lnProposalRatio + lnPosteriorRatio;
+
+                if(std::log(rng.uniformRv()) < lnR){
+                    model->accept();
+                    currentLnPosterior = newLnPosterior;
+                }
+                else{
+                    model->reject();
+                }
+            }
+        }
+        else if(randomMove < stationaryChoice){
+            for(int i = 0; i < stationaryUpdates; i++){
+                double lnProposalRatio = codonMatrix->updateStationary();
                 model->regenerateLikelihood();
 
                 double newLnPosterior = model->lnLikelihood() + model->lnPrior();

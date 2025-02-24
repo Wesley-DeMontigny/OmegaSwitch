@@ -14,8 +14,9 @@
 DirichletProcessPrior::DirichletProcessPrior(int size, Settings s) : 
                                              alpha(s.dppAlpha), omegaLambda(s.omegaLambda),
                                              numMembers(size), currentLnPrior(0.0), numGibbsUpdate(s.numGibbsUpdate), 
-                                             model(nullptr), omegaDelta(0.5), assignments(size, -1), omegaAcceptCount(0),
-                                             omegaCount(0), moveChoice(-1), executor(10) {
+                                             model(nullptr), omega1Delta(0.5), omega2Delta(0.5), assignments(size, -1), 
+                                             omega1AcceptCount(0), omega2AcceptCount(0), omega1Count(0), omega2Count(0), 
+                                             moveChoice(-1), executor(10) {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
@@ -112,7 +113,10 @@ void DirichletProcessPrior::assignMember(int member, int category){
 
 void DirichletProcessPrior::accept() {
     if(moveChoice == 0){
-        omegaAcceptCount += 1;
+        omega1AcceptCount += 1;
+    }
+    else if(moveChoice == 1){
+        omega2AcceptCount += 1;
     }
 
     moveChoice = -1;
@@ -138,26 +142,31 @@ double DirichletProcessPrior::updateOmega() {
 
     this->dirty();
     double hastings = 0.0;
-    
-    moveChoice = 0;
-    omegaCount += 1;
 
     int randomCategory = (int)(rng.uniformRv() * currentCategories.size());
+    int randomOmega = (int)(rng.uniformRv() * 2);
     currentCategories[randomCategory].dirty = true;
 
-    double currentV1 = currentCategories[randomCategory].omega1;
-    double scale1 = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
-    double newV1 = currentV1 * scale1;
+    if(randomOmega == 0){
+        moveChoice = 0;
+        omega1Count += 1;
+        double currentV1 = currentCategories[randomCategory].omega1;
+        double scale1 = std::exp(omega1Delta * (rng.uniformRv() - 0.5));
+        double newV1 = currentV1 * scale1;
 
-    currentCategories[randomCategory].omega1 = newV1;
-    hastings = std::log(scale1);
+        currentCategories[randomCategory].omega1 = newV1;
+        hastings = std::log(scale1);
+    }
+    else {
+        moveChoice = 1;
+        omega2Count += 1;
+        double currentV2 = currentCategories[randomCategory].omega2;
+        double scale2 = std::exp(omega2Delta * (rng.uniformRv() - 0.5));
+        double newV2 = currentV2 * scale2;
 
-    double currentV2 = currentCategories[randomCategory].omega2;
-    double scale2 = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
-    double newV2 = currentV2 * scale2;
-
-    currentCategories[randomCategory].omega2 = newV2;
-    hastings += std::log(scale2);
+        currentCategories[randomCategory].omega2 = newV2;
+        hastings = std::log(scale2);
+    }
 
     regeneratePrior();
 
@@ -268,15 +277,27 @@ double DirichletProcessPrior::updateDPP(){
 }
 
 void DirichletProcessPrior::tune() {
-    double omegaRate = (double)omegaAcceptCount/(double)omegaCount;
+    double omega1Rate = (double)omega1AcceptCount/(double)omega1Count;
 
-    if ( omegaRate > 0.33 ) {
-        omegaDelta *= (1.0 + ((omegaRate-0.33)/0.67));
+    if ( omega1Rate > 0.33 ) {
+        omega1Delta *= (1.0 + ((omega1Rate-0.33)/0.67));
     }
     else {
-        omegaDelta /= (2.0 - omegaRate/0.33);
+        omega1Delta /= (2.0 - omega1Rate/0.33);
     }
     
-    omegaAcceptCount = 0;
-    omegaCount = 0;
+    omega2AcceptCount = 0;
+    omega2Count = 0;
+
+    double omega2Rate = (double)omega2AcceptCount/(double)omega2Count;
+
+    if ( omega2Rate > 0.33 ) {
+        omega2Delta *= (1.0 + ((omega2Rate-0.33)/0.67));
+    }
+    else {
+        omega2Delta /= (2.0 - omega2Rate/0.33);
+    }
+    
+    omega2AcceptCount = 0;
+    omega2Count = 0;
 }

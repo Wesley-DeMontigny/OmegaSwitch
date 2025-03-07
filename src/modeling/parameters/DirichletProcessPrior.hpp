@@ -47,12 +47,8 @@ class DirichletProcessPrior : public Parameter {
 
         int getNumCategories(){return currentCategories.size();}
 
-        int omega1AcceptCount;
-        int omega1Count;
-        int omega2AcceptCount;
-        int omega2Count;
-        int omegaExchangeAcceptCount;
-        int omegaExchangeCount;
+        int omegaAcceptCount;
+        int omegaCount;
     protected:
         void regeneratePrior();
         Model* model;
@@ -61,12 +57,9 @@ class DirichletProcessPrior : public Parameter {
         double alpha;
         double omegaLambda;
 
-        double omega1Delta;
-        double omega2Delta;
-        double omegaAlpha;
+        double omegaDelta;
 
         int numMembers;
-        int numGibbsUpdate;
         std::vector<Category> currentCategories;
         std::vector<Category> oldCategories;
         std::vector<int> assignments;

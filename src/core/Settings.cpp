@@ -6,12 +6,11 @@
 
 Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dppOutput(""), mcmcOutput(""), tipsOutput(""),
                                               numIterations(30000), printFrequency(10), sampleFrequency(100),
-                                              burnInIterations(5000), tuneFrequency(250), rLambda(5.0),
-                                              kLambda(5.0), omegaLambda(5.0), dppAlpha(1.0), numGibbsUpdate(20), 
-                                              rWeight(4.0), kWeight(4.0), stationaryWeight(6.0),
-                                              omegaWeight(6.0), dppWeight(2.0), treeWeight(10.0),
-                                              treeLengthLambda(1.0), simulate(false), fixedTree(""), numTaxa(-1),
-                                              numChar(-1), kValue(-1.0), rValue(-1.0) {
+                                              burnInIterations(5000), tuneFrequency(250), rLambda(1.0),
+                                              kLambda(1.0), omegaLambda(1.0), dppAlpha(1.0),
+                                              rWeight(4.0), kWeight(4.0), stationaryWeight(5.0),
+                                              dppWeight(1.0), treeWeight(6.0), treeLengthLambda(1.0), simulate(false), 
+                                              fixedTree(""), numTaxa(-1), numChar(-1), kValue(-1.0), rValue(-1.0) {
 
     std::vector<std::string> settings;
     for (int i=1; i<argc; i++) {
@@ -79,14 +78,10 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                 kWeight = stod(settings[i]);
             else if (currentArg == "-rWeight")
                 rWeight = stod(settings[i]);
-            else if (currentArg == "-omegaWeight")
-                omegaWeight = stod(settings[i]);
             else if (currentArg == "-stationaryWeight")
                 stationaryWeight = stod(settings[i]);
             else if (currentArg == "-treeWeight")
                 treeWeight = stod(settings[i]);
-            else if (currentArg == "-numGibbsUpdate")
-                numGibbsUpdate = stoi(settings[i]);
             else if (currentArg == "-simulate")
                 simulate = stoi(settings[i]) == 1;
             else if (currentArg == "-fixedTree")
@@ -189,11 +184,9 @@ void Settings::print(){
     std::cout << "   * -sampleFreq        : " << sampleFrequency << std::endl;
     std::cout << "   * -burnInIter        : " << burnInIterations << std::endl;
     std::cout << "   * -tuneFreq          : " << tuneFrequency << std::endl;
-    std::cout << "   * -numGibbsUpdate    : " << numGibbsUpdate << std::endl;
     std::cout << "   * -treeWeight        : " << treeWeight << std::endl;
     std::cout << "   * -kWeight           : " << kWeight << std::endl;
     std::cout << "   * -rWeight           : " << rWeight << std::endl;
-    std::cout << "   * -omegaWeight       : " << omegaWeight << std::endl;
     std::cout << "   * -stationaryWeight  : " << stationaryWeight << std::endl;
     std::cout << "   * -dppWeight         : " << dppWeight << std::endl;
     std::cout << std::endl;
@@ -243,11 +236,9 @@ void Settings::usage(void) {
     std::cout << "   * -sampleFreq        : How often to ouput the MCMC state to log files." << std::endl;
     std::cout << "   * -burnInIter        : The number of iterations for the burn-in." << std::endl;
     std::cout << "   * -tuneFreq          : How often to tune the MCMC moves during the burn-in." << std::endl;
-    std::cout << "   * -numGibbsUpdate    : How many sites to use during the Gibbs sampling of the DPP." << std::endl;
     std::cout << "   * -treeWeight        : How often to propose a move on the tree." << std::endl;
     std::cout << "   * -kWeight           : How often to propose a move on the K parameter." << std::endl;
     std::cout << "   * -rWeight           : How often to propose a move on the R parameter." << std::endl;
-    std::cout << "   * -omegaWeight       : How often to propose a move on the omega parameters." << std::endl;
     std::cout << "   * -stationaryWeight  : How often to propose a move on the stationary distribution." << std::endl;
     std::cout << "   * -dppWeight         : How often to propose a move on the DPP partitions." << std::endl;
     std::cout << std::endl;

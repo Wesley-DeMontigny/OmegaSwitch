@@ -20,7 +20,7 @@
 
 Model::Model(Settings s, Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProcessPrior* d) : 
             aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0),
-            dpp(d), numChar(0), numGibbsUpdate(s.numGibbsUpdate), executor(10) {
+            dpp(d), numChar(0), executor(10) {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
@@ -131,7 +131,7 @@ void Model::regenerateLikelihood(){
         transProb->allocateQ(numCats);
         for(int i = 0; i < numCats; i++){
             double omega1 = categories[i].omega1;
-            double omega2 = omega1 + categories[i].omega2;
+            double omega2 = categories[i].omega2;
             rateTaskflow.emplace([this, omega1, omega2, i](){
                 transProb->updateQ(rateMatrix->Q(omega1, omega2), i);
             });
@@ -145,7 +145,7 @@ void Model::regenerateLikelihood(){
         for(int i = 0; i < numCats; i++){
             if(categories[i].dirty){
                 double omega1 = categories[i].omega1;
-                double omega2 = omega1 + categories[i].omega2;
+                double omega2 = categories[i].omega2;
                 transProb->updateQ(rateMatrix->Q(omega1, omega2), i);
             }
         }
@@ -258,7 +258,7 @@ void Model::regenerateTransitionProbs(int site, int category){
     std::vector<Category> categories = dpp->getCategories();
 
     double omega1 = categories[category].omega1;
-    double omega2 = omega1 + categories[category].omega2;
+    double omega2 = categories[category].omega2;
     
     transProb->updateQ(rateMatrix->Q(omega1, omega2), category);
 
@@ -281,7 +281,7 @@ double Model::testCategory(int site, int category, bool update){
 
     if(update) {
         double omega1 = categories[category].omega1;
-        double omega2 = omega1 + categories[category].omega2;
+        double omega2 = categories[category].omega2;
         transProb->updateQ(rateMatrix->Q(omega1, omega2), category);
     }
 
@@ -505,7 +505,7 @@ std::string Model::tipsOut(int i){
                             *omegaP += categories[assignments[c]].omega1;
                         }
                         else{
-                            *omegaP += categories[assignments[c]].omega1 + categories[assignments[c]].omega2;
+                            *omegaP += categories[assignments[c]].omega2;
                         }
                         success = true;
                         break;
@@ -554,7 +554,7 @@ std::string Model::tipsOut(int i){
                                     *omegaP += categories[assignments[c]].omega1;
                                 }
                                 else{
-                                    *omegaP += categories[assignments[c]].omega1 + categories[assignments[c]].omega2;
+                                    *omegaP += categories[assignments[c]].omega2;
                                 }
                                 success = true;
                                 break;

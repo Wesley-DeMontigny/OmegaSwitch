@@ -13,11 +13,9 @@
 
 DirichletProcessPrior::DirichletProcessPrior(int size, Settings s) : 
                                              alpha(s.dppAlpha), omegaLambda(s.omegaLambda),
-                                             numMembers(size), currentLnPrior(0.0), numGibbsUpdate(s.numGibbsUpdate), 
-                                             model(nullptr), omega1Delta(0.5), omega2Delta(0.5), omegaAlpha(100), 
-                                             assignments(size, -1), omegaExchangeAcceptCount(0), omega1AcceptCount(0), 
-                                             omega2AcceptCount(0), omega1Count(0), omega2Count(0), omegaExchangeCount(0),
-                                             moveChoice(-1), executor(10) {
+                                             numMembers(size), currentLnPrior(0.0),
+                                             model(nullptr), omegaDelta(0.5), assignments(size, -1),
+                                             omegaAcceptCount(0), omegaCount(0), moveChoice(-1), executor(10) {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
@@ -114,13 +112,7 @@ void DirichletProcessPrior::assignMember(int member, int category){
 
 void DirichletProcessPrior::accept() {
     if(moveChoice == 0){
-        omega1AcceptCount += 1;
-    }
-    else if(moveChoice == 1){
-        omega2AcceptCount += 1;
-    }
-    else if(moveChoice == 2) {
-        omegaExchangeAcceptCount += 1;
+        omegaAcceptCount += 1;
     }
 
     moveChoice = -1;
@@ -148,55 +140,29 @@ double DirichletProcessPrior::updateOmega() {
     double hastings = 0.0;
 
     int randomCategory = (int)(rng.uniformRv() * currentCategories.size());
+    currentCategories[randomCategory].dirty = true;
     double randomMove = rng.uniformRv();
 
-    if(randomMove < 0.5){
-        int randomOmega = (int)(rng.uniformRv() * 2);
-        currentCategories[randomCategory].dirty = true;
+    int randomOmega = (int)(rng.uniformRv() * 2);
 
-        if(randomOmega == 0){
-            moveChoice = 0;
-            omega1Count += 1;
-            double currentV1 = currentCategories[randomCategory].omega1;
-            double scale1 = std::exp(omega1Delta * (rng.uniformRv() - 0.5));
-            double newV1 = currentV1 * scale1;
+    moveChoice = 0;
+    omegaCount += 1;
 
-            currentCategories[randomCategory].omega1 = newV1;
-            hastings = std::log(scale1);
-        }
-        else {
-            moveChoice = 1;
-            omega2Count += 1;
-            double currentV2 = currentCategories[randomCategory].omega2;
-            double scale2 = std::exp(omega2Delta * (rng.uniformRv() - 0.5));
-            double newV2 = currentV2 * scale2;
+    if(randomOmega == 0){
+        double currentV1 = currentCategories[randomCategory].omega1;
+        double scale1 = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
+        double newV1 = currentV1 * scale1;
 
-            currentCategories[randomCategory].omega2 = newV2;
-            hastings = std::log(scale2);
-        }
+        currentCategories[randomCategory].omega1 = newV1;
+        hastings = std::log(scale1);
     }
     else {
-        moveChoice = 2;
-        omegaExchangeCount += 1;
+        double currentV2 = currentCategories[randomCategory].omega2;
+        double scale2 = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
+        double newV2 = currentV2 * scale2;
 
-        double total = currentCategories[randomCategory].omega1 + currentCategories[randomCategory].omega2;
-
-        double oldVal = currentCategories[randomCategory].omega1/total;
-    
-        double a = omegaAlpha + 1.0;
-        double b = (omegaAlpha / oldVal) - a + 2.0;
-        double newVal = Probability::Beta::rv(&rng, a, b);
-
-        currentCategories[randomCategory].omega1 = newVal * total;
-        currentCategories[randomCategory].omega2 = (1-newVal) * total;
-    
-        double forward = Probability::Beta::lnPdf(a, b, newVal);
-        double newA = omegaAlpha + 1.0;
-        double newB = (omegaAlpha / newVal) - a + 2.0;
-
-        double backward = Probability::Beta::lnPdf(newA, newB, oldVal);
-        
-        hastings = backward - forward;
+        currentCategories[randomCategory].omega2 = newV2;
+        hastings = std::log(scale2);
     }
 
     regeneratePrior();
@@ -209,10 +175,8 @@ double DirichletProcessPrior::updateDPP(){
 
     this->dirty();
 
-    for(int n = 0; n < numGibbsUpdate; n++) {
-        int randomMember = (int)(rng.uniformRv() * numMembers);
-
-        int deleted = unassignMember(randomMember); // This will also delete the group if empty
+    for(int n = 0; n < numMembers; n++) {
+        int deleted = unassignMember(n); // This will also delete the group if empty
         if(deleted >= 0){
             model->getTransitionProbability()->deleteQ(deleted);
         }
@@ -225,8 +189,8 @@ double DirichletProcessPrior::updateDPP(){
         for(int i = 0; i < numCats; i++){
             conditionalL.push_back(0.0);
 
-            taskflow.emplace([this, &conditionalL, i, randomMember](){
-                double likelihood = model->testCategory(randomMember, i, false);
+            taskflow.emplace([this, &conditionalL, i, n](){
+                double likelihood = model->testCategory(n, i, false);
                 conditionalL[i] = likelihood + std::log(currentCategories[i].size);
             });
         }
@@ -236,8 +200,8 @@ double DirichletProcessPrior::updateDPP(){
         std::vector<double> rVec;
         double alphaSplit = std::log(alpha/5);
 
-        model->getTransitionProbability()->allocateQ(numCats + 10);
-        for(int i = 0; i < 10; i++){
+        model->getTransitionProbability()->allocateQ(numCats + 5);
+        for(int i = 0; i < 5; i++){
             conditionalL.push_back(0.0);
             double newOmega1 = Probability::Exponential::rv(&rng, omegaLambda);
             double newOmega2 = Probability::Exponential::rv(&rng, omegaLambda);
@@ -246,15 +210,15 @@ double DirichletProcessPrior::updateDPP(){
             omega1Vec.push_back(newOmega1);
             omega2Vec.push_back(newOmega2);
 
-            taskflow.emplace([this, &conditionalL, i, randomMember, numCats, alphaSplit](){
-                double likelihood = model->testCategory(randomMember, numCats+i, true);
+            taskflow.emplace([this, &conditionalL, i, n, numCats, alphaSplit](){
+                double likelihood = model->testCategory(n, numCats+i, true);
                 conditionalL[numCats + i] = likelihood + alphaSplit;
             });
         }
 
         executor.run(taskflow).wait();
 
-        for(int i = 0; i < 10; i++)
+        for(int i = 0; i < 5; i++)
             currentCategories.pop_back();
 
         //Do some adjustments here to get relative probabilities
@@ -274,14 +238,14 @@ double DirichletProcessPrior::updateDPP(){
             total += conditionalL[i];
             if(total > categoryDraw){
                 if(i < numCats) { //It already exists
-                    assignMember(randomMember, i);
-                    model->getTransitionProbability()->deleteNQ(10);
+                    assignMember(n, i);
+                    model->getTransitionProbability()->deleteNQ(5);
                 }
                 else {
                     addCategory(omega1Vec[i - numCats], omega2Vec[i - numCats]);
-                    assignMember(randomMember, numCats);
-                    model->getTransitionProbability()->deleteNQ(9);
-                    model->regenerateTransitionProbs(randomMember, numCats);
+                    assignMember(n, numCats);
+                    model->getTransitionProbability()->deleteNQ(4);
+                    model->regenerateTransitionProbs(n, numCats);
                 }
                 break;
             }
@@ -308,39 +272,15 @@ double DirichletProcessPrior::updateDPP(){
 }
 
 void DirichletProcessPrior::tune() {
-    double omega1Rate = (double)omega1AcceptCount/(double)omega1Count;
+    double omegaRate = (double)omegaAcceptCount/(double)omegaCount;
 
-    if ( omega1Rate > 0.33 ) {
-        omega1Delta *= (1.0 + ((omega1Rate-0.33)/0.67));
+    if ( omegaRate > 0.33 ) {
+        omegaDelta *= (1.0 + ((omegaRate-0.33)/0.67));
     }
     else {
-        omega1Delta /= (2.0 - omega1Rate/0.33);
+        omegaDelta /= (2.0 - omegaRate/0.33);
     }
     
-    omega2AcceptCount = 0;
-    omega2Count = 0;
-
-    double omega2Rate = (double)omega2AcceptCount/(double)omega2Count;
-
-    if ( omega2Rate > 0.33 ) {
-        omega2Delta *= (1.0 + ((omega2Rate-0.33)/0.67));
-    }
-    else {
-        omega2Delta /= (2.0 - omega2Rate/0.33);
-    }
-    
-    omega2AcceptCount = 0;
-    omega2Count = 0;
-
-    double omegaExchangeRate = (double)omegaExchangeAcceptCount/(double)omegaExchangeCount;
-
-    if ( omegaExchangeRate > 0.33 ) {
-        omegaAlpha /= (1.0 + ((omegaExchangeRate-0.33)/0.67));
-    }
-    else {
-        omegaAlpha *= (2.0 - omegaExchangeRate/0.33);
-    }
-    
-    omegaExchangeAcceptCount = 0;
-    omegaExchangeCount = 0;
+    omegaAcceptCount = 0;
+    omegaCount = 0;
 }

@@ -55,7 +55,6 @@ class Model {
         int numNodes;
         bool* activeTP;
         bool* activeCL;
-        int numGibbsUpdate;
         tf::Executor executor;
         CodonMultiMatrix* rateMatrix;
         Alignment* aln;

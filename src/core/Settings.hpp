@@ -23,7 +23,6 @@ struct Settings {
     double          omegaLambda;
     double          dppAlpha;
     double          treeLengthLambda;
-    int             numGibbsUpdate;
     double          kWeight;
     double          rWeight;
     double          omegaWeight;

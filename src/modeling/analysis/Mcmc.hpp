@@ -8,7 +8,6 @@ class Parameter;
 class TreeParameter;
 class CodonMultiMatrix;
 class DirichletProcessPrior;
-class EventManager;
 class Settings;
 
 class Mcmc{
@@ -31,7 +30,6 @@ class Mcmc{
         double kChoice;
         double rChoice;
         double dppChoice;
-        double omegaChoice;
 
         TreeParameter* tree;
         CodonMultiMatrix* codonMatrix;

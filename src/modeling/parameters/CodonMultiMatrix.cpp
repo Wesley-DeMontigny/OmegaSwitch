@@ -70,10 +70,10 @@ CodonMultiMatrix::CodonMultiMatrix(Settings settings) :
     oldStationary = currentStationary;
 
     for(auto coord : valid){
-        currentQMatrix(coord.first, coord.second) = currentStationary[coord.second]/2;
-        currentQMatrix(coord.second, coord.first) = currentStationary[coord.first]/2;
-        currentQMatrix(coord.first + 61, coord.second +  61) = currentStationary[coord.second]/2;
-        currentQMatrix(coord.second + 61, coord.first + 61) = currentStationary[coord.first]/2;
+        currentQMatrix(coord.first, coord.second) = currentStationary[coord.second];
+        currentQMatrix(coord.second, coord.first) = currentStationary[coord.first];
+        currentQMatrix(coord.first + 61, coord.second +  61) = currentStationary[coord.second];
+        currentQMatrix(coord.second + 61, coord.first + 61) = currentStationary[coord.first];
     }
     for(auto coord : transition){
         currentQMatrix(coord.first, coord.second) *= currentK;
@@ -129,7 +129,7 @@ void CodonMultiMatrix::reject() {
 }
 
 double CodonMultiMatrix::lnPrior() {
-    return currentKPrior;
+    return currentKPrior + currentRPrior;
 }
 
 double CodonMultiMatrix::updateK() {
@@ -151,10 +151,10 @@ double CodonMultiMatrix::updateK() {
     currentKPrior = Probability::Exponential::lnPdf(kLambda, currentK);
 
     for(auto coord : transition){
-        currentQMatrix(coord.first, coord.second) = currentStationary[coord.second]/2 * currentK;
-        currentQMatrix(coord.second, coord.first) = currentStationary[coord.first]/2 * currentK;
-        currentQMatrix(coord.first + 61, coord.second + 61) = currentStationary[coord.second]/2 * currentK;
-        currentQMatrix(coord.second + 61, coord.first + 61) = currentStationary[coord.first]/2 * currentK;  
+        currentQMatrix(coord.first, coord.second) = currentStationary[coord.second] * currentK;
+        currentQMatrix(coord.second, coord.first) = currentStationary[coord.first] * currentK;
+        currentQMatrix(coord.first + 61, coord.second + 61) = currentStationary[coord.second] * currentK;
+        currentQMatrix(coord.second + 61, coord.first + 61) = currentStationary[coord.first] * currentK;  
     }
 
     return hastings;
@@ -245,7 +245,7 @@ double CodonMultiMatrix::updateStationary() {
         for(int i = 0; i < 61; i++) {
             currentStationary[i] = currentStationary[i]/sum;
 
-            if(currentStationary[i] < 1E-25) {
+            if(currentStationary[i] < 1E-10) {
                 return -1 * INFINITY;
             }
         }
@@ -299,10 +299,10 @@ double CodonMultiMatrix::updateStationary() {
     }
 
     for(auto coord : valid){
-        currentQMatrix(coord.first, coord.second) = currentStationary[coord.second]/2;
-        currentQMatrix(coord.second, coord.first) = currentStationary[coord.first]/2;
-        currentQMatrix(coord.first + 61, coord.second +  61) = currentStationary[coord.second]/2;
-        currentQMatrix(coord.second + 61, coord.first + 61) = currentStationary[coord.first]/2;
+        currentQMatrix(coord.first, coord.second) = currentStationary[coord.second];
+        currentQMatrix(coord.second, coord.first) = currentStationary[coord.first];
+        currentQMatrix(coord.first + 61, coord.second +  61) = currentStationary[coord.second];
+        currentQMatrix(coord.second + 61, coord.first + 61) = currentStationary[coord.first];
     }
     for(auto coord : transition){
         currentQMatrix(coord.first, coord.second) *= currentK;
@@ -364,8 +364,8 @@ Matrix<double> CodonMultiMatrix::Q(double omega1, double omega2) {
         returnMatrix(i, i + 61) = currentR;
         returnMatrix(i + 61, i) = currentR;
 
-        returnMatrix(i, i) += currentR;
-        returnMatrix(i + 61, i + 61) += currentR;
+        returnMatrix(i, i) -= currentR;
+        returnMatrix(i + 61, i + 61) -= currentR;
     }
 
     // Since we normalized the two matrices ahead of time and only want to normalize time according to the traditional matrices, we just divide everything by 2!

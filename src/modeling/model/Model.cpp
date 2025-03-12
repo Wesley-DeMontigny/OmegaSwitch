@@ -465,6 +465,13 @@ std::string Model::tipsOut(int i){
     std::vector<Category> categories = dpp->getCategories();
     int numCats = dpp->getNumCategories();
 
+    std::vector<double> dNdS1;
+    std::vector<double> dNdS2;
+    for(Category c : categories){
+        dNdS1.push_back(rateMatrix->dNdS(c.omega1));
+        dNdS2.push_back(rateMatrix->dNdS(c.omega2));
+    }
+
     int* reconstructedStates = new int[numNodes*numChar];
     double* reconstructedOmega = new double[numNodes*numChar];
 

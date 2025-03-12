@@ -38,6 +38,8 @@ CodonMultiMatrix::CodonMultiMatrix(Settings settings) :
                 valid.insert(pair);
                 if(aaMap[i] != aaMap[j])
                     nonsynonymous.insert(pair);
+                else
+                    synonymous.insert(pair);
                 if(isTransition)
                     transition.insert(pair);
             }
@@ -360,6 +362,24 @@ Matrix<double> CodonMultiMatrix::Q(double omega1, double omega2) {
     */
 
     return returnMatrix;
+}
+
+double CodonMultiMatrix::dNdS(double omega) {
+    Matrix<double> returnMatrix = currentQMatrix.copy();
+
+    double dN = 0;
+    for(auto coord : nonsynonymous){
+        dN += returnMatrix(coord.first, coord.second) * omega;
+        dN += returnMatrix(coord.second, coord.first) * omega;
+    }
+
+    double dS = 0;
+    for(auto coord : synonymous){
+        dS += returnMatrix(coord.first, coord.second);
+        dS += returnMatrix(coord.second, coord.first);
+    }
+
+    return dN/dS;
 }
 
 std::vector<double> CodonMultiMatrix::getStationary(){

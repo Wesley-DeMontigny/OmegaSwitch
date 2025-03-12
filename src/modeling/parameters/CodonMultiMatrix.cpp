@@ -325,41 +325,18 @@ Matrix<double> CodonMultiMatrix::Q(double omega1, double omega2) {
         returnMatrix(coord.second + 61, coord.first + 61) *= omega2; 
     }
 
-    // Normalize Q1
-    double scaler1 = 0.0;
-    for(int i = 0; i < 61; i++){
+    double scaler= 0.0;
+    for(int i = 0; i < 122; i++){
         double total = 0.0;
-        for(int j = 0; j < 61; j++){
+        for(int j = 0; j < 122; j++){
             if(j != i){
                 total += returnMatrix(i , j);
             }
         }
         returnMatrix(i, i) = total * -1;
-        scaler1 += returnMatrix(i, i);
+        scaler += returnMatrix(i, i);
     }	
-    scaler1 = -1.0 / scaler1;
-    for (int i = 0; i < 61; i++)
-        for (int j = 0; j < 61; j++)
-            returnMatrix(i, j) *= scaler1;
 
-    // Normalize Q2
-    double scaler2 = 0.0;
-    for(int i = 61; i < 122; i++){
-        double total = 0.0;
-        for(int j = 61; j < 122; j++){
-            if(j != i){
-                total += returnMatrix(i , j);
-            }
-        }
-        returnMatrix(i, i) = total * -1;
-        scaler2 += returnMatrix(i, i);
-    }	
-    scaler2 = -1.0 / scaler2;
-    for (int i = 61; i < 122; i++)
-        for (int j = 61; j < 122; j++)
-            returnMatrix(i, j) *= scaler2;
-    
-    // Add in R with the assumption that the stationary distribution of hidden rates is just [0.5, 0.5]
     for(int i = 0; i < 61; i++){
         returnMatrix(i, i + 61) = currentR;
         returnMatrix(i + 61, i) = currentR;
@@ -368,13 +345,19 @@ Matrix<double> CodonMultiMatrix::Q(double omega1, double omega2) {
         returnMatrix(i + 61, i + 61) -= currentR;
     }
 
-    // Since we normalized the two matrices ahead of time and only want to normalize time according to the traditional matrices, we just divide everything by 2!
-    // Doing things this way makes it so that it acts as if this is just a normal mixture model when R is zero
+    scaler = -1.0 / scaler;
+    for (int i = 0; i < 122; i++)
+        for (int j = 0; j < 122; j++)
+            returnMatrix(i, j) *= scaler;
+    
+    /*
+    // Ensure that the outgoing substitution rate will be 1
+    double total = 0.0;
     for(int i = 0; i < 122; i++){
-        for(int j =0; j < 122; j++){
-            returnMatrix(i,j) *= 0.5;
-        }
+        total += returnMatrix(i , i) + currentR*scaler;
     }
+    std::cout << total << std::endl;
+    */
 
     return returnMatrix;
 }

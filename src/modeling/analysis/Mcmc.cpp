@@ -11,7 +11,7 @@
 #include <fstream>
 
 Mcmc::Mcmc(Model* m, TreeParameter* t, CodonMultiMatrix* cmm, DirichletProcessPrior* d, Settings& s) : 
-    model(m), dpp(d), codonMatrix(cmm), tree(t), generalUpdates(5), stationaryUpdates(20) { 
+    model(m), dpp(d), codonMatrix(cmm), tree(t), generalUpdates(3), stationaryUpdates(5) { 
     numIter = s.numIterations;
     numBurnIn = s.burnInIterations;
     printFreq = s.printFrequency;

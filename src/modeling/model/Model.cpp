@@ -16,7 +16,7 @@
 #include <string>
 #include <iostream>
 #include <unordered_map>
-#include <chrono>
+//#include <chrono>
 
 Model::Model(Settings s, Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProcessPrior* d) : 
             aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0),
@@ -120,112 +120,126 @@ double Model::lnPrior(){
 void Model::regenerateLikelihood(){
     TreeObject* activeT = tree->getTree();
 
-    std::vector<Node*>&  poSeq = activeT->getPostOrderSeq();
+    const std::vector<Node*> poSeq = activeT->getPostOrderSeq();
     std::vector<int> assignments = dpp->getAssignments();
     std::vector<Category> categories = dpp->getCategories();
     int numCats = dpp->getNumCategories();
 
+    //std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+
+    tf::Taskflow rateTaskflow;
+
     if(rateMatrix->isDirty()){
-        tf::Taskflow rateTaskflow;
         activeT->updateAll();
         transProb->allocateQ(numCats);
         for(int i = 0; i < numCats; i++){
             double omega1 = categories[i].omega1;
             double omega2 = categories[i].omega2;
-            rateTaskflow.emplace([this, omega1, omega2, i](){
+            rateTaskflow.emplace([this, i, omega1, omega2](){
                 transProb->updateQ(rateMatrix->Q(omega1, omega2), i);
             });
         }
-
-        executor.run(rateTaskflow).wait();
     }
-    else if(dpp->isDirty()){
+    else if(dpp->isDirty()){ // Only spend time updating the dirty ones
         activeT->updateAll();
         transProb->allocateQ(numCats);
         for(int i = 0; i < numCats; i++){
             if(categories[i].dirty){
                 double omega1 = categories[i].omega1;
                 double omega2 = categories[i].omega2;
-                transProb->updateQ(rateMatrix->Q(omega1, omega2), i);
+                rateTaskflow.emplace([this, i, omega1, omega2](){
+                    transProb->updateQ(rateMatrix->Q(omega1, omega2), i);
+                });
             }
         }
     }
 
+    executor.run(rateTaskflow).wait();
+
     tf::Taskflow phyloTaskflow;
-    std::unordered_map<int, tf::Task> taskMap;
 
     for(Node* n : poSeq){
-        taskMap.insert(std::make_pair(n->getIndex(), phyloTaskflow.emplace([n, this, numCats, categories, assignments, activeT](){
-            int nIndex = n->getIndex();
-            if(n->getNeedsTPUpdate() == true){
-                if(n != activeT->getRoot()) {
-                    activeTP[nIndex] ^= true;
-                    double v = activeT->getBranchLength(n);
-                    for(int i = 0; i < numCats; i++){
-                        transProb->setProbs(activeTP[nIndex], i, nIndex, v);
-                    }
+        int nIndex = n->getIndex();
+        if(n->getNeedsTPUpdate() == true){
+            if(n != activeT->getRoot()) {
+                double v = activeT->getBranchLength(n);
+                activeTP[nIndex] ^= true;
+                for(int i = 0; i < numCats; i++){
+                    transProb->setProbs(activeTP[nIndex], i, nIndex, v);
                 }
-                n->setNeedsTPUpdate(false);
             }
-            if(n->getNeedsCLUpdate() == true){
-                activeCL[nIndex] ^= true;
-                double* pNN = (*postOrder)(nIndex, activeCL[nIndex], 0);
-                std::fill(pNN, pNN + (numChar * stateSpace), 1.0);
+            n->setNeedsTPUpdate(false);
+        }
+        if(n->getNeedsCLUpdate() == true){
+            activeCL[nIndex] ^= true; // Flip this ahead of time
+        }
+    }
 
-                std::set<Node*>& nNeighbors = n->getNeighbors();
-                for(Node* d : nNeighbors){
-                    if(d != n->getAncestor()){
-                        int dIndex = d->getIndex();
-                        double* pN = pNN;
-                        double* pD = (*postOrder)(dIndex, activeCL[dIndex], 0);
+    int chunkSize = 20;
+    for(int range = 0; range < (int)std::ceil((double)numChar / chunkSize); range++){
+        int start = range * chunkSize;
+        int end = start + chunkSize-1;
+        end = std::min(end, numChar-1);
 
-                        for(int c = 0; c < numChar; c++){
-                            Matrix<double> P = (*transProb)(activeTP[dIndex], assignments[c], dIndex);
-                            for(int i = 0; i < stateSpace; i++){
-                                double sum = 0.0;
-                                for(int j = 0; j < stateSpace; j++){
-                                    sum += P(i, j) * pD[j];
+        phyloTaskflow.emplace([this, &poSeq, numCats, &assignments, start, end](){
+            int currentChunkSize = end - start + 1;
+            for(Node* n : poSeq){
+                int nIndex = n->getIndex();
+                if(n->getNeedsCLUpdate() == true){
+                    double* pNN = (*postOrder)(nIndex, activeCL[nIndex], 0) + start * stateSpace;
+                    std::fill(pNN, pNN + (currentChunkSize * stateSpace), 1.0);
+
+                    std::set<Node*>& nNeighbors = n->getNeighbors();
+                    for(Node* d : nNeighbors){
+                        if(d != n->getAncestor()){
+                            int dIndex = d->getIndex();
+                            double* pN = pNN;
+                            double* pD = (*postOrder)(dIndex, activeCL[dIndex], 0) + start * stateSpace;
+
+                            for(int c = 0; c < currentChunkSize; c++){
+                                const Matrix<double>& P = (*transProb)(activeTP[dIndex], assignments[c + start], dIndex);
+                                for(int i = 0; i < stateSpace; i++){
+                                    double sum = 0.0;
+                                    for(int j = 0; j < stateSpace; j++){
+                                        sum += P(i, j) * pD[j];
+                                    }
+                                    (*pN) *= sum;
+                                    pN++;
                                 }
-                                (*pN) *= sum;
-                                pN++;
+                                pD+=stateSpace;
                             }
-                            pD+=stateSpace;
                         }
                     }
-                }
-                double* rescalePointer = rescaling + (numChar * nIndex);
-                std::fill(rescalePointer, rescalePointer + numChar, 0.0);
+                    double* rescalePointer = rescaling + (numChar * nIndex) + start;
+                    std::fill(rescalePointer, rescalePointer + currentChunkSize, 0.0);
 
-                for(int c = 0; c < numChar; c++){
-                    double max = *pNN;
-                    pNN++;
-                    for(int i = 1; i < stateSpace; i++){
-                        if(*pNN > max)
-                            max = *pNN;
+                    for(int c = 0; c < currentChunkSize; c++){
+                        double max = *pNN;
                         pNN++;
-                    }
-                    if(max < 1e-10){
-                        pNN -= stateSpace;
                         for(int i = 1; i < stateSpace; i++){
-                            *pNN /= max;
+                            if(*pNN > max)
+                                max = *pNN;
                             pNN++;
                         }
-                        *rescalePointer = std::log(max);
+                        if(max < 1e-10){
+                            pNN -= stateSpace;
+                            for(int i = 0; i < stateSpace; i++){
+                                *pNN /= max;
+                                pNN++;
+                            }
+                            *rescalePointer = std::log(max);
+                        }
+                        rescalePointer++;
                     }
-                    rescalePointer++;
                 }
-
-                n->setNeedsCLUpdate(false);
             }
-        })));
+        });
     }
-
-    for(Node* n : poSeq){
-        if(n != activeT->getRoot())
-            taskMap.at(n->getIndex()).precede(taskMap.at(n->getAncestor()->getIndex()));
-    }
-
     executor.run(phyloTaskflow).wait();
+
+    // Mark everything updated
+    for(Node* n : poSeq)
+        n->setNeedsCLUpdate(false);
 
     int rIndex = activeT->getRoot()->getIndex();
     double* pR = (*postOrder)(rIndex, activeCL[rIndex], 0);
@@ -249,6 +263,9 @@ void Model::regenerateLikelihood(){
     }
 
     currentLikelihood = lnL;
+
+    //std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    //std::cout << "Pruning was completed in " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[milliseconds]" << std::endl;
 }
 
 void Model::regenerateTransitionProbs(int site, int category){
@@ -349,7 +366,7 @@ double Model::testCategory(int site, int category, bool update){
             }
             if(max < 1e-10){
                 pNN -= stateSpace;
-                for(int i = 1; i < stateSpace; i++){
+                for(int i = 0; i < stateSpace; i++){
                     *pNN /= max;
                     pNN++;
                 }

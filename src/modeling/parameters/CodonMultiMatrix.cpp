@@ -317,7 +317,7 @@ double CodonMultiMatrix::updateStationary() {
 }
 
 Matrix<double> CodonMultiMatrix::Q(double omega1, double omega2) {
-    Matrix<double> returnMatrix = currentQMatrix.copy();
+    Matrix<double> returnMatrix(currentQMatrix.copy());
 
     for(auto coord : nonsynonymous){
         returnMatrix(coord.first, coord.second) *= omega1;

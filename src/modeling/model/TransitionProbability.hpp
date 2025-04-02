@@ -12,10 +12,9 @@ class TransitionProbability {
 	public:
                                 TransitionProbability(const int nn);
                                ~TransitionProbability ();
-        Matrix<double>          operator()(int s, int r, int n) { 
-                                                                    if (s == 0) return probs1[r][n]; 
-                                                                    else return probs2[r][n];
-                                                                }
+        const Matrix<double>&   operator()(int s, int r, int n) const {
+                                    return (s == 0) ? probs1[r][n] : probs2[r][n];
+                                }
         int                     getNumStates(void) { return numStates; }
         int                     getNumMatrices(void) {return isComplex.size();}
         void                    accept(void);          

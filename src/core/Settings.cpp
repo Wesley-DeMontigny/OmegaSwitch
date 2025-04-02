@@ -5,10 +5,10 @@
 #include <vector>
 
 Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dppOutput(""), mcmcOutput(""), tipsOutput(""),
-                                              numIterations(30000), printFrequency(10), sampleFrequency(100),
+                                              numIterations(30000), printFrequency(1), sampleFrequency(100),
                                               burnInIterations(5000), tuneFrequency(250), rLambda(1.0),
                                               kLambda(1.0), omegaLambda(1.0), dppAlpha(1.0),
-                                              rWeight(4.0), kWeight(4.0), stationaryWeight(5.0),
+                                              rWeight(4.0), kWeight(4.0), stationaryWeight(3.0),
                                               dppWeight(1.0), treeWeight(6.0), treeLengthLambda(1.0), simulate(false), 
                                               fixedTree(""), numTaxa(-1), numChar(-1), kValue(-1.0), rValue(-1.0) {
 
@@ -31,7 +31,6 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
     settings.push_back("-fixedTree");
     settings.push_back("(((((((HBACmydas:1,HBAPcastaneus:1):1,HBACniloticus:1):1,(HBAAindicus:1,(HBACminor:1,HBAGgallus:1):1):1):1,(HBABtaurus:1,HBAHsapiens:1):1):1,(HBABbombina:1,HBAXborealis:1):1):1,((HBADrerio:1,HBACcarpio:1):1,HBASsalar:1):1):1,((((((HBBCmydas:1,HBBPcastaneus:1):1,HBBCniloticus:1):1,(HBBAindicus:1,(HBBCminor:1,HBBGgallus:1):1):1):1,(HBBBtaurus:1,HBBHsapiens:1):1):1,(HBBBbombina:1,HBBXborealis:1):1):1,((HBBDrerio:1,HBBCcarpio:1):1,HBBSsalar:1):1):1);");
 */
-
     if (settings.size() == 0) {
         usage();
         Msg::error("Expected command line arguments");

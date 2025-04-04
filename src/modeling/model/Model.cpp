@@ -20,7 +20,7 @@
 
 Model::Model(Settings s, Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProcessPrior* d) : 
             aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0),
-            dpp(d), numChar(0), executor(10) {
+            dpp(d), numChar(0) {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
@@ -134,7 +134,7 @@ void Model::regenerateLikelihood(){
         transProb->allocateQ(numCats);
         for(int i = 0; i < numCats; i++){
             double omega1 = categories[i].omega1;
-            double omega2 = categories[i].omega2;
+            double omega2 = omega1 + categories[i].omega2;
             rateTaskflow.emplace([this, i, omega1, omega2](){
                 transProb->updateQ(rateMatrix->Q(omega1, omega2), i);
             });
@@ -146,7 +146,7 @@ void Model::regenerateLikelihood(){
         for(int i = 0; i < numCats; i++){
             if(categories[i].dirty){
                 double omega1 = categories[i].omega1;
-                double omega2 = categories[i].omega2;
+                double omega2 = omega1 + categories[i].omega2;
                 rateTaskflow.emplace([this, i, omega1, omega2](){
                     transProb->updateQ(rateMatrix->Q(omega1, omega2), i);
                 });
@@ -156,7 +156,10 @@ void Model::regenerateLikelihood(){
 
     executor.run(rateTaskflow).wait();
 
-    tf::Taskflow phyloTaskflow;
+    //std::chrono::steady_clock::time_point rateTime = std::chrono::steady_clock::now();
+    //std::cout << "Rate computation was completed in " << std::chrono::duration_cast<std::chrono::milliseconds>(rateTime - begin).count() << "[milliseconds]" << std::endl;
+
+    tf::Taskflow probsTaskflow;
 
     for(Node* n : poSeq){
         int nIndex = n->getIndex();
@@ -164,18 +167,31 @@ void Model::regenerateLikelihood(){
             if(n != activeT->getRoot()) {
                 double v = activeT->getBranchLength(n);
                 activeTP[nIndex] ^= true;
-                for(int i = 0; i < numCats; i++){
-                    transProb->setProbs(activeTP[nIndex], i, nIndex, v);
-                }
+                bool activeIndex = activeTP[nIndex];
+                probsTaskflow.emplace([this, numCats, nIndex, v, activeIndex](){
+                    for(int i = 0; i < numCats; i++){
+                        transProb->setProbs(activeIndex, i, nIndex, v);
+                    }
+                });
             }
             n->setNeedsTPUpdate(false);
         }
+    }
+
+    executor.run(probsTaskflow).wait();
+
+    //std::chrono::steady_clock::time_point probsTime = std::chrono::steady_clock::now();
+    //std::cout << "Probs computation was completed in " << std::chrono::duration_cast<std::chrono::milliseconds>(probsTime - rateTime).count() << "[milliseconds]" << std::endl;
+
+    for(Node* n : poSeq){
         if(n->getNeedsCLUpdate() == true){
-            activeCL[nIndex] ^= true; // Flip this ahead of time
+            activeCL[n->getIndex()] ^= true; // Flip this ahead of time
         }
     }
 
-    int chunkSize = 20;
+    tf::Taskflow phyloTaskflow;
+    
+    int chunkSize = 100;
     for(int range = 0; range < (int)std::ceil((double)numChar / chunkSize); range++){
         int start = range * chunkSize;
         int end = start + chunkSize-1;
@@ -264,8 +280,8 @@ void Model::regenerateLikelihood(){
 
     currentLikelihood = lnL;
 
-    //std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    //std::cout << "Pruning was completed in " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[milliseconds]" << std::endl;
+    //std::chrono::steady_clock::time_point pruneTime = std::chrono::steady_clock::now();
+    //std::cout << "Pruning was completed in " << std::chrono::duration_cast<std::chrono::milliseconds>(pruneTime - probsTime).count() << "[milliseconds]" << std::endl;
 }
 
 void Model::regenerateTransitionProbs(int site, int category){
@@ -275,7 +291,7 @@ void Model::regenerateTransitionProbs(int site, int category){
     std::vector<Category> categories = dpp->getCategories();
 
     double omega1 = categories[category].omega1;
-    double omega2 = categories[category].omega2;
+    double omega2 = omega1 + categories[category].omega2;
     
     transProb->updateQ(rateMatrix->Q(omega1, omega2), category);
 
@@ -298,7 +314,7 @@ double Model::testCategory(int site, int category, bool update){
 
     if(update) {
         double omega1 = categories[category].omega1;
-        double omega2 = categories[category].omega2;
+        double omega2 = omega1 + categories[category].omega2;
         transProb->updateQ(rateMatrix->Q(omega1, omega2), category);
     }
 
@@ -486,13 +502,13 @@ std::string Model::tipsOut(int i){
     std::vector<double> dNdS2;
     for(Category c : categories){
         dNdS1.push_back(rateMatrix->dNdS(c.omega1));
-        dNdS2.push_back(rateMatrix->dNdS(c.omega2));
+        dNdS2.push_back(rateMatrix->dNdS(c.omega2 + c.omega1));
     }
 
     int* reconstructedStates = new int[numNodes*numChar];
-    double* reconstructedOmega = new double[numNodes*numChar];
+    double* reconstructeddNdS = new double[numNodes*numChar];
 
-    std::fill(reconstructedOmega, reconstructedOmega + numNodes*numChar, 0.0);
+    std::fill(reconstructeddNdS, reconstructeddNdS + numNodes*numChar, 0.0);
 
     int numJointDraws = 10;
 
@@ -504,11 +520,11 @@ std::string Model::tipsOut(int i){
         std::unordered_map<int, tf::Task> taskMap;
 
         Node* root = activeT->getRoot();
-        taskMap.insert(std::make_pair(root->getIndex(), phyloTaskflow.emplace([this, root, &rng, reconstructedStates, reconstructedOmega, assignments, categories](){
+        taskMap.insert(std::make_pair(root->getIndex(), phyloTaskflow.emplace([this, root, &rng, reconstructedStates, reconstructeddNdS, assignments, dNdS1, dNdS2](){
             int rIndex = root->getIndex();
             double* pR = (*postOrder)(rIndex, activeCL[rIndex], 0);
             int* reconstructedP = reconstructedStates + rIndex*numChar;
-            double* omegaP = reconstructedOmega + rIndex*numChar;
+            double* dNdSP = reconstructeddNdS + rIndex*numChar;
 
             for(int c = 0; c < numChar; c++){
                 double total = 0;
@@ -526,10 +542,10 @@ std::string Model::tipsOut(int i){
                     if(sum >= draw){
                         *reconstructedP = i;
                         if(i < 61){
-                            *omegaP += categories[assignments[c]].omega1;
+                            *dNdSP += dNdS1[assignments[c]];
                         }
                         else{
-                            *omegaP += categories[assignments[c]].omega2;
+                            *dNdSP += dNdS2[assignments[c]];
                         }
                         success = true;
                         break;
@@ -541,18 +557,18 @@ std::string Model::tipsOut(int i){
 
                 pR += stateSpace;
                 reconstructedP++;
-                omegaP++;
+                dNdSP++;
             }
         })));
 
         for(Node* n : preOrderSeq){
             if(n != activeT->getRoot()){
-                taskMap.insert(std::make_pair(n->getIndex(), phyloTaskflow.emplace([this, n, &rng, reconstructedStates, reconstructedOmega, categories, assignments](){
+                taskMap.insert(std::make_pair(n->getIndex(), phyloTaskflow.emplace([this, n, &rng, reconstructedStates, reconstructeddNdS, assignments, dNdS1, dNdS2](){
                     int nIndex = n->getIndex();
                     double* pN = (*postOrder)(nIndex, activeCL[nIndex], 0);
 
                     int* reconstructedP = reconstructedStates + nIndex*numChar;
-                    double* omegaP = reconstructedOmega + nIndex*numChar;
+                    double* dNdSP = reconstructeddNdS + nIndex*numChar;
 
                     int ancestorIndex = n->getAncestor()->getIndex();
 
@@ -575,10 +591,10 @@ std::string Model::tipsOut(int i){
                             if(sum >= draw){
                                 *reconstructedP = i;
                                 if(i < 61){
-                                    *omegaP += categories[assignments[c]].omega1;
+                                    *dNdSP += dNdS1[assignments[c]];
                                 }
                                 else{
-                                    *omegaP += categories[assignments[c]].omega2;
+                                    *dNdSP += dNdS2[assignments[c]];
                                 }
                                 success = true;
                                 break;
@@ -590,7 +606,7 @@ std::string Model::tipsOut(int i){
 
                         pN += stateSpace;
                         reconstructedP++;
-                        omegaP++;
+                        dNdSP++;
                     }
                 })));
             }
@@ -611,15 +627,15 @@ std::string Model::tipsOut(int i){
 
     for(Node* n : tips) {
         int index = n->getIndex();
-        double* omegaP = reconstructedOmega + index*numChar;
+        double* dNdSP = reconstructeddNdS + index*numChar;
         for(int c = 0; c < numChar; c++) {
-            returnString += "\t" + std::to_string(*omegaP/numJointDraws);
-            omegaP++;
+            returnString += "\t" + std::to_string(*dNdSP/numJointDraws);
+            dNdSP++;
         }
     }
 
     delete [] reconstructedStates;
-    delete [] reconstructedOmega;
+    delete [] reconstructeddNdS;
 
     return returnString + "\n";
 }

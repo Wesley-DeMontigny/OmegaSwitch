@@ -15,7 +15,7 @@ DirichletProcessPrior::DirichletProcessPrior(int size, Settings s) :
                                              alpha(s.dppAlpha), omegaLambda(s.omegaLambda),
                                              numMembers(size), currentLnPrior(0.0),
                                              model(nullptr), omegaDelta(0.5), assignments(size, -1),
-                                             omegaAcceptCount(0), omegaCount(0), moveChoice(-1), executor(10) {
+                                             omegaAcceptCount(0), omegaCount(0), moveChoice(-1) {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 

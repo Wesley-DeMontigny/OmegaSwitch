@@ -5,10 +5,10 @@
 #include <vector>
 
 Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dppOutput(""), mcmcOutput(""), tipsOutput(""),
-                                              numIterations(30000), printFrequency(1), sampleFrequency(100),
+                                              numIterations(30000), printFrequency(10), sampleFrequency(100),
                                               burnInIterations(5000), tuneFrequency(250), rLambda(1.0),
                                               kLambda(1.0), omegaLambda(1.0), dppAlpha(1.0),
-                                              rWeight(4.0), kWeight(4.0), stationaryWeight(3.0),
+                                              rWeight(4.0), kWeight(4.0), stationaryWeight(4.0), omegaWeight(4.0),
                                               dppWeight(1.0), treeWeight(6.0), treeLengthLambda(1.0), simulate(false), 
                                               fixedTree(""), numTaxa(-1), numChar(-1), kValue(-1.0), rValue(-1.0) {
 
@@ -81,6 +81,8 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                 stationaryWeight = stod(settings[i]);
             else if (currentArg == "-treeWeight")
                 treeWeight = stod(settings[i]);
+            else if (currentArg == "-omegaWeight")
+                omegaWeight = stod(settings[i]);
             else if (currentArg == "-simulate")
                 simulate = stoi(settings[i]) == 1;
             else if (currentArg == "-fixedTree")
@@ -188,6 +190,7 @@ void Settings::print(){
     std::cout << "   * -rWeight           : " << rWeight << std::endl;
     std::cout << "   * -stationaryWeight  : " << stationaryWeight << std::endl;
     std::cout << "   * -dppWeight         : " << dppWeight << std::endl;
+    std::cout << "   * -omegaWeight       : " << omegaWeight << std::endl;
     std::cout << std::endl;
 
     std::cout << "Simulation:" << std::endl;
@@ -240,6 +243,7 @@ void Settings::usage(void) {
     std::cout << "   * -rWeight           : How often to propose a move on the R parameter." << std::endl;
     std::cout << "   * -stationaryWeight  : How often to propose a move on the stationary distribution." << std::endl;
     std::cout << "   * -dppWeight         : How often to propose a move on the DPP partitions." << std::endl;
+    std::cout << "   * -omegaWeight       : How often to propose a move on the omega parameters." << std::endl;
     std::cout << std::endl;
 
     std::cout << "Simulation:" << std::endl;

@@ -30,6 +30,7 @@ class Mcmc{
         double kChoice;
         double rChoice;
         double dppChoice;
+        double omegaChoice;
 
         TreeParameter* tree;
         CodonMultiMatrix* codonMatrix;

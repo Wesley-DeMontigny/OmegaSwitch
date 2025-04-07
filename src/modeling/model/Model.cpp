@@ -134,7 +134,7 @@ void Model::regenerateLikelihood(){
         transProb->allocateQ(numCats);
         for(int i = 0; i < numCats; i++){
             double omega1 = categories[i].omega1;
-            double omega2 = omega1 + categories[i].omega2;
+            double omega2 = categories[i].omega2;
             rateTaskflow.emplace([this, i, omega1, omega2](){
                 transProb->updateQ(rateMatrix->Q(omega1, omega2), i);
             });
@@ -146,7 +146,7 @@ void Model::regenerateLikelihood(){
         for(int i = 0; i < numCats; i++){
             if(categories[i].dirty){
                 double omega1 = categories[i].omega1;
-                double omega2 = omega1 + categories[i].omega2;
+                double omega2 = categories[i].omega2;
                 rateTaskflow.emplace([this, i, omega1, omega2](){
                     transProb->updateQ(rateMatrix->Q(omega1, omega2), i);
                 });
@@ -291,7 +291,7 @@ void Model::regenerateTransitionProbs(int site, int category){
     std::vector<Category> categories = dpp->getCategories();
 
     double omega1 = categories[category].omega1;
-    double omega2 = omega1 + categories[category].omega2;
+    double omega2 = categories[category].omega2;
     
     transProb->updateQ(rateMatrix->Q(omega1, omega2), category);
 
@@ -314,7 +314,7 @@ double Model::testCategory(int site, int category, bool update){
 
     if(update) {
         double omega1 = categories[category].omega1;
-        double omega2 = omega1 + categories[category].omega2;
+        double omega2 = categories[category].omega2;
         transProb->updateQ(rateMatrix->Q(omega1, omega2), category);
     }
 
@@ -501,8 +501,9 @@ std::string Model::tipsOut(int i){
     std::vector<double> dNdS1;
     std::vector<double> dNdS2;
     for(Category c : categories){
-        dNdS1.push_back(rateMatrix->dNdS(c.omega1));
-        dNdS2.push_back(rateMatrix->dNdS(c.omega2 + c.omega1));
+        auto ratio_pair = rateMatrix->dNdS(c.omega1, c.omega2);
+        dNdS1.push_back(ratio_pair.first);
+        dNdS2.push_back(ratio_pair.second);
     }
 
     int* reconstructedStates = new int[numNodes*numChar];

@@ -26,7 +26,7 @@ class CodonMultiMatrix : public Parameter {
         std::vector<double> getRawStationary() {return currentStationary;}
         double getK() {return currentK;}
         double getR() {return currentR;}
-        double dNdS(double omega);
+        std::pair<double, double> dNdS(double omega1, double omega2);
 
         int kCount;
         int kAcceptCount;

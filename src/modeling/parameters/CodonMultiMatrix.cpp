@@ -336,8 +336,13 @@ Matrix<double> CodonMultiMatrix::Q(double omega1, double omega2) {
             }
         }
         returnMatrix(i, i) = total * -1;
-        scaler += returnMatrix(i, i);
+        scaler += returnMatrix(i, i) * (i < 61 ? currentStationary[i] : currentStationary[i - 61]);
     }	
+
+    scaler = -1.0 / scaler;
+    for (int i = 0; i < 122; i++)
+        for (int j = 0; j < 122; j++)
+            returnMatrix(i, j) *= scaler;
 
     for(int i = 0; i < 61; i++){
         returnMatrix(i, i + 61) = currentR;
@@ -346,11 +351,6 @@ Matrix<double> CodonMultiMatrix::Q(double omega1, double omega2) {
         returnMatrix(i, i) -= currentR;
         returnMatrix(i + 61, i + 61) -= currentR;
     }
-
-    scaler = -1.0 / scaler;
-    for (int i = 0; i < 122; i++)
-        for (int j = 0; j < 122; j++)
-            returnMatrix(i, j) *= scaler;
     
     /*
     // Ensure that the outgoing substitution rate will be 1
@@ -364,34 +364,58 @@ Matrix<double> CodonMultiMatrix::Q(double omega1, double omega2) {
     return returnMatrix;
 }
 
-double CodonMultiMatrix::dNdS(double omega) {
-    Matrix<double> returnMatrix = currentQMatrix.copy();
+std::pair<double, double> CodonMultiMatrix::dNdS(double omega1, double omega2) {
+    Matrix<double> returnMatrix(currentQMatrix.copy());
 
-    double dN = 0;
+    for(auto coord : valid){
+        returnMatrix(coord.first, coord.second) /= currentStationary[coord.second];
+        returnMatrix(coord.second, coord.first) /= currentStationary[coord.first];
+        returnMatrix(coord.first + 61, coord.second +  61) /= currentStationary[coord.second];
+        returnMatrix(coord.second + 61, coord.first + 61) /= currentStationary[coord.first];
+    }
+
     for(auto coord : nonsynonymous){
-        dN += returnMatrix(coord.first, coord.second) * omega;
-        dN += returnMatrix(coord.second, coord.first) * omega;
+        returnMatrix(coord.first, coord.second) *= omega1;
+        returnMatrix(coord.second, coord.first) *= omega1; 
+
+        returnMatrix(coord.first + 61, coord.second + 61) *= omega2;
+        returnMatrix(coord.second + 61, coord.first + 61) *= omega2; 
     }
 
-    double dS = 0;
+    double dN1 = 0;
+    double dN2 = 0;
+    for(auto coord : nonsynonymous){
+        dN1 += returnMatrix(coord.first, coord.second) * currentStationary[coord.first];
+        dN1 += returnMatrix(coord.second, coord.first) * currentStationary[coord.second];
+
+        dN2 += returnMatrix(coord.first + 61, coord.second + 61) * currentStationary[coord.first];
+        dN2 += returnMatrix(coord.second + 61, coord.first + 61) * currentStationary[coord.second];
+    }
+
+    double dS1 = 0;
+    double dS2 = 0;
     for(auto coord : synonymous){
-        dS += returnMatrix(coord.first, coord.second);
-        dS += returnMatrix(coord.second, coord.first);
+        dS1 += returnMatrix(coord.first, coord.second) * currentStationary[coord.first];
+        dS1 += returnMatrix(coord.second, coord.first) * currentStationary[coord.second];
+
+        dS2 += returnMatrix(coord.first + 61, coord.second + 61) * currentStationary[coord.first];
+        dS2 += returnMatrix(coord.second + 61, coord.first + 61) * currentStationary[coord.second];
     }
 
-    return dN/dS;
+
+    return std::make_pair(dN1/dS1, dN2/dS2);;
 }
 
 std::vector<double> CodonMultiMatrix::getStationary(){
-    std::vector<double> retunStationary;
+    std::vector<double> returnStationary;
 
     for(int i = 0; i < 2; i++){
         for(double v : currentStationary){
-            retunStationary.push_back(v/2);
+            returnStationary.push_back(v/2);
         }
     }
     
-    return retunStationary;
+    return returnStationary;
 }
 
 void CodonMultiMatrix::tune(){

@@ -7,7 +7,7 @@
 #include <cmath>
 
 TreeParameter::TreeParameter(Alignment* aln, std::string newick, double l) : lambda(l), currentPrior(0.0), oldPrior(0.0), 
-                                                         branchDelta(0.5), moveChoice(-1), branchCount(0), branchAcceptCount(0), 
+                                                         branchDelta(0.25), moveChoice(-1), branchCount(0), branchAcceptCount(0), 
                                                          treeCount(0), treeAcceptCount(0), treeAlpha(10000) {
     fixedTree = newick != "";
     if(!fixedTree)
@@ -71,7 +71,7 @@ double TreeParameter::update() {
 
     double hastings = 0.0;
     
-    if(randomMove < 0.5){
+    if(randomMove < 0.75){
         if(!fixedTree){
             moveChoice = 0;
             branchCount += 1;
@@ -181,59 +181,25 @@ double TreeParameter::update() {
             }
             while(p == root);
 
-            if(p->getIsTip() == true){
-                double currentV = trees[0]->getBranchLength(p);
-                double scale = std::exp(branchDelta * (rng.uniformRv() - 0.5));
-                double newV = currentV * scale;
-                trees[0]->setBranchLength(p, newV);
-                p->setNeedsTPUpdate(true);
+            double currentV = trees[0]->getBranchLength(p);
+            double scale = std::exp(branchDelta * (rng.uniformRv() - 0.5));
+            double newV = currentV * scale;
+            trees[0]->setBranchLength(p, newV);
+            p->setNeedsTPUpdate(true);
 
-                Node* q = p;
-                do{
-                    if(q->getIsTip() == false)
-                        q->setNeedsCLUpdate(true);
-                    
-                    q = q->getAncestor();
-                } 
-                while(q != root);
-                root->setNeedsCLUpdate(true);
+            Node* q = p;
+            do{
+                if(q->getIsTip() == false)
+                    q->setNeedsCLUpdate(true);
+                
+                q = q->getAncestor();
+            } 
+            while(q != root);
+            root->setNeedsCLUpdate(true);
 
-                this->dirty();
+            this->dirty();
 
-                hastings = std::log(scale);
-            }
-            else {
-                double currentV = trees[0]->getBranchLength(p);
-                double scale = std::exp(branchDelta * (rng.uniformRv() - 0.5));
-                double newV = currentV * scale;
-                trees[0]->setBranchLength(p, newV);
-                p->setNeedsTPUpdate(true);
-
-                for(Node* n : p->getNeighbors()){
-                    if(n != p->getAncestor()){
-                        double currentNLength = trees[0]->getBranchLength(n);
-                        double newLength = currentNLength * scale;
-                        trees[0]->setBranchLength(n, newLength);
-                        n->setNeedsTPUpdate(true);
-                        if(n->getIsTip() == false)
-                            n->setNeedsCLUpdate(true);
-                    }
-                }
-
-                Node* q = p;
-                do{
-                    if(q->getIsTip() == false)
-                        q->setNeedsCLUpdate(true);
-                    
-                    q = q->getAncestor();
-                } 
-                while(q != root);
-                root->setNeedsCLUpdate(true);
-
-                this->dirty();
-
-                hastings = 3 * std::log(scale);
-            }
+            hastings = std::log(scale);
         }
     }
     else {
@@ -259,13 +225,13 @@ double TreeParameter::update() {
 
         for(int i = 0; i < values.size(); i++) {
             values[i] /= totalLength;
-            alphaForward[i] = values[i] * treeAlpha;
+            alphaForward[i] = (values[i] * treeAlpha);
         }
         
         Probability::Dirichlet::rv(&rng, alphaForward, z);
 
         for(int i = 0; i < z.size(); i++) {
-            alphaReverse[i] = z[i] * treeAlpha;
+            alphaReverse[i] = (z[i] * treeAlpha);
         }
         
         hastings  = Probability::Dirichlet::lnPdf(alphaReverse, values) - Probability::Dirichlet::lnPdf(alphaForward, z);

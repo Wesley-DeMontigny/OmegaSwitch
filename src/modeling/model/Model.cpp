@@ -191,7 +191,7 @@ void Model::regenerateLikelihood(){
 
     tf::Taskflow phyloTaskflow;
     
-    int chunkSize = 100;
+    int chunkSize = 50;
     for(int range = 0; range < (int)std::ceil((double)numChar / chunkSize); range++){
         int start = range * chunkSize;
         int end = start + chunkSize-1;
@@ -421,7 +421,7 @@ void Model::tuneMoves(){
 }
 
 std::string Model::tabularHeader(){
-    std::string returnString = "Iteration\tPosterior\tLikelihood\tTree Prior\tDPP Prior\tK Prior\tR Prior\tK\tR";
+    std::string returnString = "Iteration\tPosterior\tLikelihood\tTree Prior\tDPP Prior\tK Prior\tR Prior\tStationary Prior\tK\tR";
     for(int i = 0; i < 61; i++){
         returnString += "\tPi[" + std::to_string(i) + "]";
     }
@@ -433,8 +433,8 @@ std::string Model::tabularOut(int i){
     std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" +
                                std::to_string(currentLikelihood) + "\t" + std::to_string(tree->lnPrior()) + "\t" +
                                std::to_string(dpp->lnPrior()) + "\t" + std::to_string(rateMatrix->kPrior()) + "\t" + 
-                               std::to_string(rateMatrix->rPrior()) + "\t" + std::to_string(rateMatrix->getK()) + "\t" +
-                               std::to_string(rateMatrix->getR()) ;
+                               std::to_string(rateMatrix->rPrior()) + "\t" + std::to_string(rateMatrix->stationaryPrior()) + "\t" +
+                               std::to_string(rateMatrix->getK()) + "\t" + std::to_string(rateMatrix->getR());
     std::vector<double> stationary = rateMatrix->getRawStationary();
     for(double i : stationary){
         returnString += "\t" + std::to_string(i);

@@ -5,13 +5,14 @@
 #include "modeling/parameters/CodonMultiMatrix.hpp"
 #include "modeling/parameters/DirichletProcessPrior.hpp"
 #include "modeling/parameters/trees/TreeParameter.hpp"
+#include "modeling/parameters/trees/TreeObject.hpp"
 #include "core/Settings.hpp"
 #include <cmath>
 #include <iostream>
 #include <fstream>
 
 Mcmc::Mcmc(Model* m, TreeParameter* t, CodonMultiMatrix* cmm, DirichletProcessPrior* d, Settings& s) : 
-    model(m), dpp(d), codonMatrix(cmm), tree(t), generalUpdates(5), stationaryUpdates(10) { 
+    model(m), dpp(d), codonMatrix(cmm), tree(t), generalUpdates(5), stationaryUpdates(10), treeUpdates(0) { 
     numIter = s.numIterations;
     numBurnIn = s.burnInIterations;
     printFreq = s.printFrequency;
@@ -29,13 +30,115 @@ Mcmc::Mcmc(Model* m, TreeParameter* t, CodonMultiMatrix* cmm, DirichletProcessPr
     stationaryChoice = s.stationaryWeight + omegaChoice;
     dppChoice = s.dppWeight + stationaryChoice;
 
+    treeUpdates = (int)(tree->getTree()->getBranchLengths().size() * 0.75);
+
     model->regenerateLikelihood();
     model->accept();
 }
 
-void Mcmc::burnin(){
+double Mcmc::GibbsIteration(double currentLnPosterior){
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
+    double randomMove = rng.uniformRv() * dppChoice;
+
+    if(randomMove < rChoice){
+        std::function<double()> updater;
+
+        if(randomMove < kChoice){
+            updater = [this]() { return codonMatrix->updateK(); };
+        }
+        else if(randomMove < rChoice){
+            updater = [this]() { return codonMatrix->updateR(); };
+        }
+        
+
+        for(int i = 0; i < generalUpdates; i++){
+            double lnProposalRatio = updater();
+            model->regenerateLikelihood();
+
+            double newLnPosterior = model->lnLikelihood() + model->lnPrior();
+
+            double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
+            double lnR = lnProposalRatio + lnPosteriorRatio;
+
+            if(std::log(rng.uniformRv()) < lnR){
+                model->accept();
+                currentLnPosterior = newLnPosterior;
+            }
+            else{
+                model->reject();
+            }
+        }
+    }
+    else if(randomMove < treeChoice){
+        for(int i = 0; i < treeUpdates; i++){
+            double lnProposalRatio = tree->update();
+            model->regenerateLikelihood();
+
+            double newLnPosterior = model->lnLikelihood() + model->lnPrior();
+
+            double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
+            double lnR = lnProposalRatio + lnPosteriorRatio;
+
+            if(std::log(rng.uniformRv()) < lnR){
+                model->accept();
+                currentLnPosterior = newLnPosterior;
+            }
+            else{
+                model->reject();
+            }
+        } 
+    }
+    else if(randomMove < omegaChoice){
+        for(int i = 0; i < dpp->getNumCategories() * 2; i++){
+            double lnProposalRatio = dpp->updateOmega();
+            model->regenerateLikelihood();
+
+            double newLnPosterior = model->lnLikelihood() + model->lnPrior();
+
+            double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
+            double lnR = lnProposalRatio + lnPosteriorRatio;
+
+            if(std::log(rng.uniformRv()) < lnR){
+                model->accept();
+                currentLnPosterior = newLnPosterior;
+            }
+            else{
+                model->reject();
+            }
+        } 
+    }
+    else if(randomMove < stationaryChoice){
+        for(int i = 0; i < stationaryUpdates; i++){
+            double lnProposalRatio = codonMatrix->updateStationary();
+            model->regenerateLikelihood();
+
+            double newLnPosterior = model->lnLikelihood() + model->lnPrior();
+
+            double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
+            double lnR = lnProposalRatio + lnPosteriorRatio;
+
+            if(std::log(rng.uniformRv()) < lnR){
+                model->accept();
+                currentLnPosterior = newLnPosterior;
+            }
+            else{
+                model->reject();
+            }
+        }
+    }
+    else {
+        dpp->updateDPP();
+
+        model->regenerateLikelihood();
+        currentLnPosterior = model->lnLikelihood() + model->lnPrior();
+        model->accept();
+    }
+
+    return currentLnPosterior;
+}
+
+void Mcmc::burnin(){
     double currentLnPosterior = model->lnLikelihood() + model->lnPrior();
 
     for(int n = 1; n <= numBurnIn; n++){
@@ -44,7 +147,6 @@ void Mcmc::burnin(){
             std::cout << "Accept Rates Since Last Tuning Iteration:" << 
                          "\tTree Rate=" << (double)tree->treeAcceptCount/(double)tree->treeCount << 
                          "\tBranch Rate=" << (double)tree->branchAcceptCount/(double)tree->branchCount <<
-                         "\tStationary Beta Rate=" << (double)codonMatrix->stationaryBetaAcceptCount/(double)codonMatrix->stationaryBetaCount <<
                          "\tStationary Dirichlet Rate=" << (double)codonMatrix->stationaryDirichletAcceptCount/(double)codonMatrix->stationaryDirichletCount <<
                          "\tK Rate=" << (double)codonMatrix->kAcceptCount/(double)codonMatrix->kCount <<
                          "\tR Rate=" << (double)codonMatrix->rAcceptCount/(double)codonMatrix->rCount <<
@@ -54,75 +156,11 @@ void Mcmc::burnin(){
             model->tuneMoves();
         }
 
-        double randomMove = rng.uniformRv() * dppChoice;
-
-        if(randomMove < omegaChoice){
-            std::function<double()> updater;
-
-            if(randomMove < kChoice){
-                updater = [this]() { return codonMatrix->updateK(); };
-            }
-            else if(randomMove < rChoice){
-                updater = [this]() { return codonMatrix->updateR(); };
-            }
-            else if(randomMove < treeChoice){
-                updater = [this]() { return tree->update(); };
-            }
-            else {
-                updater = [this]() { return dpp->updateOmega(); };
-            }
-            
-
-            for(int i = 0; i < generalUpdates; i++){
-                double lnProposalRatio = updater();
-                model->regenerateLikelihood();
-
-                double newLnPosterior = model->lnLikelihood() + model->lnPrior();
-
-                double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
-                double lnR = lnProposalRatio + lnPosteriorRatio;
-
-                if(std::log(rng.uniformRv()) < lnR){
-                    model->accept();
-                    currentLnPosterior = newLnPosterior;
-                }
-                else{
-                    model->reject();
-                }
-            }
-        }
-        else if(randomMove < stationaryChoice){
-            for(int i = 0; i < stationaryUpdates; i++){
-                double lnProposalRatio = codonMatrix->updateStationary();
-                model->regenerateLikelihood();
-
-                double newLnPosterior = model->lnLikelihood() + model->lnPrior();
-
-                double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
-                double lnR = lnProposalRatio + lnPosteriorRatio;
-
-                if(std::log(rng.uniformRv()) < lnR){
-                    model->accept();
-                    currentLnPosterior = newLnPosterior;
-                }
-                else{
-                    model->reject();
-                }
-            }
-        }
-        else {
-            dpp->updateDPP();
-
-            model->regenerateLikelihood();
-            currentLnPosterior = model->lnLikelihood() + model->lnPrior();
-            model->accept();
-        }
+        currentLnPosterior = GibbsIteration(currentLnPosterior);
     }
 }
 
 void Mcmc::run(){
-    RandomVariable& rng = RandomVariable::randomVariableInstance();
-
     double currentLnPosterior = model->lnLikelihood() + model->lnPrior();
 
     std::string tabularHeader = model->tabularHeader();
@@ -171,68 +209,6 @@ void Mcmc::run(){
             fs.clear();
         }
 
-        double randomMove = rng.uniformRv() * dppChoice;
-
-        if(randomMove < omegaChoice){
-            std::function<double()> updater;
-
-            if(randomMove < kChoice){
-                updater = [this]() { return codonMatrix->updateK(); };
-            }
-            else if(randomMove < rChoice){
-                updater = [this]() { return codonMatrix->updateR(); };
-            }
-            else if(randomMove < treeChoice){
-                updater = [this]() { return tree->update(); };
-            }
-            else {
-                updater = [this]() { return dpp->updateOmega(); };
-            }
-            
-
-            for(int i = 0; i < generalUpdates; i++){
-                double lnProposalRatio = updater();
-                model->regenerateLikelihood();
-
-                double newLnPosterior = model->lnLikelihood() + model->lnPrior();
-
-                double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
-                double lnR = lnProposalRatio + lnPosteriorRatio;
-
-                if(std::log(rng.uniformRv()) < lnR){
-                    model->accept();
-                    currentLnPosterior = newLnPosterior;
-                }
-                else{
-                    model->reject();
-                }
-            }
-        }
-        else if(randomMove < stationaryChoice){
-            for(int i = 0; i < stationaryUpdates; i++){
-                double lnProposalRatio = codonMatrix->updateStationary();
-                model->regenerateLikelihood();
-
-                double newLnPosterior = model->lnLikelihood() + model->lnPrior();
-
-                double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
-                double lnR = lnProposalRatio + lnPosteriorRatio;
-
-                if(std::log(rng.uniformRv()) < lnR){
-                    model->accept();
-                    currentLnPosterior = newLnPosterior;
-                }
-                else{
-                    model->reject();
-                }
-            }
-        }
-        else {
-            dpp->updateDPP();
-
-            model->regenerateLikelihood();
-            currentLnPosterior = model->lnLikelihood() + model->lnPrior();
-            model->accept();
-        }
+        currentLnPosterior = GibbsIteration(currentLnPosterior);
     }
 }

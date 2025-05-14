@@ -6,10 +6,10 @@
 
 Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dppOutput(""), mcmcOutput(""), tipsOutput(""),
                                               numIterations(30000), printFrequency(10), sampleFrequency(100),
-                                              burnInIterations(5000), tuneFrequency(250), rLambda(1.0),
-                                              kLambda(1.0), omegaLambda(1.0), dppAlpha(1.0),
+                                              burnInIterations(5000), tuneFrequency(250), rLambda(5.0),
+                                              kLambda(2.0), omegaLambda(2.0), treeLengthLambda(5.0), expectedCat(1.2),
                                               rWeight(4.0), kWeight(4.0), stationaryWeight(4.0), omegaWeight(4.0),
-                                              dppWeight(1.0), treeWeight(6.0), treeLengthLambda(1.0), simulate(false), 
+                                              dppWeight(1.0), treeWeight(6.0), numGibbs(25), simulate(false),
                                               fixedTree(""), numTaxa(-1), numChar(-1), kValue(-1.0), rValue(-1.0) {
 
     std::vector<std::string> settings;
@@ -53,6 +53,8 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                 tipsOutput = settings[i];
             else if (currentArg == "-numIter")
                 numIterations = stoi(settings[i]);
+            else if (currentArg == "-numGibbs")
+                numGibbs = stoi(settings[i]);
             else if (currentArg == "-printFreq")
                 printFrequency = stoi(settings[i]);
             else if (currentArg == "-sampleFreq")
@@ -69,8 +71,8 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                 kLambda = stod(settings[i]);
             else if (currentArg == "-rLambda")
                 rLambda = stod(settings[i]);
-            else if (currentArg == "-dppAlpha")
-                dppAlpha = stod(settings[i]);
+            else if (currentArg == "-expectedCat")
+                expectedCat = stod(settings[i]);
              else if (currentArg == "-dppWeight")
                 dppWeight = stod(settings[i]);
             else if (currentArg == "-kWeight")
@@ -174,7 +176,7 @@ void Settings::print(){
     std::cout << "   * -omegaLambda       : " << omegaLambda << std::endl;
     std::cout << "   * -kLambda           : " << kLambda << std::endl;
     std::cout << "   * -rLambda           : " << rLambda << std::endl;
-    std::cout << "   * -dppAlpha          : " << dppAlpha << std::endl;
+    std::cout << "   * -expectedCat       : " << expectedCat << std::endl;
     std::cout << "   * -kValue            : " << kValue << std::endl;
     std::cout << "   * -rValue            : " << rValue << std::endl;
     std::cout << std::endl;
@@ -185,6 +187,7 @@ void Settings::print(){
     std::cout << "   * -sampleFreq        : " << sampleFrequency << std::endl;
     std::cout << "   * -burnInIter        : " << burnInIterations << std::endl;
     std::cout << "   * -tuneFreq          : " << tuneFrequency << std::endl;
+    std::cout << "   * -numGibbs          : " << numGibbs << std::endl;
     std::cout << "   * -treeWeight        : " << treeWeight << std::endl;
     std::cout << "   * -kWeight           : " << kWeight << std::endl;
     std::cout << "   * -rWeight           : " << rWeight << std::endl;
@@ -227,7 +230,7 @@ void Settings::usage(void) {
     std::cout << "   * -omegaLambda       : Lambda parameter for the dN/dS exponential prior." << std::endl;
     std::cout << "   * -kAlpha            : Lambda parameter for the transition/transversion ratio exponential prior." << std::endl;
     std::cout << "   * -rAlpha            : Lambda parameter for the matrix-swapping exponential prior." << std::endl;
-    std::cout << "   * -dppAlpha          : The alpha parameter of the DPP." << std::endl;
+    std::cout << "   * -expectedCat       : The number of expected categories for the DPP." << std::endl;
     std::cout << "   * -kValue            : The starting value for the K parameter." << std::endl;
     std::cout << "   * -rValue            : The starting value for the R parameter." << std::endl;
     std::cout << std::endl;
@@ -238,6 +241,7 @@ void Settings::usage(void) {
     std::cout << "   * -sampleFreq        : How often to ouput the MCMC state to log files." << std::endl;
     std::cout << "   * -burnInIter        : The number of iterations for the burn-in." << std::endl;
     std::cout << "   * -tuneFreq          : How often to tune the MCMC moves during the burn-in." << std::endl;
+    std::cout << "   * -numGibbs          : How many Gibbs updates to perform on the DPP partitions." << std::endl;
     std::cout << "   * -treeWeight        : How often to propose a move on the tree." << std::endl;
     std::cout << "   * -kWeight           : How often to propose a move on the K parameter." << std::endl;
     std::cout << "   * -rWeight           : How often to propose a move on the R parameter." << std::endl;

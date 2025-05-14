@@ -22,6 +22,7 @@ class CodonMultiMatrix : public Parameter {
         double lnPrior();
         double rPrior() {return currentRPrior;}
         double kPrior() {return currentKPrior;}
+        double stationaryPrior() {return currentStationaryPrior;}
         std::vector<double> getStationary();
         std::vector<double> getRawStationary() {return currentStationary;}
         double getK() {return currentK;}
@@ -34,8 +35,6 @@ class CodonMultiMatrix : public Parameter {
         int rAcceptCount;
         int stationaryDirichletCount;
         int stationaryDirichletAcceptCount;
-        int stationaryBetaCount;
-        int stationaryBetaAcceptCount;
     private:
         Matrix<double> currentQMatrix;
         Matrix<double> oldQMatrix;
@@ -44,7 +43,6 @@ class CodonMultiMatrix : public Parameter {
         double kDelta;
         double rDelta;
         double stationaryDirichletAlpha;
-        double stationaryBetaAlpha;
 
         std::vector<int> randomStates;
 
@@ -62,6 +60,9 @@ class CodonMultiMatrix : public Parameter {
 
         std::vector<double> currentStationary;
         std::vector<double> oldStationary;
+        double currentStationaryPrior;
+        double oldStationaryPrior;
+        std::vector<double> stationaryPriorAlpha;
 
         std::set<std::pair<int, int>> nonsynonymous;
         std::set<std::pair<int, int>> synonymous;

@@ -12,12 +12,15 @@
 #include <algorithm>
 
 DirichletProcessPrior::DirichletProcessPrior(int size, Settings s) : 
-                                             alpha(s.dppAlpha), omegaLambda(s.omegaLambda),
+                                             alpha(0), omegaLambda(s.omegaLambda),
                                              numMembers(size), currentLnPrior(0.0),
                                              model(nullptr), omegaDelta(0.5), assignments(size, -1),
-                                             omegaAcceptCount(0), omegaCount(0), moveChoice(-1) {
+                                             omegaAcceptCount(0), omegaCount(0), moveChoice(-1),
+                                             numGibbs(s.numGibbs) {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
+
+    alpha = calculateAlpha(s.expectedCat, numMembers);
 
     for(int i = 0; i < size; i++){
         double randomVal = rng.uniformRv();
@@ -60,6 +63,50 @@ DirichletProcessPrior::DirichletProcessPrior(int size, Settings s) :
 DirichletProcessPrior::~DirichletProcessPrior() {}
 
 void DirichletProcessPrior::registerModel(Model* m) { model = m; }
+
+double DirichletProcessPrior::expectedCategories(double a, int members){
+    return a * std::log(1 + (members/a));
+}
+
+// From John's code
+double DirichletProcessPrior::calculateAlpha(double expectedCat, int members) {
+
+    if (expectedCat > members)
+        Msg::error("The expected number of tables cannot be larger than the number of patrons (" + std::to_string(members) + "<" + std::to_string(expectedCat) + ")");
+     if (expectedCat < 1.0)
+        Msg::error("The expected number of tables cannot be less than one");
+       
+    double a = 0.000001;
+    double ea = expectedCategories(a, members);
+    bool goUp;
+    if (ea < expectedCat)
+        goUp = true;
+    else
+        goUp = false;
+    double increment = 0.1;
+    
+    //While we are not within some error tolerance, move increment the estimate to get closer and closer
+    while (fabs(ea - expectedCat) > 0.000001) {
+        if (ea < expectedCat && goUp == true){
+            a += increment;
+        }
+        else if (ea > expectedCat && goUp == false){
+            a -= increment;
+        }
+        else if (ea < expectedCat && goUp == false){
+            increment /= 2.0;
+            goUp = true;
+            a += increment;
+        }
+        else{
+            increment /= 2.0;
+            goUp = false;
+            a -= increment;
+        }
+        ea = expectedCategories(a, members);
+    }
+    return a;
+}
 
 void DirichletProcessPrior::regeneratePrior(){
     int numCats = currentCategories.size();
@@ -175,7 +222,11 @@ double DirichletProcessPrior::updateDPP(){
 
     this->dirty();
 
-    for(int n = 0; n < numMembers; n++) {
+    int numAux = 5;
+
+    for(int iter = 0; iter < numGibbs; iter++) {
+        int n = (int)(rng.uniformRv() * numMembers);
+
         int deleted = unassignMember(n); // This will also delete the group if empty
         if(deleted >= 0){
             model->getTransitionProbability()->deleteQ(deleted);
@@ -197,11 +248,11 @@ double DirichletProcessPrior::updateDPP(){
 
         std::vector<double> omega1Vec;
         std::vector<double> omega2Vec;
-        std::vector<double> rVec;
-        double alphaSplit = std::log(alpha/5);
 
-        model->getTransitionProbability()->allocateQ(numCats + 5);
-        for(int i = 0; i < 5; i++){
+        double alphaSplit = std::log(alpha/numAux);
+
+        model->getTransitionProbability()->allocateQ(numCats + numAux);
+        for(int i = 0; i < numAux; i++){
             conditionalL.push_back(0.0);
             double newOmega1 = Probability::Exponential::rv(&rng, omegaLambda);
             double newOmega2 = Probability::Exponential::rv(&rng, omegaLambda);
@@ -218,7 +269,7 @@ double DirichletProcessPrior::updateDPP(){
 
         executor.run(taskflow).wait();
 
-        for(int i = 0; i < 5; i++)
+        for(int i = 0; i < numAux; i++)
             currentCategories.pop_back();
 
         //Do some adjustments here to get relative probabilities
@@ -239,12 +290,12 @@ double DirichletProcessPrior::updateDPP(){
             if(total > categoryDraw){
                 if(i < numCats) { //It already exists
                     assignMember(n, i);
-                    model->getTransitionProbability()->deleteNQ(5);
+                    model->getTransitionProbability()->deleteNQ(numAux);
                 }
                 else {
                     addCategory(omega1Vec[i - numCats], omega2Vec[i - numCats]);
                     assignMember(n, numCats);
-                    model->getTransitionProbability()->deleteNQ(4);
+                    model->getTransitionProbability()->deleteNQ(numAux - 1);
                     model->regenerateTransitionProbs(n, numCats);
                 }
                 break;

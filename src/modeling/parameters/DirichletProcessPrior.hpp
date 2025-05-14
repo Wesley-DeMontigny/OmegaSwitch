@@ -50,6 +50,9 @@ class DirichletProcessPrior : public Parameter {
         int omegaAcceptCount;
         int omegaCount;
     protected:
+        double calculateAlpha(double expectedCat, int members);
+        double expectedCategories(double a, int members);
+
         void regeneratePrior();
         Model* model;
         double currentLnPrior;
@@ -60,6 +63,7 @@ class DirichletProcessPrior : public Parameter {
         double omegaDelta;
 
         int numMembers;
+        int numGibbs;
         std::vector<Category> currentCategories;
         std::vector<Category> oldCategories;
         std::vector<int> assignments;

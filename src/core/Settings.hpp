@@ -21,7 +21,7 @@ struct Settings {
     double          kLambda;
     double          rLambda;
     double          omegaLambda;
-    double          dppAlpha;
+    double          expectedCat;
     double          treeLengthLambda;
     double          kWeight;
     double          rWeight;
@@ -29,6 +29,7 @@ struct Settings {
     double          dppWeight;
     double          treeWeight;
     double          stationaryWeight;
+    int             numGibbs;
 
     bool            simulate;
     int             numTaxa;

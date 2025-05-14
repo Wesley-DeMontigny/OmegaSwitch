@@ -24,6 +24,7 @@ class Mcmc{
         int sampleFreq;
         int generalUpdates;
         int stationaryUpdates;
+        int treeUpdates;
 
         double treeChoice;
         double stationaryChoice;
@@ -42,6 +43,8 @@ class Mcmc{
         std::string tipsLog;
 
         Model* model;
+        
+        double GibbsIteration(double currentLnPosterior);
 };
 
 #endif

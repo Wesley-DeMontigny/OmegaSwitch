@@ -10,9 +10,9 @@ CodonMultiMatrix::CodonMultiMatrix(Settings settings) :
                                    currentQMatrix(122, 122, 0.0), oldQMatrix(122, 122, 0.0), 
                                    currentStationary(61, -1), oldStationary(61, -1), kLambda(settings.kLambda), rLambda(settings.rLambda),
                                    currentKPrior(0.0), oldKPrior(0.0), currentRPrior(0.0), oldRPrior(0.0), moveChoice(-1), kCount(0),
-                                   currentStationaryPrior(0), oldStationaryPrior(0), stationaryDirichletAlpha(75000), rDelta(0.5), 
-                                   stationaryPriorAlpha(61, 1.5), stationaryDirichletCount(0), rCount(0), 
-                                   kAcceptCount(0), stationaryDirichletAcceptCount(0), rAcceptCount(0) {
+                                   currentStationaryPrior(0), oldStationaryPrior(0), stationaryAlpha(500000), rDelta(0.25), kDelta(0.25),
+                                   stationaryPriorAlpha(61, 1.5), stationaryCount(0), rCount(0), 
+                                   kAcceptCount(0), stationaryAcceptCount(0), rAcceptCount(0) {
     std::vector<int> aaMap = {8, 11, 8, 11, 16, 16, 16, 16, 14, 15, 14, 15, 7, 7, 10, 7, 13, 6, 13, 6, 12, 12, 12, 12, 14, 14, 14, 14, 9, 9, 9, 9, 3, 2, 3, 2, 0, 0, 0, 0, 5, 5, 5, 5, 17, 17, 17, 17, 19, 19, 15, 15, 15, 15, 1, 18, 1, 9, 4, 9, 4};  
     std::vector<const char*> codons = {"AAA", "AAC", "AAG", "AAT", "ACA", "ACC", "ACG", "ACT", "AGA", "AGC", "AGG", "AGT", "ATA", "ATC", "ATG", "ATT", "CAA", "CAC", "CAG", "CAT", "CCA", "CCC", "CCG", "CCT", "CGA", "CGC", "CGG", "CGT", "CTA", "CTC", "CTG", "CTT", "GAA", "GAC", "GAG", "GAT", "GCA", "GCC", "GCG", "GCT", "GGA", "GGC", "GGG", "GGT", "GTA", "GTC", "GTG", "GTT", "TAC", "TAT", "TCA", "TCC", "TCG", "TCT", "TGC", "TGG", "TGT", "TTA", "TTC", "TTG", "TTT"};
 
@@ -104,7 +104,7 @@ void CodonMultiMatrix::accept() {
         kAcceptCount += 1;
     }
     else if(moveChoice == 1){
-        stationaryDirichletAcceptCount += 1;
+        stationaryAcceptCount += 1;
     }
     else if(moveChoice == 2){
         rAcceptCount += 1;
@@ -184,9 +184,9 @@ double CodonMultiMatrix::updateStationary() {
     this->dirty();
     double hastings = 0.0;
 
-    int numElements = 30;
+    int numElements = 10;
     moveChoice = 1;
-    stationaryDirichletCount += 1;
+    stationaryCount += 1;
 
     std::vector<int> drawSet(randomStates);
     std::vector<int> randomIndices;
@@ -214,13 +214,13 @@ double CodonMultiMatrix::updateStationary() {
     }
 
     for(int i = 0; i < x.size(); i++) {
-        alphaForward[i] = (x[i] * stationaryDirichletAlpha) + 1.0;
+        alphaForward[i] = (x[i] * stationaryAlpha) + 1.0;
     }
     
     Probability::Dirichlet::rv(&rng, alphaForward, z);
 
     for(int i = 0; i < z.size(); i++) {
-        alphaReverse[i] = (z[i] * stationaryDirichletAlpha) + 1.0;
+        alphaReverse[i] = (z[i] * stationaryAlpha) + 1.0;
     }
 
     double factor = z[z.size()-1] / x[x.size()-1];
@@ -392,15 +392,15 @@ void CodonMultiMatrix::tune(){
     rAcceptCount = 0;
     rCount = 0;
 
-    double stationaryDRate = (double)stationaryDirichletAcceptCount/(double)stationaryDirichletCount;
+    double stationaryRate = (double)stationaryAcceptCount/(double)stationaryCount;
 
-    if ( stationaryDRate > 0.6 ) {
-        stationaryDirichletAlpha /= (1.0 + ((stationaryDRate-0.6)/0.4));
+    if ( stationaryRate > 0.33 ) {
+        stationaryAlpha /= (1.0 + ((stationaryRate-0.33)/0.67));
     }
     else {
-        stationaryDirichletAlpha *= (2.0 - stationaryDRate/0.6);
+        stationaryAlpha *= (2.0 - stationaryRate/0.33);
     }
 
-    stationaryDirichletAcceptCount = 0;
-    stationaryDirichletCount = 0;
+    stationaryAcceptCount = 0;
+    stationaryCount = 0;
 }

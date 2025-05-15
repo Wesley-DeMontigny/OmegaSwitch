@@ -9,8 +9,7 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                                               burnInIterations(5000), tuneFrequency(250), rLambda(5.0),
                                               kLambda(2.0), omegaLambda(2.0), treeLengthLambda(5.0), expectedCat(1.2),
                                               rWeight(4.0), kWeight(4.0), stationaryWeight(4.0), omegaWeight(4.0),
-                                              dppWeight(1.0), treeWeight(6.0), numGibbs(25), simulate(false),
-                                              fixedTree(""), numTaxa(-1), numChar(-1), kValue(-1.0), rValue(-1.0) {
+                                              dppWeight(1.0), treeWeight(6.0), numGibbs(25), fixedTree(""){
 
     std::vector<std::string> settings;
     for (int i=1; i<argc; i++) {
@@ -85,57 +84,8 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                 treeWeight = stod(settings[i]);
             else if (currentArg == "-omegaWeight")
                 omegaWeight = stod(settings[i]);
-            else if (currentArg == "-simulate")
-                simulate = stoi(settings[i]) == 1;
             else if (currentArg == "-fixedTree")
                 fixedTree = settings[i];
-            else if (currentArg == "-numTaxa")
-                numTaxa = stoi(settings[i]);
-            else if (currentArg == "-numChar")
-                numChar = stoi(settings[i]);
-            else if (currentArg == "-kValue")
-                kValue = stod(settings[i]);
-            else if (currentArg == "-rValue")
-                rValue = stod(settings[i]);
-            else if (currentArg == "-omega1Vector"){
-                std::string currentString = "";
-                for(int c = 0; c < settings[i].size(); c++){
-                    if(settings[i][c] == ','){
-                        omega1Vector.push_back(stod(currentString));
-                        currentString = "";
-                    }
-                    else{
-                        currentString += settings[i][c];
-                    }
-                }
-                omega1Vector.push_back(stod(currentString));
-            }
-            else if (currentArg == "-omega2Vector"){
-                std::string currentString = "";
-                for(int c = 0; c < settings[i].size(); c++){
-                    if(settings[i][c] == ','){
-                        omega2Vector.push_back(stod(currentString));
-                        currentString = "";
-                    }
-                    else{
-                        currentString += settings[i][c];
-                    }
-                }
-                omega2Vector.push_back(stod(currentString));
-            }
-            else if (currentArg == "-assignmentVector"){
-                std::string currentString = "";
-                for(int c = 0; c < settings[i].size(); c++){
-                    if(settings[i][c] == ','){
-                        assignmentVector.push_back(stoi(currentString));
-                        currentString = "";
-                    }
-                    else{
-                        currentString += settings[i][c];
-                    }
-                }
-                assignmentVector.push_back(stoi(currentString));
-            }
             else{
                 Msg::error("Could not interpret argument " + currentArg);
                 usage();
@@ -144,17 +94,9 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
         }
     }
 
-    if(!simulate){
-        if(nexusInput == "" || treeOutput == "" || mcmcOutput == "" || dppOutput == ""){
-            usage();
-            Msg::error("For non-simulation analyses, nexusInput, treeOutput, mcmcOutput, and dppOutput are required arguments.");
-        }
-    }
-    else{
-        if(omega1Vector.size() == 0 || omega2Vector.size() == 0){
-            usage();
-            Msg::error("Simulation analyses require the omega vectors to be defined.");
-        }
+    if(nexusInput == "" || treeOutput == "" || mcmcOutput == "" || dppOutput == ""){
+        usage();
+        Msg::error("For non-simulation analyses, nexusInput, treeOutput, mcmcOutput, and dppOutput are required arguments.");
     }
 
     print();
@@ -177,8 +119,6 @@ void Settings::print(){
     std::cout << "   * -kLambda           : " << kLambda << std::endl;
     std::cout << "   * -rLambda           : " << rLambda << std::endl;
     std::cout << "   * -expectedCat       : " << expectedCat << std::endl;
-    std::cout << "   * -kValue            : " << kValue << std::endl;
-    std::cout << "   * -rValue            : " << rValue << std::endl;
     std::cout << std::endl;
     
     std::cout << "Sampling Options:" << std::endl;
@@ -194,23 +134,6 @@ void Settings::print(){
     std::cout << "   * -stationaryWeight  : " << stationaryWeight << std::endl;
     std::cout << "   * -dppWeight         : " << dppWeight << std::endl;
     std::cout << "   * -omegaWeight       : " << omegaWeight << std::endl;
-    std::cout << std::endl;
-
-    std::cout << "Simulation:" << std::endl;
-    std::cout << "   * -simulate          : " << simulate << std::endl;
-    std::cout << "   * -numTaxa           : " << numTaxa << std::endl;
-    std::cout << "   * -numChar           : " << numChar << std::endl;
-    std::cout << "   * -omega1Vector      : ";
-    for(double o : omega1Vector)
-        std::cout << o << " ";
-    std::cout << std::endl;
-    std::cout << "   * -omega2Vector      : ";
-    for(double o : omega2Vector)
-        std::cout << o << " ";
-    std::cout << std::endl;
-    std::cout << "   * -asignmentVector   : ";
-    for(int a : assignmentVector)
-        std::cout << a << " ";
     std::cout << std::endl;
 }
 
@@ -231,8 +154,6 @@ void Settings::usage(void) {
     std::cout << "   * -kAlpha            : Lambda parameter for the transition/transversion ratio exponential prior." << std::endl;
     std::cout << "   * -rAlpha            : Lambda parameter for the matrix-swapping exponential prior." << std::endl;
     std::cout << "   * -expectedCat       : The number of expected categories for the DPP." << std::endl;
-    std::cout << "   * -kValue            : The starting value for the K parameter." << std::endl;
-    std::cout << "   * -rValue            : The starting value for the R parameter." << std::endl;
     std::cout << std::endl;
     
     std::cout << "Sampling Options:" << std::endl;
@@ -248,14 +169,5 @@ void Settings::usage(void) {
     std::cout << "   * -stationaryWeight  : How often to propose a move on the stationary distribution." << std::endl;
     std::cout << "   * -dppWeight         : How often to propose a move on the DPP partitions." << std::endl;
     std::cout << "   * -omegaWeight       : How often to propose a move on the omega parameters." << std::endl;
-    std::cout << std::endl;
-
-    std::cout << "Simulation:" << std::endl;
-    std::cout << "   * -simulate          : Should this run be a simulation under the model (0/1)?" << std::endl;
-    std::cout << "   * -numTaxa           : The number of taxa to simulate." << std::endl;
-    std::cout << "   * -numChar           : The number of chararacters to simulate." << std::endl;
-    std::cout << "   * -omega1Vector      : The vector of omega 1 rate multipliers." << std::endl;
-    std::cout << "   * -omega2Vector      : The vector of omega 2 rate multipliers." << std::endl;
-    std::cout << "   * -asignmentVector   : The vector of category assignments." << std::endl;
     std::cout << std::endl;
 }

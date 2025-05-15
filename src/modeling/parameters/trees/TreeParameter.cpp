@@ -7,7 +7,7 @@
 #include <cmath>
 
 TreeParameter::TreeParameter(Alignment* aln, std::string newick, double l) : lambda(l), currentPrior(0.0), oldPrior(0.0), 
-                                                         branchDelta(0.25), moveChoice(-1), branchCount(0), branchAcceptCount(0), 
+                                                         branchDelta(0.05), moveChoice(-1), branchCount(0), branchAcceptCount(0), 
                                                          treeCount(0), treeAcceptCount(0), treeAlpha(10000) {
     fixedTree = newick != "";
     if(!fixedTree)
@@ -225,13 +225,13 @@ double TreeParameter::update() {
 
         for(int i = 0; i < values.size(); i++) {
             values[i] /= totalLength;
-            alphaForward[i] = (values[i] * treeAlpha);
+            alphaForward[i] = (values[i] * treeAlpha) + 1;
         }
         
         Probability::Dirichlet::rv(&rng, alphaForward, z);
 
         for(int i = 0; i < z.size(); i++) {
-            alphaReverse[i] = (z[i] * treeAlpha);
+            alphaReverse[i] = (z[i] * treeAlpha) + 1;
         }
         
         hastings  = Probability::Dirichlet::lnPdf(alphaReverse, values) - Probability::Dirichlet::lnPdf(alphaForward, z);

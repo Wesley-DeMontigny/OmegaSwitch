@@ -41,8 +41,9 @@ double Mcmc::GibbsIteration(double currentLnPosterior){
 
     double randomMove = rng.uniformRv() * dppChoice;
 
-    if(randomMove < rChoice){
+    if(randomMove < stationaryChoice){
         std::function<double()> updater;
+        int numUpdates = generalUpdates;
 
         if(randomMove < kChoice){
             updater = [this]() { return codonMatrix->updateK(); };
@@ -50,67 +51,21 @@ double Mcmc::GibbsIteration(double currentLnPosterior){
         else if(randomMove < rChoice){
             updater = [this]() { return codonMatrix->updateR(); };
         }
-        
-
-        for(int i = 0; i < generalUpdates; i++){
-            double lnProposalRatio = updater();
-            model->regenerateLikelihood();
-
-            double newLnPosterior = model->lnLikelihood() + model->lnPrior();
-
-            double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
-            double lnR = lnProposalRatio + lnPosteriorRatio;
-
-            if(std::log(rng.uniformRv()) < lnR){
-                model->accept();
-                currentLnPosterior = newLnPosterior;
-            }
-            else{
-                model->reject();
-            }
+        else if(randomMove < treeChoice){
+            updater = [this]() { return tree->update(); };
+            numUpdates = treeUpdates;
         }
-    }
-    else if(randomMove < treeChoice){
-        for(int i = 0; i < treeUpdates; i++){
-            double lnProposalRatio = tree->update();
-            model->regenerateLikelihood();
+        else if(randomMove < omegaChoice){
+            updater = [this]() { return dpp->updateOmega(); };
+            numUpdates = dpp->getNumCategories() * 2;
+        }
+        else if(randomMove < stationaryChoice){
+            updater = [this]() { return codonMatrix->updateStationary(); };
+            numUpdates = stationaryUpdates;
+        }
 
-            double newLnPosterior = model->lnLikelihood() + model->lnPrior();
-
-            double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
-            double lnR = lnProposalRatio + lnPosteriorRatio;
-
-            if(std::log(rng.uniformRv()) < lnR){
-                model->accept();
-                currentLnPosterior = newLnPosterior;
-            }
-            else{
-                model->reject();
-            }
-        } 
-    }
-    else if(randomMove < omegaChoice){
-        for(int i = 0; i < dpp->getNumCategories() * 2; i++){
-            double lnProposalRatio = dpp->updateOmega();
-            model->regenerateLikelihood();
-
-            double newLnPosterior = model->lnLikelihood() + model->lnPrior();
-
-            double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
-            double lnR = lnProposalRatio + lnPosteriorRatio;
-
-            if(std::log(rng.uniformRv()) < lnR){
-                model->accept();
-                currentLnPosterior = newLnPosterior;
-            }
-            else{
-                model->reject();
-            }
-        } 
-    }
-    else if(randomMove < stationaryChoice){
-        for(int i = 0; i < stationaryUpdates; i++){
-            double lnProposalRatio = codonMatrix->updateStationary();
+        for(int i = 0; i < numUpdates; i++){
+            double lnProposalRatio = updater();
             model->regenerateLikelihood();
 
             double newLnPosterior = model->lnLikelihood() + model->lnPrior();
@@ -147,7 +102,7 @@ void Mcmc::burnin(){
             std::cout << "Accept Rates Since Last Tuning Iteration:" << 
                          "\tTree Rate=" << (double)tree->treeAcceptCount/(double)tree->treeCount << 
                          "\tBranch Rate=" << (double)tree->branchAcceptCount/(double)tree->branchCount <<
-                         "\tStationary Dirichlet Rate=" << (double)codonMatrix->stationaryDirichletAcceptCount/(double)codonMatrix->stationaryDirichletCount <<
+                         "\tStationary Rate=" << (double)codonMatrix->stationaryAcceptCount/(double)codonMatrix->stationaryCount <<
                          "\tK Rate=" << (double)codonMatrix->kAcceptCount/(double)codonMatrix->kCount <<
                          "\tR Rate=" << (double)codonMatrix->rAcceptCount/(double)codonMatrix->rCount <<
                          "\tOmega Rate=" << (double)dpp->omegaAcceptCount/(double)dpp->omegaCount << std::endl;

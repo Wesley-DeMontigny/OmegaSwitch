@@ -48,18 +48,12 @@ CodonMultiMatrix::CodonMultiMatrix(Settings settings) :
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
-    if(settings.kValue == -1)
-        currentK = Probability::Exponential::rv(&rng, kLambda);
-    else
-        currentK = settings.kValue;
+    currentK = Probability::Exponential::rv(&rng, kLambda);
     oldK = currentK;
     currentKPrior = Probability::Exponential::lnPdf(kLambda, currentK);
     oldKPrior = currentKPrior;
 
-    if(settings.rValue == -1)
-        currentR = Probability::Exponential::rv(&rng, rLambda);
-    else
-        currentR = settings.rValue;
+    currentR = Probability::Exponential::rv(&rng, rLambda);
     oldR = currentR;
     currentRPrior = Probability::Exponential::lnPdf(rLambda, currentR);
     oldRPrior = currentRPrior;

@@ -50,6 +50,8 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                 dppOutput = settings[i];
             else if (currentArg == "-tipsOut")
                 tipsOutput = settings[i];
+            else if (currentArg == "-ancestralSatetsOut")
+                ancestralStatesOutput = settings[i];
             else if (currentArg == "-numIter")
                 numIterations = stoi(settings[i]);
             else if (currentArg == "-numGibbs")
@@ -96,7 +98,7 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
 
     if(nexusInput == "" || treeOutput == "" || mcmcOutput == "" || dppOutput == ""){
         usage();
-        Msg::error("For non-simulation analyses, nexusInput, treeOutput, mcmcOutput, and dppOutput are required arguments.");
+        Msg::error("For non-simulation analyses, nexus, treeOut, mcmcOut are required arguments.");
     }
 
     print();
@@ -110,6 +112,7 @@ void Settings::print(){
     std::cout << "   * -mcmcOut           : " << mcmcOutput << std::endl;
     std::cout << "   * -dppOut            : " << dppOutput << std::endl;
     std::cout << "   * -tipsOut           : " << tipsOutput << std::endl;
+    std::cout << "   * -ancestralStatesOut: " << ancestralStatesOutput << std::endl;
     std::cout << "   * -fixedTree         : " << fixedTree << std::endl;
     std::cout << std::endl;
     
@@ -144,7 +147,8 @@ void Settings::usage(void) {
     std::cout << "   * -treeOut           : The output file name for the tree trace." << std::endl;
     std::cout << "   * -mcmcOut           : The output file name for the bulk of the MCMC trace, excluding the tree and DPP parameters." << std::endl;
     std::cout << "   * -dppOut            : The output file name for the DPP parameters." << std::endl;
-    std::cout << "   * -tipsOut           : The output file name for the reconstructed tip stats." << std::endl;
+    std::cout << "   * -tipsOut           : The output file name for the reconstructed tip dNdS ratios." << std::endl;
+    std::cout << "   * -ancestralStatesOut: The output file name for the all ancestral dNdS ratios." << std::endl;
     std::cout << "   * -fixedTree         : The NEWICK string corresponding to the fixed tree you wish to analyze." << std::endl;
     std::cout << std::endl;
 

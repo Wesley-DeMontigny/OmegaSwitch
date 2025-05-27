@@ -22,6 +22,7 @@ Mcmc::Mcmc(Model* m, TreeParameter* t, CodonMultiMatrix* cmm, DirichletProcessPr
     treeLog = s.treeOutput;
     dppLog = s.dppOutput;
     tipsLog = s.tipsOutput;
+    ancestralLog = s.ancestralStatesOutput;
 
     kChoice = s.kWeight;
     rChoice = s.rWeight + kChoice;
@@ -130,13 +131,23 @@ void Mcmc::run(){
     fs << model->treeHeader();
     fs.close();
 
-    fs.open(dppLog, std::ofstream::out);
-    fs << model->dppHeader();
-    fs.close();
+    if(dppLog != ""){
+        fs.open(dppLog, std::ofstream::out);
+        fs << model->dppHeader();
+        fs.close();
+    }
 
-    fs.open(tipsLog, std::ofstream::out);
-    fs << model->tipsHeader();
-    fs.close();
+    if(tipsLog != ""){
+        fs.open(tipsLog, std::ofstream::out);
+        fs << model->tipsHeader();
+        fs.close();
+    }
+
+    if(ancestralLog != ""){
+        fs.open(ancestralLog, std::ofstream::out);
+        fs << model->ancestralHeader();
+        fs.close();
+    }
 
     for(int n = 1; n <= numIter; n++){
         if(n % printFreq == 0){
@@ -153,15 +164,30 @@ void Mcmc::run(){
             fs.close();
             fs.clear();
 
-            fs.open(dppLog, std::ofstream::app);
-            fs << model->dppOut(n);
-            fs.close();
-            fs.clear();
+            if(dppLog != ""){
+                fs.open(dppLog, std::ofstream::app);
+                fs << model->dppOut(n);
+                fs.close();
+                fs.clear();
+            }
 
-            fs.open(tipsLog, std::ofstream::app);
-            fs << model->tipsOut(n);
-            fs.close();
-            fs.clear();
+            if(tipsLog != "" || ancestralLog != ""){
+                auto reconstruction = model->reconstructionOut(n);
+    
+                if(tipsLog != ""){
+                    fs.open(tipsLog, std::ofstream::app);
+                    fs << std::get<0>(reconstruction);
+                    fs.close();
+                    fs.clear();
+                }
+
+                if(ancestralLog != ""){
+                    fs.open(ancestralLog, std::ofstream::app);
+                    fs << std::get<1>(reconstruction);
+                    fs.close();
+                    fs.clear();
+                }
+            }
         }
 
         currentLnPosterior = GibbsIteration(currentLnPosterior);

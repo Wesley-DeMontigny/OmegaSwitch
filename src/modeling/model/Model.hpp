@@ -45,7 +45,8 @@ class Model {
         std::string dppHeader();
         std::string dppOut(int i);
         std::string tipsHeader();
-        std::string tipsOut(int i);
+        std::string ancestralHeader();
+        std::tuple<std::string, std::string> reconstructionOut(int i);
     protected:
         double oldLikelihood;
         double currentLikelihood;

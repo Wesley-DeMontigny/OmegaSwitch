@@ -10,8 +10,8 @@ CodonMultiMatrix::CodonMultiMatrix(Settings settings) :
                                    currentQMatrix(122, 122, 0.0), oldQMatrix(122, 122, 0.0), 
                                    currentStationary(61, -1), oldStationary(61, -1), kLambda(settings.kLambda), rLambda(settings.rLambda),
                                    currentKPrior(0.0), oldKPrior(0.0), currentRPrior(0.0), oldRPrior(0.0), moveChoice(-1), kCount(0),
-                                   currentStationaryPrior(0), oldStationaryPrior(0), stationaryAlpha(500000), rDelta(0.25), kDelta(0.25),
-                                   stationaryPriorAlpha(61, 1.5), stationaryCount(0), rCount(0), 
+                                   currentStationaryPrior(0), oldStationaryPrior(0), stationaryAlpha(75000), rDelta(0.25), kDelta(0.25),
+                                   stationaryPriorAlpha(61, 2.0), stationaryCount(0), rCount(0), 
                                    kAcceptCount(0), stationaryAcceptCount(0), rAcceptCount(0) {
     std::vector<int> aaMap = {8, 11, 8, 11, 16, 16, 16, 16, 14, 15, 14, 15, 7, 7, 10, 7, 13, 6, 13, 6, 12, 12, 12, 12, 14, 14, 14, 14, 9, 9, 9, 9, 3, 2, 3, 2, 0, 0, 0, 0, 5, 5, 5, 5, 17, 17, 17, 17, 19, 19, 15, 15, 15, 15, 1, 18, 1, 9, 4, 9, 4};  
     std::vector<const char*> codons = {"AAA", "AAC", "AAG", "AAT", "ACA", "ACC", "ACG", "ACT", "AGA", "AGC", "AGG", "AGT", "ATA", "ATC", "ATG", "ATT", "CAA", "CAC", "CAG", "CAT", "CCA", "CCC", "CCG", "CCT", "CGA", "CGC", "CGG", "CGT", "CTA", "CTC", "CTG", "CTT", "GAA", "GAC", "GAG", "GAT", "GCA", "GCC", "GCG", "GCT", "GGA", "GGC", "GGG", "GGT", "GTA", "GTC", "GTG", "GTT", "TAC", "TAT", "TCA", "TCC", "TCG", "TCT", "TGC", "TGG", "TGT", "TTA", "TTC", "TTG", "TTT"};
@@ -178,7 +178,7 @@ double CodonMultiMatrix::updateStationary() {
     this->dirty();
     double hastings = 0.0;
 
-    int numElements = 10;
+    int numElements = 30;
     moveChoice = 1;
     stationaryCount += 1;
 

@@ -421,7 +421,7 @@ void Model::tuneMoves(){
 }
 
 std::string Model::tabularHeader(){
-    std::string returnString = "Iteration\tPosterior\tLikelihood\tTree Prior\tDPP Prior\tK Prior\tR Prior\tStationary Prior\tK\tR";
+    std::string returnString = "Iteration\tPosterior\tLikelihood\tPrior\tK\tR";
     for(int i = 0; i < 61; i++){
         returnString += "\tPi[" + std::to_string(i) + "]";
     }
@@ -431,9 +431,7 @@ std::string Model::tabularHeader(){
 
 std::string Model::tabularOut(int i){
     std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" +
-                               std::to_string(currentLikelihood) + "\t" + std::to_string(tree->lnPrior()) + "\t" +
-                               std::to_string(dpp->lnPrior()) + "\t" + std::to_string(rateMatrix->kPrior()) + "\t" + 
-                               std::to_string(rateMatrix->rPrior()) + "\t" + std::to_string(rateMatrix->stationaryPrior()) + "\t" +
+                               std::to_string(currentLikelihood) + "\t" + std::to_string(lnPrior()) + "\t" +
                                std::to_string(rateMatrix->getK()) + "\t" + std::to_string(rateMatrix->getR());
     std::vector<double> stationary = rateMatrix->getRawStationary();
     for(double i : stationary){
@@ -485,10 +483,23 @@ std::string Model::tipsHeader(){
     return returnString + "\n";
 }
 
-std::string Model::tipsOut(int i){
+std::string Model::ancestralHeader(){
+    std::string returnString = "Iteration";
+
+    for(int i = 0; i < numNodes; i++) {
+        for(int c = 0; c < numChar; c++){
+            returnString += "\t" + std::to_string(i) + "[" + std::to_string(c) + "]";
+        }
+    }
+
+    return returnString + "\n";
+}
+
+std::tuple<std::string, std::string> Model::reconstructionOut(int i){
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
-    std::string returnString = std::to_string(i);
+    std::string tipString = std::to_string(i);
+    std::string ancestralString = std::to_string(i);
     std::vector<Node*> tips = tree->getTree()->getTips();
 
     TreeObject* activeT = tree->getTree();
@@ -630,7 +641,15 @@ std::string Model::tipsOut(int i){
         int index = n->getIndex();
         double* dNdSP = reconstructeddNdS + index*numChar;
         for(int c = 0; c < numChar; c++) {
-            returnString += "\t" + std::to_string(*dNdSP/numJointDraws);
+            tipString += "\t" + std::to_string(*dNdSP/numJointDraws);
+            dNdSP++;
+        }
+    }
+
+    for(int i = 0; i < numNodes; i++) {
+        double* dNdSP = reconstructeddNdS + i*numChar;
+        for(int c = 0; c < numChar; c++) {
+            ancestralString += "\t" + std::to_string(*dNdSP/numJointDraws);
             dNdSP++;
         }
     }
@@ -638,5 +657,5 @@ std::string Model::tipsOut(int i){
     delete [] reconstructedStates;
     delete [] reconstructeddNdS;
 
-    return returnString + "\n";
+    return std::make_tuple(tipString + "\n", ancestralString + "\n");
 }

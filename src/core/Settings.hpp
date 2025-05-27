@@ -11,6 +11,7 @@ struct Settings {
     std::string     dppOutput;
     std::string     mcmcOutput;
     std::string     tipsOutput;
+    std::string     ancestralStatesOutput;
 
     std::string     fixedTree;
     int             numIterations;

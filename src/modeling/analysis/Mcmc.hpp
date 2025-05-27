@@ -41,6 +41,7 @@ class Mcmc{
         std::string treeLog;
         std::string dppLog;
         std::string tipsLog;
+        std::string ancestralLog;
 
         Model* model;
         

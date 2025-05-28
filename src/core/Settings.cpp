@@ -6,7 +6,7 @@
 
 Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dppOutput(""), mcmcOutput(""), tipsOutput(""),
                                               numIterations(30000), printFrequency(10), sampleFrequency(100),
-                                              burnInIterations(5000), tuneFrequency(250), rLambda(5.0),
+                                              burnInIterations(5000), tuneFrequency(250), rLambda(5.0), gammaLambda(5.0),
                                               kLambda(2.0), omegaLambda(2.0), treeLengthLambda(5.0), expectedCat(1.2),
                                               rWeight(1.0), kWeight(1.0), stationaryWeight(2.0), omegaWeight(2.0),
                                               dppWeight(1.0), treeWeight(2.0), numGibbs(25), fixedTree(""){

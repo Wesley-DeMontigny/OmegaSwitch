@@ -20,26 +20,23 @@ class DPPMatrix : public Parameter {
         double updateStationary();
         void tune();
         double lnPrior();
-        double rPrior() {return currentRPrior;}
-        double kPrior() {return currentKPrior;}
-        double stationaryPrior() {return currentStationaryPrior;}
         std::vector<double> getStationary();
         std::vector<double> getRawStationary() {return currentStationary;}
         double getK() {return currentK;}
         double getR() {return currentR;}
         std::pair<double, double> dNdS(double omega1, double omega2);
 
-        int kCount;
-        int kAcceptCount;
-        int rCount;
-        int rAcceptCount;
-        int stationaryCount;
-        int stationaryAcceptCount;
+        int kCount = 0;
+        int kAcceptCount = 0;
+        int rCount = 0;
+        int rAcceptCount = 0;
+        int stationaryCount = 0;
+        int stationaryAcceptCount = 0;
     private:
         Matrix<double> currentQMatrix;
         Matrix<double> oldQMatrix;
 
-        int moveChoice;
+        int moveChoice = -1;
         double kDelta;
         double rDelta;
         double stationaryAlpha;
@@ -47,21 +44,22 @@ class DPPMatrix : public Parameter {
         std::vector<int> randomStates;
 
         double kLambda;
-        double currentK;
-        double oldK;
-        double currentKPrior;
-        double oldKPrior;
-
         double rLambda;
-        double currentR;
-        double oldR;
-        double currentRPrior;
-        double oldRPrior;
+        
+        double currentK = 0;
+        double oldK = 0;
+        double currentKPrior = 0;
+        double oldKPrior = 0;
+
+        double currentR = 0;
+        double oldR = 0;
+        double currentRPrior = 0;
+        double oldRPrior = 0;
 
         std::vector<double> currentStationary;
         std::vector<double> oldStationary;
-        double currentStationaryPrior;
-        double oldStationaryPrior;
+        double currentStationaryPrior = 0;
+        double oldStationaryPrior = 0;
         std::vector<double> stationaryPriorAlpha;
 
         std::set<std::pair<int, int>> nonsynonymous;

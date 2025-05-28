@@ -1,4 +1,4 @@
-#include "M1Matrix.hpp"
+#include "M0Matrix.hpp"
 #include "core/Matrix.hpp"
 #include "core/RandomVariable.hpp"
 #include "core/Probability.hpp"
@@ -6,13 +6,10 @@
 #include <cmath>
 #include <algorithm>
 
-M1Matrix::M1Matrix(Settings settings) : 
+M0Matrix::M0Matrix(Settings settings) : 
                                    currentQMatrix(61, 61, 0.0), oldQMatrix(61, 61, 0.0), currentStationary(61, -1), oldStationary(61, -1), 
-                                   kLambda(settings.kLambda), omegaLambda(settings.omegaLambda), currentOmegaPrior(0),
-                                   currentKPrior(0.0), oldKPrior(0.0), moveChoice(-1), kCount(0),
-                                   currentStationaryPrior(0), oldStationaryPrior(0), stationaryAlpha(75000), kDelta(0.25),
-                                   omegaDelta(0.25), stationaryPriorAlpha(61, 2.0), stationaryCount(0), omegaCount(0),
-                                   kAcceptCount(0), stationaryAcceptCount(0), omegaAcceptCount(0) {
+                                   kLambda(settings.kLambda), omegaLambda(settings.omegaLambda), stationaryAlpha(75000), kDelta(0.25),
+                                   omegaDelta(0.25), stationaryPriorAlpha(61, 2.0) {
     std::vector<int> aaMap = {8, 11, 8, 11, 16, 16, 16, 16, 14, 15, 14, 15, 7, 7, 10, 7, 13, 6, 13, 6, 12, 12, 12, 12, 14, 14, 14, 14, 9, 9, 9, 9, 3, 2, 3, 2, 0, 0, 0, 0, 5, 5, 5, 5, 17, 17, 17, 17, 19, 19, 15, 15, 15, 15, 1, 18, 1, 9, 4, 9, 4};  
     std::vector<const char*> codons = {"AAA", "AAC", "AAG", "AAT", "ACA", "ACC", "ACG", "ACT", "AGA", "AGC", "AGG", "AGT", "ATA", "ATC", "ATG", "ATT", "CAA", "CAC", "CAG", "CAT", "CCA", "CCC", "CCG", "CCT", "CGA", "CGC", "CGG", "CGT", "CTA", "CTC", "CTG", "CTT", "GAA", "GAC", "GAG", "GAT", "GCA", "GCC", "GCG", "GCT", "GGA", "GGC", "GGG", "GGT", "GTA", "GTC", "GTG", "GTT", "TAC", "TAT", "TCA", "TCC", "TCG", "TCT", "TGC", "TGG", "TGT", "TTA", "TTC", "TTG", "TTT"};
 
@@ -84,7 +81,7 @@ M1Matrix::M1Matrix(Settings settings) :
     dirty();
 }
 
-void M1Matrix::accept() {
+void M0Matrix::accept() {
     oldK = currentK;
     oldKPrior = currentKPrior;
     oldOmega = currentOmega;
@@ -107,7 +104,7 @@ void M1Matrix::accept() {
     moveChoice = -1;
 }
 
-void M1Matrix::reject() {
+void M0Matrix::reject() {
     currentK = oldK;
     currentKPrior = oldKPrior;
     currentOmega = oldOmega;
@@ -120,11 +117,11 @@ void M1Matrix::reject() {
     moveChoice = -1;
 }
 
-double M1Matrix::lnPrior() {
+double M0Matrix::lnPrior() {
     return currentKPrior + currentStationaryPrior + currentOmegaPrior;
 }
 
-double M1Matrix::updateK() {
+double M0Matrix::updateK() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
     double hastings = 0.0;
 
@@ -150,7 +147,7 @@ double M1Matrix::updateK() {
     return hastings;
 }
 
-double M1Matrix::updateOmega() {
+double M0Matrix::updateOmega() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
     double hastings = 0.0;
 
@@ -176,7 +173,7 @@ double M1Matrix::updateOmega() {
     return hastings;
 }
 
-double M1Matrix::updateStationary() {
+double M0Matrix::updateStationary() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
     this->dirty();
     double hastings = 0.0;
@@ -264,7 +261,7 @@ double M1Matrix::updateStationary() {
     return hastings;
 }
 
-Matrix<double> M1Matrix::Q() {
+Matrix<double> M0Matrix::Q() {
     Matrix<double> returnMatrix(currentQMatrix.copy());
 
     double scaler= 0.0;
@@ -287,7 +284,7 @@ Matrix<double> M1Matrix::Q() {
     return returnMatrix;
 }
 
-std::vector<double> M1Matrix::getStationary(){
+std::vector<double> M0Matrix::getStationary(){
     std::vector<double> returnStationary;
 
     for(int i = 0; i < 2; i++){
@@ -299,7 +296,7 @@ std::vector<double> M1Matrix::getStationary(){
     return returnStationary;
 }
 
-void M1Matrix::tune(){
+void M0Matrix::tune(){
     double kRate = (double)kAcceptCount/(double)kCount;
 
     if ( kRate > 0.33 ) {

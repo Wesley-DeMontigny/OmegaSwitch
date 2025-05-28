@@ -22,6 +22,7 @@ struct Settings {
     double          kLambda;
     double          rLambda;
     double          omegaLambda;
+    double          gammaLambda;
     double          expectedCat;
     double          treeLengthLambda;
     double          kWeight;

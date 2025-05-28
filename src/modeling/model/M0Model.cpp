@@ -1,4 +1,4 @@
-#include "M1Model.hpp"
+#include "M0Model.hpp"
 #include "core/RandomVariable.hpp"
 #include "core/Alignment.hpp"
 #include "core/Msg.hpp"
@@ -7,7 +7,7 @@
 #include "modeling/parameters/trees/Node.hpp"
 #include "modeling/parameters/trees/TreeObject.hpp"
 #include "modeling/parameters/trees/TreeParameter.hpp"
-#include "modeling/parameters/M1Matrix.hpp"
+#include "modeling/parameters/M0Matrix.hpp"
 #include "core/RandomVariable.hpp"
 #include "core/Settings.hpp"
 #include <cmath>
@@ -17,7 +17,7 @@
 #include <unordered_map>
 //#include <chrono>
 
-M1Model::M1Model(Settings s, Alignment* a, TreeParameter* t, M1Matrix* m) : 
+M0Model::M0Model(Settings s, Alignment* a, TreeParameter* t, M0Matrix* m) : 
             aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0),numChar(0) {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
@@ -49,7 +49,7 @@ M1Model::M1Model(Settings s, Alignment* a, TreeParameter* t, M1Matrix* m) :
     activeT->updateAll();
 }
 
-M1Model::~M1Model(){
+M0Model::~M0Model(){
     delete postOrder;
     delete transProb;
     delete [] rescaling;
@@ -57,7 +57,7 @@ M1Model::~M1Model(){
     delete [] activeTP;
 }
 
-void M1Model::accept() {
+void M0Model::accept() {
     oldLikelihood = currentLikelihood;
 
     for(int i = 0; i < numNodes; i++){
@@ -79,7 +79,7 @@ void M1Model::accept() {
     transProb->accept();
 }
 
-void M1Model::reject() {
+void M0Model::reject() {
     currentLikelihood = oldLikelihood;
 
     for(int i = 0; i < numNodes; i++){
@@ -101,11 +101,11 @@ void M1Model::reject() {
     transProb->reject();
 }
 
-double M1Model::lnPrior(){
+double M0Model::lnPrior(){
     return tree->lnPrior() + rateMatrix->lnPrior();
 }
 
-void M1Model::regenerateLikelihood(){
+void M0Model::regenerateLikelihood(){
     TreeObject* activeT = tree->getTree();
 
     const std::vector<Node*> poSeq = activeT->getPostOrderSeq();
@@ -243,12 +243,12 @@ void M1Model::regenerateLikelihood(){
     //std::cout << "Pruning was completed in " << std::chrono::duration_cast<std::chrono::milliseconds>(pruneTime - probsTime).count() << "[milliseconds]" << std::endl;
 }
 
-void M1Model::tuneMoves(){
+void M0Model::tuneMoves(){
     tree->tune();
     rateMatrix->tune();
 }
 
-std::string M1Model::tabularHeader(){
+std::string M0Model::tabularHeader(){
     std::string returnString = "Iteration\tPosterior\tLikelihood\tPrior\tK\tR\tOmega";
     for(int i = 0; i < 61; i++){
         returnString += "\tPi[" + std::to_string(i) + "]";
@@ -257,7 +257,7 @@ std::string M1Model::tabularHeader(){
     return returnString + "\n";
 }
 
-std::string M1Model::tabularOut(int i){
+std::string M0Model::tabularOut(int i){
     std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" +
                                std::to_string(currentLikelihood) + "\t" + std::to_string(lnPrior()) + "\t" +
                                std::to_string(rateMatrix->getK()) + "\t" + std::to_string(rateMatrix->getOmega());
@@ -269,10 +269,10 @@ std::string M1Model::tabularOut(int i){
     return returnString + "\n";
 }
 
-std::string M1Model::treeHeader(){
+std::string M0Model::treeHeader(){
     return "Iteration\tPosterior\tTree\n";
 }
 
-std::string M1Model::treeOut(int i){
+std::string M0Model::treeOut(int i){
     return std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" + tree->writeNewick() + "\n";
 }

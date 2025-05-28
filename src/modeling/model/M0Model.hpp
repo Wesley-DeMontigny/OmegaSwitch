@@ -1,5 +1,5 @@
-#ifndef M1_Model_HPP
-#define M1_Model_HPP
+#ifndef M0_Model_HPP
+#define M0_Model_HPP
 #include "modeling/parameters/trees/TreeParameter.hpp"
 #include <taskflow/taskflow.hpp>
 #include "core/Alignment.hpp"
@@ -7,14 +7,14 @@
 class ConditionalLikelihood;
 class TransitionProbability;
 class RandomVariable;
-class M1Matrix;
+class M0Matrix;
 class Settings;
 
-class M1Model {
+class M0Model {
     public:
-        M1Model(void) = delete;
-        M1Model(Settings s, Alignment* a, TreeParameter* t, M1Matrix* m);
-        ~M1Model();
+        M0Model(void) = delete;
+        M0Model(Settings s, Alignment* a, TreeParameter* t, M0Matrix* m);
+        ~M0Model();
 
         double lnLikelihood() {return currentLikelihood;}
         double lnPrior();
@@ -49,7 +49,7 @@ class M1Model {
 
         tf::Executor executor;
 
-        M1Matrix* rateMatrix;
+        M0Matrix* rateMatrix;
         Alignment* aln;
         ConditionalLikelihood* postOrder;
         TransitionProbability* transProb;

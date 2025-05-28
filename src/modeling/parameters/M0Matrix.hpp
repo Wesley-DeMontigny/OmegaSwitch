@@ -1,5 +1,5 @@
-#ifndef M1_MATRIX_HPP
-#define M1_MATRIX_HPP
+#ifndef M0_MATRIX_HPP
+#define M0_MATRIX_HPP
 #include "core/Matrix.hpp"
 #include "core/Msg.hpp"
 #include "modeling/parameters/Parameter.hpp"
@@ -8,9 +8,9 @@
 
 class Settings;
 
-class M1Matrix : public Parameter {
+class M0Matrix : public Parameter {
     public:
-        M1Matrix(Settings settings);
+        M0Matrix(Settings settings);
         Matrix<double> Q();
         std::vector<double> stationary();
         void accept();
@@ -20,25 +20,22 @@ class M1Matrix : public Parameter {
         double updateStationary();
         void tune();
         double lnPrior();
-        double kPrior() {return currentKPrior;}
-        double omegaPrior() {return currentOmega;}
-        double stationaryPrior() {return currentStationaryPrior;}
         std::vector<double> getStationary();
         std::vector<double> getRawStationary() {return currentStationary;}
         double getK() {return currentK;}
         double getOmega() {return currentOmega;}
 
-        int kCount;
-        int kAcceptCount;
-        int stationaryCount;
-        int stationaryAcceptCount;
-        int omegaCount;
-        int omegaAcceptCount;
+        int kCount = 0;
+        int kAcceptCount = 0;
+        int stationaryCount = 0;
+        int stationaryAcceptCount = 0;
+        int omegaCount = 0;
+        int omegaAcceptCount = 0;
     private:
         Matrix<double> currentQMatrix;
         Matrix<double> oldQMatrix;
 
-        int moveChoice;
+        int moveChoice = -1;
         double kDelta;
         double omegaDelta;
         double stationaryAlpha;
@@ -46,21 +43,22 @@ class M1Matrix : public Parameter {
         std::vector<int> randomStates;
 
         double kLambda;
-        double currentK;
-        double oldK;
-        double currentKPrior;
-        double oldKPrior;
-
         double omegaLambda;
-        double currentOmega;
-        double oldOmega;
-        double currentOmegaPrior;
-        double oldOmegaPrior;
+
+        double currentK = 0;
+        double oldK = 0;
+        double currentKPrior = 0;
+        double oldKPrior = 0;
+
+        double currentOmega = 0;
+        double oldOmega = 0;
+        double currentOmegaPrior = 0;
+        double oldOmegaPrior = 0;
 
         std::vector<double> currentStationary;
         std::vector<double> oldStationary;
-        double currentStationaryPrior;
-        double oldStationaryPrior;
+        double currentStationaryPrior = 0;
+        double oldStationaryPrior = 0;
         std::vector<double> stationaryPriorAlpha;
 
         std::set<std::pair<int, int>> nonsynonymous;

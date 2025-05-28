@@ -1,8 +1,8 @@
-#include "Mcmc.hpp"
+#include "DPPMcmc.hpp"
 #include "core/RandomVariable.hpp"
-#include "modeling/model/Model.hpp"
+#include "modeling/model/DPPModel.hpp"
 #include "modeling/parameters/Parameter.hpp"
-#include "modeling/parameters/CodonMultiMatrix.hpp"
+#include "modeling/parameters/DPPMatrix.hpp"
 #include "modeling/parameters/DirichletProcessPrior.hpp"
 #include "modeling/parameters/trees/TreeParameter.hpp"
 #include "modeling/parameters/trees/TreeObject.hpp"
@@ -11,7 +11,7 @@
 #include <iostream>
 #include <fstream>
 
-Mcmc::Mcmc(Model* m, TreeParameter* t, CodonMultiMatrix* cmm, DirichletProcessPrior* d, Settings& s) : 
+DPPMcmc::DPPMcmc(DPPModel* m, TreeParameter* t, DPPMatrix* cmm, DirichletProcessPrior* d, Settings& s) : 
     model(m), dpp(d), codonMatrix(cmm), tree(t), generalUpdates(5), stationaryUpdates(10), treeUpdates(0) { 
     numIter = s.numIterations;
     numBurnIn = s.burnInIterations;
@@ -37,7 +37,7 @@ Mcmc::Mcmc(Model* m, TreeParameter* t, CodonMultiMatrix* cmm, DirichletProcessPr
     model->accept();
 }
 
-double Mcmc::GibbsIteration(double currentLnPosterior){
+double DPPMcmc::GibbsIteration(double currentLnPosterior){
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
     double randomMove = rng.uniformRv() * dppChoice;
@@ -94,7 +94,7 @@ double Mcmc::GibbsIteration(double currentLnPosterior){
     return currentLnPosterior;
 }
 
-void Mcmc::burnin(){
+void DPPMcmc::burnin(){
     double currentLnPosterior = model->lnLikelihood() + model->lnPrior();
 
     for(int n = 1; n <= numBurnIn; n++){
@@ -116,7 +116,7 @@ void Mcmc::burnin(){
     }
 }
 
-void Mcmc::run(){
+void DPPMcmc::run(){
     double currentLnPosterior = model->lnLikelihood() + model->lnPrior();
 
     std::string tabularHeader = model->tabularHeader();

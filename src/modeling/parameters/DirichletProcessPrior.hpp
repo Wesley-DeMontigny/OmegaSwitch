@@ -4,7 +4,7 @@
 #include <taskflow/taskflow.hpp>
 #include <map>
 
-class Model;
+class DPPModel;
 class Settings;
 
 struct Category {
@@ -21,7 +21,7 @@ class DirichletProcessPrior : public Parameter {
         DirichletProcessPrior(int size, Settings s);
         ~DirichletProcessPrior(void);
 
-        void registerModel(Model* m);
+        void registerModel(DPPModel* m);
         
         double lnPrior() {return currentLnPrior;}
 
@@ -52,14 +52,15 @@ class DirichletProcessPrior : public Parameter {
     protected:
         double calculateAlpha(double expectedCat, int members);
         double expectedCategories(double a, int members);
-
         void regeneratePrior();
-        Model* model;
+
+        DPPModel* model;
+
         double currentLnPrior;
         double oldLnPrior;
+
         double alpha;
         double omegaLambda;
-
         double omegaDelta;
 
         int numMembers;

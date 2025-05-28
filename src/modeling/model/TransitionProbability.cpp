@@ -3,22 +3,12 @@
 #include "core/Math.hpp"
 #include <cstring>
 
-TransitionProbability::TransitionProbability(const int nn)
-    : numStates(122), numNodes(nn), probs1(), probs2() {
+TransitionProbability::TransitionProbability(const int nn, const int ss)
+    : numStates(ss), numNodes(nn), probs1(), probs2() {
 
-	/*
-	probs[0] = new Matrix<double>*[2*numNodes*numCats];
-    probs[1] = probs[0] + numNodes;
+	Matrix<double> Q(numStates, numStates, 0.0);
 
-    for(int i = 0; i < numNodes*numCats; i++){
-        probs[0][i] = new Matrix<double>(numStates, numStates, 0.0);
-        probs[1][i] = new Matrix<double>(numStates, numStates, 0.0);
-    }
-	*/
-
-	Matrix<double> Q(122, 122, 0.0);
-
-	eigens = new EigenSystem(122);
+	eigens = new EigenSystem(numStates);
 	
 	allocateQ(1);
 	updateQ(Q, 0);

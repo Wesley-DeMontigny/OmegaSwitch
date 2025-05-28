@@ -1,4 +1,4 @@
-#include "Model.hpp"
+#include "DPPModel.hpp"
 #include "core/RandomVariable.hpp"
 #include "core/Alignment.hpp"
 #include "core/Msg.hpp"
@@ -7,7 +7,7 @@
 #include "modeling/parameters/trees/Node.hpp"
 #include "modeling/parameters/trees/TreeObject.hpp"
 #include "modeling/parameters/trees/TreeParameter.hpp"
-#include "modeling/parameters/CodonMultiMatrix.hpp"
+#include "modeling/parameters/DPPMatrix.hpp"
 #include "modeling/parameters/DirichletProcessPrior.hpp"
 #include "core/RandomVariable.hpp"
 #include "core/Settings.hpp"
@@ -18,7 +18,7 @@
 #include <unordered_map>
 //#include <chrono>
 
-Model::Model(Settings s, Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProcessPrior* d) : 
+DPPModel::DPPModel(Settings s, Alignment* a, TreeParameter* t, DPPMatrix* m, DirichletProcessPrior* d) : 
             aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0),
             dpp(d), numChar(0) {
 
@@ -41,8 +41,8 @@ Model::Model(Settings s, Alignment* a, TreeParameter* t, CodonMultiMatrix* m, Di
         activeCL[i] = false;
         activeTP[i] = false;
     }
-    postOrder = new ConditionalLikelihood(aln, numNodes, 1);
-    transProb = new TransitionProbability(numNodes);
+    postOrder = new ConditionalLikelihood(aln, numNodes, 1, stateSpace);
+    transProb = new TransitionProbability(numNodes, stateSpace);
 
     int rescaleWidth = numNodes*numChar;
     rescaling = new double[rescaleWidth * 2];
@@ -53,7 +53,7 @@ Model::Model(Settings s, Alignment* a, TreeParameter* t, CodonMultiMatrix* m, Di
     dpp->registerModel(this);
 }
 
-Model::~Model(){
+DPPModel::~DPPModel(){
     delete postOrder;
     delete transProb;
     delete [] rescaling;
@@ -61,7 +61,7 @@ Model::~Model(){
     delete [] activeTP;
 }
 
-void Model::accept() {
+void DPPModel::accept() {
     oldLikelihood = currentLikelihood;
 
     for(int i = 0; i < numNodes; i++){
@@ -87,7 +87,7 @@ void Model::accept() {
     transProb->accept();
 }
 
-void Model::reject() {
+void DPPModel::reject() {
     currentLikelihood = oldLikelihood;
 
     for(int i = 0; i < numNodes; i++){
@@ -113,11 +113,11 @@ void Model::reject() {
     transProb->reject();
 }
 
-double Model::lnPrior(){
+double DPPModel::lnPrior(){
     return dpp->lnPrior() + tree->lnPrior() + rateMatrix->lnPrior();
 }
 
-void Model::regenerateLikelihood(){
+void DPPModel::regenerateLikelihood(){
     TreeObject* activeT = tree->getTree();
 
     const std::vector<Node*> poSeq = activeT->getPostOrderSeq();
@@ -284,7 +284,7 @@ void Model::regenerateLikelihood(){
     //std::cout << "Pruning was completed in " << std::chrono::duration_cast<std::chrono::milliseconds>(pruneTime - probsTime).count() << "[milliseconds]" << std::endl;
 }
 
-void Model::regenerateTransitionProbs(int site, int category){
+void DPPModel::regenerateTransitionProbs(int site, int category){
     TreeObject* activeT = tree->getTree();
 
     std::vector<Node*>&  poSeq = activeT->getPostOrderSeq();
@@ -306,7 +306,7 @@ void Model::regenerateTransitionProbs(int site, int category){
 }
 
 
-double Model::testCategory(int site, int category, bool update){
+double DPPModel::testCategory(int site, int category, bool update){
     TreeObject* activeT = tree->getTree();
 
     std::vector<Node*>&  poSeq = activeT->getPostOrderSeq();
@@ -414,13 +414,13 @@ double Model::testCategory(int site, int category, bool update){
     return lnL;
 }
 
-void Model::tuneMoves(){
+void DPPModel::tuneMoves(){
     tree->tune();
     rateMatrix->tune();
     dpp->tune();
 }
 
-std::string Model::tabularHeader(){
+std::string DPPModel::tabularHeader(){
     std::string returnString = "Iteration\tPosterior\tLikelihood\tPrior\tK\tR";
     for(int i = 0; i < 61; i++){
         returnString += "\tPi[" + std::to_string(i) + "]";
@@ -429,7 +429,7 @@ std::string Model::tabularHeader(){
     return returnString + "\n";
 }
 
-std::string Model::tabularOut(int i){
+std::string DPPModel::tabularOut(int i){
     std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" +
                                std::to_string(currentLikelihood) + "\t" + std::to_string(lnPrior()) + "\t" +
                                std::to_string(rateMatrix->getK()) + "\t" + std::to_string(rateMatrix->getR());
@@ -441,22 +441,22 @@ std::string Model::tabularOut(int i){
     return returnString + "\n";
 }
 
-std::string Model::treeHeader(){
+std::string DPPModel::treeHeader(){
     return "Iteration\tPosterior\tTree\n";
 }
 
-std::string Model::treeOut(int i){
+std::string DPPModel::treeOut(int i){
     return std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" + tree->writeNewick() + "\n";
 }
 
-std::string Model::dppHeader(){
+std::string DPPModel::dppHeader(){
     std::string returnString = "Iteration\tPosterior\tCategoryCount";
     for(int i = 0; i < numChar; i++)
         returnString += "\tOmega1[" + std::to_string(i) + "]" + "\tOmega2[" + std::to_string(i) + "]";
     return returnString + "\n";
 }
 
-std::string Model::dppOut(int i){
+std::string DPPModel::dppOut(int i){
     std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t";
     std::vector<Category> categories = dpp->getCategories();
     returnString += std::to_string(categories.size());
@@ -469,7 +469,7 @@ std::string Model::dppOut(int i){
     return returnString + "\n";
 }
 
-std::string Model::tipsHeader(){
+std::string DPPModel::tipsHeader(){
     std::string returnString = "Iteration";
     std::vector<Node*> tips = tree->getTree()->getTips();
 
@@ -483,7 +483,7 @@ std::string Model::tipsHeader(){
     return returnString + "\n";
 }
 
-std::string Model::ancestralHeader(){
+std::string DPPModel::ancestralHeader(){
     std::string returnString = "Iteration";
 
     for(int i = 0; i < numNodes; i++) {
@@ -495,7 +495,7 @@ std::string Model::ancestralHeader(){
     return returnString + "\n";
 }
 
-std::tuple<std::string, std::string> Model::reconstructionOut(int i){
+std::tuple<std::string, std::string> DPPModel::reconstructionOut(int i){
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
     std::string tipString = std::to_string(i);

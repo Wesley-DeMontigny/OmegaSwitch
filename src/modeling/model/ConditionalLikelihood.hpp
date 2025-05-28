@@ -8,7 +8,7 @@ class Node;
 class ConditionalLikelihood{
     public:
         ConditionalLikelihood(void) = delete;
-        ConditionalLikelihood(Alignment* aln, int nN, int nR);
+        ConditionalLikelihood(Alignment* aln, int nN, int nR, int ss);
         ~ConditionalLikelihood();
         double* operator()(int n, int s, int r);
     private:

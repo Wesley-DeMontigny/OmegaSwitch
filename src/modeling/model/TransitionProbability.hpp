@@ -10,7 +10,7 @@
 class TransitionProbability {
 
 	public:
-                                TransitionProbability(const int nn);
+                                TransitionProbability(const int nn, const int ss);
                                ~TransitionProbability ();
         const Matrix<double>&   operator()(int s, int r, int n) const {
                                     return (s == 0) ? probs1[r][n] : probs2[r][n];

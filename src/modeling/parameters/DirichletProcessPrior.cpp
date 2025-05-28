@@ -1,6 +1,6 @@
 #include "DirichletProcessPrior.hpp"
 #include "core/RandomVariable.hpp"
-#include "modeling/model/Model.hpp" // Annoying circular dependency... It is what is is for now...
+#include "modeling/model/DPPModel.hpp" // Annoying circular dependency... It is what is is for now...
 #include "modeling/model/TransitionProbability.hpp"
 #include "modeling/model/ConditionalLikelihood.hpp"
 #include "core/Probability.hpp"
@@ -62,7 +62,7 @@ DirichletProcessPrior::DirichletProcessPrior(int size, Settings s) :
 
 DirichletProcessPrior::~DirichletProcessPrior() {}
 
-void DirichletProcessPrior::registerModel(Model* m) { model = m; }
+void DirichletProcessPrior::registerModel(DPPModel* m) { model = m; }
 
 double DirichletProcessPrior::expectedCategories(double a, int members){
     return a * std::log(1 + (members/a));

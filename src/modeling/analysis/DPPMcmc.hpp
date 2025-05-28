@@ -3,17 +3,17 @@
 #include <vector>
 #include <string>
 
-class Model;
+class DPPModel;
 class Parameter;
 class TreeParameter;
-class CodonMultiMatrix;
+class DPPMatrix;
 class DirichletProcessPrior;
 class Settings;
 
-class Mcmc{
+class DPPMcmc{
     public:
-        Mcmc(void)=delete;
-        Mcmc(Model* m, TreeParameter* t, CodonMultiMatrix* cmm, DirichletProcessPrior* dpp, Settings& s);
+        DPPMcmc(void)=delete;
+        DPPMcmc(DPPModel* m, TreeParameter* t, DPPMatrix* cmm, DirichletProcessPrior* dpp, Settings& s);
         void burnin();
         void run();
     private:
@@ -34,7 +34,7 @@ class Mcmc{
         double omegaChoice;
 
         TreeParameter* tree;
-        CodonMultiMatrix* codonMatrix;
+        DPPMatrix* codonMatrix;
         DirichletProcessPrior* dpp;
 
         std::string analysisLog;
@@ -43,7 +43,7 @@ class Mcmc{
         std::string tipsLog;
         std::string ancestralLog;
 
-        Model* model;
+        DPPModel* model;
         
         double GibbsIteration(double currentLnPosterior);
 };

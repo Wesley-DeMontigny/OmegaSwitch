@@ -1,5 +1,5 @@
-#ifndef PHYLO_CTMC_HPP
-#define PHYLO_CTMC_HPP
+#ifndef M1_Model_HPP
+#define M1_Model_HPP
 #include "modeling/parameters/trees/TreeParameter.hpp"
 #include <taskflow/taskflow.hpp>
 #include "core/Alignment.hpp"
@@ -7,25 +7,19 @@
 class ConditionalLikelihood;
 class TransitionProbability;
 class RandomVariable;
-class RateMatrix;
-class CodonMultiMatrix;
-class DirichletProcessPrior;
+class M1Matrix;
 class Settings;
 
-class Model {
+class M1Model {
     public:
-        Model(void) = delete;
-        Model(Settings s, Alignment* a, TreeParameter* t, CodonMultiMatrix* m, DirichletProcessPrior* d);
-        ~Model();
+        M1Model(void) = delete;
+        M1Model(Settings s, Alignment* a, TreeParameter* t, M1Matrix* m);
+        ~M1Model();
 
         double lnLikelihood() {return currentLikelihood;}
         double lnPrior();
 
         void regenerateLikelihood();
-        void regenerateTransitionProbs(int site, int category);
-        void reconstructTips();
-
-        double testCategory(int site, int category, bool update);
 
         int getNumTaxa(){return aln->getNumTaxa();}
         int getNumChar(){return numChar;}
@@ -42,11 +36,6 @@ class Model {
         std::string tabularOut(int i);
         std::string treeHeader();
         std::string treeOut(int i);
-        std::string dppHeader();
-        std::string dppOut(int i);
-        std::string tipsHeader();
-        std::string ancestralHeader();
-        std::tuple<std::string, std::string> reconstructionOut(int i);
     protected:
         double oldLikelihood;
         double currentLikelihood;
@@ -56,14 +45,15 @@ class Model {
         int numNodes;
         bool* activeTP;
         bool* activeCL;
+        double* rescaling;
+
         tf::Executor executor;
-        CodonMultiMatrix* rateMatrix;
+
+        M1Matrix* rateMatrix;
         Alignment* aln;
         ConditionalLikelihood* postOrder;
         TransitionProbability* transProb;
-        double* rescaling;
         TreeParameter* tree;
-        DirichletProcessPrior* dpp;
 };
 
 #endif

@@ -1,4 +1,4 @@
-#include "CodonMultiMatrix.hpp"
+#include "DPPMatrix.hpp"
 #include "core/Matrix.hpp"
 #include "core/RandomVariable.hpp"
 #include "core/Probability.hpp"
@@ -6,7 +6,7 @@
 #include <cmath>
 #include <algorithm>
 
-CodonMultiMatrix::CodonMultiMatrix(Settings settings) : 
+DPPMatrix::DPPMatrix(Settings settings) : 
                                    currentQMatrix(122, 122, 0.0), oldQMatrix(122, 122, 0.0), 
                                    currentStationary(61, -1), oldStationary(61, -1), kLambda(settings.kLambda), rLambda(settings.rLambda),
                                    currentKPrior(0.0), oldKPrior(0.0), currentRPrior(0.0), oldRPrior(0.0), moveChoice(-1), kCount(0),
@@ -84,7 +84,7 @@ CodonMultiMatrix::CodonMultiMatrix(Settings settings) :
     dirty();
 }
 
-void CodonMultiMatrix::accept() {
+void DPPMatrix::accept() {
     oldK = currentK;
     oldKPrior = currentKPrior;
     oldR = currentR;
@@ -107,7 +107,7 @@ void CodonMultiMatrix::accept() {
     moveChoice = -1;
 }
 
-void CodonMultiMatrix::reject() {
+void DPPMatrix::reject() {
     currentK = oldK;
     currentKPrior = oldKPrior;
     currentR = oldR;
@@ -120,11 +120,11 @@ void CodonMultiMatrix::reject() {
     moveChoice = -1;
 }
 
-double CodonMultiMatrix::lnPrior() {
+double DPPMatrix::lnPrior() {
     return currentKPrior + currentRPrior + currentStationaryPrior;
 }
 
-double CodonMultiMatrix::updateK() {
+double DPPMatrix::updateK() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
     double hastings = 0.0;
 
@@ -152,7 +152,7 @@ double CodonMultiMatrix::updateK() {
     return hastings;
 }
 
-double CodonMultiMatrix::updateR() {
+double DPPMatrix::updateR() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
     double hastings = 0.0;
 
@@ -173,7 +173,7 @@ double CodonMultiMatrix::updateR() {
     return hastings;
 }
 
-double CodonMultiMatrix::updateStationary() {
+double DPPMatrix::updateStationary() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
     this->dirty();
     double hastings = 0.0;
@@ -261,7 +261,7 @@ double CodonMultiMatrix::updateStationary() {
     return hastings;
 }
 
-Matrix<double> CodonMultiMatrix::Q(double omega1, double omega2) {
+Matrix<double> DPPMatrix::Q(double omega1, double omega2) {
     Matrix<double> returnMatrix(currentQMatrix.copy());
 
     for(auto coord : nonsynonymous){
@@ -309,7 +309,7 @@ Matrix<double> CodonMultiMatrix::Q(double omega1, double omega2) {
     return returnMatrix;
 }
 
-std::pair<double, double> CodonMultiMatrix::dNdS(double omega1, double omega2) {
+std::pair<double, double> DPPMatrix::dNdS(double omega1, double omega2) {
     Matrix<double> returnMatrix(currentQMatrix.copy());
 
     for(auto coord : valid){
@@ -351,7 +351,7 @@ std::pair<double, double> CodonMultiMatrix::dNdS(double omega1, double omega2) {
     return std::make_pair(dN1/dS1, dN2/dS2);;
 }
 
-std::vector<double> CodonMultiMatrix::getStationary(){
+std::vector<double> DPPMatrix::getStationary(){
     std::vector<double> returnStationary;
 
     for(int i = 0; i < 2; i++){
@@ -363,7 +363,7 @@ std::vector<double> CodonMultiMatrix::getStationary(){
     return returnStationary;
 }
 
-void CodonMultiMatrix::tune(){
+void DPPMatrix::tune(){
     double kRate = (double)kAcceptCount/(double)kCount;
 
     if ( kRate > 0.33 ) {

@@ -2,7 +2,7 @@
 #include "core/Alignment.hpp"
 #include "core/Msg.hpp"
 
-ConditionalLikelihood::ConditionalLikelihood(Alignment* aln, int nN, int nR) : numNodes(nN), numRates(nR), stateSpace(122) {
+ConditionalLikelihood::ConditionalLikelihood(Alignment* aln, int nN, int nR, int ss) : numNodes(nN), numRates(nR), stateSpace(ss) {
     numChar = aln->getNumChar();
     int width = numNodes*numChar*stateSpace*numRates;
     condLikelihoods[0] = new double[2 * width];
@@ -12,6 +12,8 @@ ConditionalLikelihood::ConditionalLikelihood(Alignment* aln, int nN, int nR) : n
         condLikelihoods[0][i] = 0.0;
         condLikelihoods[1][i] = 0.0;
     }
+
+    int unseenRates = ss / 61;
 
     for(int index = 0; index < aln->getNumTaxa(); index++){
         for(int r = 0; r < numRates; r++){
@@ -23,14 +25,15 @@ ConditionalLikelihood::ConditionalLikelihood(Alignment* aln, int nN, int nR) : n
                 bool assigned = false;
                 for(int j = 0; j < 61; j++) {
                     if((mask & state) != 0){
-                        *p = 1.0; //Rate 1
-                        *(p + 61) = 1.0; //Rate 2
+                        for(int u = 0; u < unseenRates; u++){
+                            *(p + (61 * u)) = 1.0;
+                        }
                         assigned = true;
                     }
                     mask <<= 1;
                     p++;
                 }
-                p += 61;
+                p += 61 * (unseenRates-1);
 
                 if(assigned == false){
                     Msg::error("Never assigned a conditional value at (" + std::to_string(index) + ", " + std::to_string(i) + ")! This has state value " + std::to_string(state));

@@ -8,8 +8,8 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                                               numIterations(30000), printFrequency(10), sampleFrequency(100),
                                               burnInIterations(5000), tuneFrequency(250), rLambda(5.0),
                                               kLambda(2.0), omegaLambda(2.0), treeLengthLambda(5.0), expectedCat(1.2),
-                                              rWeight(4.0), kWeight(4.0), stationaryWeight(4.0), omegaWeight(4.0),
-                                              dppWeight(1.0), treeWeight(6.0), numGibbs(25), fixedTree(""){
+                                              rWeight(1.0), kWeight(1.0), stationaryWeight(2.0), omegaWeight(2.0),
+                                              dppWeight(1.0), treeWeight(2.0), numGibbs(25), fixedTree(""){
 
     std::vector<std::string> settings;
     for (int i=1; i<argc; i++) {

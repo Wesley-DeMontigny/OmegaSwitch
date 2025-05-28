@@ -1,5 +1,5 @@
-#ifndef CODON_MULTI_MATRIX_HPP
-#define CODON_MULTI_MATRIX_HPP
+#ifndef DPP_MATRIX_HPP
+#define DPP_MATRIX_HPP
 #include "core/Matrix.hpp"
 #include "core/Msg.hpp"
 #include "modeling/parameters/Parameter.hpp"
@@ -8,9 +8,9 @@
 
 class Settings;
 
-class CodonMultiMatrix : public Parameter {
+class DPPMatrix : public Parameter {
     public:
-        CodonMultiMatrix(Settings settings);
+        DPPMatrix(Settings settings);
         Matrix<double> Q(double omega1, double omega2);
         std::vector<double> stationary();
         void accept();

@@ -5,11 +5,11 @@
 #include "ncl/nxscharactersblock.h"
 #include "modeling/parameters/trees/TreeObject.hpp"
 #include "modeling/parameters/trees/TreeParameter.hpp"
-#include "modeling/parameters/CodonMultiMatrix.hpp"
-#include "modeling/model/Model.hpp"
+#include "modeling/parameters/DPPMatrix.hpp"
+#include "modeling/model/DPPModel.hpp"
 #include "modeling/model/TransitionProbability.hpp"
 #include "modeling/parameters/DirichletProcessPrior.hpp"
-#include "modeling/analysis/Mcmc.hpp"
+#include "modeling/analysis/DPPMcmc.hpp"
 #include "modeling/parameters/trees/Node.hpp"
 #include <algorithm>
 #include <chrono>
@@ -28,11 +28,11 @@ int main(int argc, char* argv[]) {
 
     DirichletProcessPrior dpp(aln.getNumChar(), settings);
 
-    CodonMultiMatrix rateMatrix(settings);
+    DPPMatrix rateMatrix(settings);
 
-    Model model(settings, &aln, &treeParam, &rateMatrix, &dpp);
+    DPPModel model(settings, &aln, &treeParam, &rateMatrix, &dpp);
 
-    Mcmc myMCMC(&model, &treeParam, &rateMatrix, &dpp, settings);
+    DPPMcmc myMCMC(&model, &treeParam, &rateMatrix, &dpp, settings);
 
     std::cout << "Starting MCMC..." << std::endl;
     myMCMC.burnin();

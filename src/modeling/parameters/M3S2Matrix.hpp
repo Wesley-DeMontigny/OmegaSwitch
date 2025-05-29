@@ -55,6 +55,8 @@ class M3S2Matrix : public Parameter {
         Matrix<double> currentQMatrix;
         Matrix<double> oldQMatrix;
 
+        void rebuildQMatrix();
+
         int moveChoice = -1;
 
         double kDelta;

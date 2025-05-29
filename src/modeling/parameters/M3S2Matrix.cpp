@@ -87,6 +87,17 @@ M3S2Matrix::M3S2Matrix(Settings settings) :
     currentStationaryPrior = Probability::Dirichlet::lnPdf(stationaryPriorAlpha, currentStationary);
     oldStationaryPrior = currentStationaryPrior;
 
+    rebuildQMatrix();
+    
+    oldQMatrix = currentQMatrix.copy();
+
+    for(int i = 0; i < 61; i++)
+        randomStates.push_back(i);
+
+    dirty();
+}
+
+void M3S2Matrix::rebuildQMatrix(){
     for(auto coord : valid){
         for(int i = 0; i < 3; i++){
             currentQMatrix(coord.first + (i*61), coord.second + (i*61)) = currentStationary[coord.second];
@@ -109,13 +120,6 @@ M3S2Matrix::M3S2Matrix(Settings settings) :
         currentQMatrix(coord.first + 122, coord.second + 122) *= currentOmega1 + currentOmega2 + currentOmega3;
         currentQMatrix(coord.second + 122, coord.first + 122) *= currentOmega1 + currentOmega2 + currentOmega3;
     }
-    
-    oldQMatrix = currentQMatrix.copy();
-
-    for(int i = 0; i < 61; i++)
-        randomStates.push_back(i);
-
-    dirty();
 }
 
 void M3S2Matrix::accept() {
@@ -211,28 +215,7 @@ double M3S2Matrix::updateK() {
 
     currentKPrior = Probability::Exponential::lnPdf(kLambda, currentK);
 
-    for(auto coord : valid){
-        for(int i = 0; i < 3; i++){
-            currentQMatrix(coord.first + (i*61), coord.second + (i*61)) = currentStationary[coord.second];
-            currentQMatrix(coord.second + (i*61), coord.first + (i*61)) = currentStationary[coord.first];
-        }
-    }
-    for(auto coord : transition){
-        for(int i = 0; i < 3; i++){
-            currentQMatrix(coord.first + (i*61), coord.second + (i*61)) *= currentK;
-            currentQMatrix(coord.second + (i*61), coord.first + (i*61)) *= currentK;
-        }
-    }
-    for(auto coord : nonsynonymous){
-        currentQMatrix(coord.first, coord.second) *= currentOmega1;
-        currentQMatrix(coord.second, coord.first) *= currentOmega1;
-
-        currentQMatrix(coord.first + 61, coord.second + 61) *= currentOmega1 + currentOmega2;
-        currentQMatrix(coord.second + 61, coord.first + 61) *= currentOmega1 + currentOmega2;
-
-        currentQMatrix(coord.first + 122, coord.second + 122) *= currentOmega1 + currentOmega2 + currentOmega3;
-        currentQMatrix(coord.second + 122, coord.first + 122) *= currentOmega1 + currentOmega2 + currentOmega3;
-    }
+    rebuildQMatrix();
 
     return hastings;
 }
@@ -255,28 +238,7 @@ double M3S2Matrix::updateOmega1() {
 
     currentOmega1Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega1);
 
-    for(auto coord : valid){
-        for(int i = 0; i < 3; i++){
-            currentQMatrix(coord.first + (i*61), coord.second + (i*61)) = currentStationary[coord.second];
-            currentQMatrix(coord.second + (i*61), coord.first + (i*61)) = currentStationary[coord.first];
-        }
-    }
-    for(auto coord : transition){
-        for(int i = 0; i < 3; i++){
-            currentQMatrix(coord.first + (i*61), coord.second + (i*61)) *= currentK;
-            currentQMatrix(coord.second + (i*61), coord.first + (i*61)) *= currentK;
-        }
-    }
-    for(auto coord : nonsynonymous){
-        currentQMatrix(coord.first, coord.second) *= currentOmega1;
-        currentQMatrix(coord.second, coord.first) *= currentOmega1;
-
-        currentQMatrix(coord.first + 61, coord.second + 61) *= currentOmega1 + currentOmega2;
-        currentQMatrix(coord.second + 61, coord.first + 61) *= currentOmega1 + currentOmega2;
-
-        currentQMatrix(coord.first + 122, coord.second + 122) *= currentOmega1 + currentOmega2 + currentOmega3;
-        currentQMatrix(coord.second + 122, coord.first + 122) *= currentOmega1 + currentOmega2 + currentOmega3;
-    }
+    rebuildQMatrix();
 
     return hastings;
 }
@@ -299,28 +261,7 @@ double M3S2Matrix::updateOmega2() {
 
     currentOmega2Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega2);
 
-    for(auto coord : valid){
-        for(int i = 0; i < 3; i++){
-            currentQMatrix(coord.first + (i*61), coord.second + (i*61)) = currentStationary[coord.second];
-            currentQMatrix(coord.second + (i*61), coord.first + (i*61)) = currentStationary[coord.first];
-        }
-    }
-    for(auto coord : transition){
-        for(int i = 0; i < 3; i++){
-            currentQMatrix(coord.first + (i*61), coord.second + (i*61)) *= currentK;
-            currentQMatrix(coord.second + (i*61), coord.first + (i*61)) *= currentK;
-        }
-    }
-    for(auto coord : nonsynonymous){
-        currentQMatrix(coord.first, coord.second) *= currentOmega1;
-        currentQMatrix(coord.second, coord.first) *= currentOmega1;
-
-        currentQMatrix(coord.first + 61, coord.second + 61) *= currentOmega1 + currentOmega2;
-        currentQMatrix(coord.second + 61, coord.first + 61) *= currentOmega1 + currentOmega2;
-
-        currentQMatrix(coord.first + 122, coord.second + 122) *= currentOmega1 + currentOmega2 + currentOmega3;
-        currentQMatrix(coord.second + 122, coord.first + 122) *= currentOmega1 + currentOmega2 + currentOmega3;
-    }
+    rebuildQMatrix();
 
     return hastings;
 }
@@ -343,28 +284,7 @@ double M3S2Matrix::updateOmega3() {
 
     currentOmega3Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega3);
 
-    for(auto coord : valid){
-        for(int i = 0; i < 3; i++){
-            currentQMatrix(coord.first + (i*61), coord.second + (i*61)) = currentStationary[coord.second];
-            currentQMatrix(coord.second + (i*61), coord.first + (i*61)) = currentStationary[coord.first];
-        }
-    }
-    for(auto coord : transition){
-        for(int i = 0; i < 3; i++){
-            currentQMatrix(coord.first + (i*61), coord.second + (i*61)) *= currentK;
-            currentQMatrix(coord.second + (i*61), coord.first + (i*61)) *= currentK;
-        }
-    }
-    for(auto coord : nonsynonymous){
-        currentQMatrix(coord.first, coord.second) *= currentOmega1;
-        currentQMatrix(coord.second, coord.first) *= currentOmega1;
-
-        currentQMatrix(coord.first + 61, coord.second + 61) *= currentOmega1 + currentOmega2;
-        currentQMatrix(coord.second + 61, coord.first + 61) *= currentOmega1 + currentOmega2;
-
-        currentQMatrix(coord.first + 122, coord.second + 122) *= currentOmega1 + currentOmega2 + currentOmega3;
-        currentQMatrix(coord.second + 122, coord.first + 122) *= currentOmega1 + currentOmega2 + currentOmega3;
-    }
+    rebuildQMatrix();
 
     return hastings;
 }
@@ -502,28 +422,7 @@ double M3S2Matrix::updateStationary() {
     hastings  = Probability::Dirichlet::lnPdf(alphaReverse, x) - Probability::Dirichlet::lnPdf(alphaForward, z);
     hastings += (60 - numElements) * log(factor);
 
-    for(auto coord : valid){
-        for(int i = 0; i < 3; i++){
-            currentQMatrix(coord.first + (i*61), coord.second + (i*61)) = currentStationary[coord.second];
-            currentQMatrix(coord.second + (i*61), coord.first + (i*61)) = currentStationary[coord.first];
-        }
-    }
-    for(auto coord : transition){
-        for(int i = 0; i < 3; i++){
-            currentQMatrix(coord.first + (i*61), coord.second + (i*61)) *= currentK;
-            currentQMatrix(coord.second + (i*61), coord.first + (i*61)) *= currentK;
-        }
-    }
-    for(auto coord : nonsynonymous){
-        currentQMatrix(coord.first, coord.second) *= currentOmega1;
-        currentQMatrix(coord.second, coord.first) *= currentOmega1;
-
-        currentQMatrix(coord.first + 61, coord.second + 61) *= currentOmega1 + currentOmega2;
-        currentQMatrix(coord.second + 61, coord.first + 61) *= currentOmega1 + currentOmega2;
-
-        currentQMatrix(coord.first + 122, coord.second + 122) *= currentOmega1 + currentOmega2 + currentOmega3;
-        currentQMatrix(coord.second + 122, coord.first + 122) *= currentOmega1 + currentOmega2 + currentOmega3;
-    }
+    rebuildQMatrix();
 
     currentStationaryPrior = Probability::Dirichlet::lnPdf(stationaryPriorAlpha, currentStationary);
 

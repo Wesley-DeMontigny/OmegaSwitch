@@ -11,8 +11,8 @@
 #include <iostream>
 #include <fstream>
 
-DPPMcmc::DPPMcmc(DPPModel* m, TreeParameter* t, DPPMatrix* cmm, DirichletProcessPrior* d, Settings& s) : 
-    model(m), dpp(d), codonMatrix(cmm), tree(t), generalUpdates(5), stationaryUpdates(10), treeUpdates(0) { 
+DPPMcmc::DPPMcmc(DPPModel* m, TreeParameter* t, DPPMatrix* cm, DirichletProcessPrior* d, Settings& s) : 
+    model(m), dpp(d), codonMatrix(cm), tree(t), generalUpdates(5), stationaryUpdates(10), treeUpdates(0) { 
     numIter = s.numIterations;
     numBurnIn = s.burnInIterations;
     printFreq = s.printFrequency;

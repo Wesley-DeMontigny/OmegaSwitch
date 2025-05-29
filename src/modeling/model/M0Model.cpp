@@ -18,7 +18,7 @@
 //#include <chrono>
 
 M0Model::M0Model(Settings s, Alignment* a, TreeParameter* t, M0Matrix* m) : 
-            aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0),numChar(0) {
+            aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0), numChar(0) {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
@@ -65,7 +65,7 @@ void M0Model::accept() {
         activeTP[i + numNodes] = activeTP[i];
     }
 
-    std::memcpy(rescaling + numNodes*numChar, rescaling, numNodes*numChar);
+    std::memcpy(rescaling + numNodes*numChar, rescaling, numNodes*numChar*sizeof(double));
 
     if(tree->isDirty()){
         tree->accept();
@@ -87,7 +87,7 @@ void M0Model::reject() {
         activeTP[i] = activeTP[i + numNodes];
     }
 
-    std::memcpy(rescaling, rescaling + numNodes*numChar, numNodes*numChar);
+    std::memcpy(rescaling, rescaling + numNodes*numChar, numNodes*numChar*sizeof(double));
 
     if(tree->isDirty()){
         tree->reject();

@@ -279,7 +279,7 @@ Matrix<double> DPPMatrix::Q(double omega1, double omega2) {
         }
         returnMatrix(i, i) = total * -1;
         scaler += returnMatrix(i, i) * currentStationary[i % 61];
-    }	
+    }
 
     scaler = -1.0 / scaler;
     for (int i = 0; i < 122; i++)

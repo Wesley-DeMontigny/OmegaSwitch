@@ -60,25 +60,29 @@ M0Matrix::M0Matrix(Settings settings) :
     currentStationaryPrior = Probability::Dirichlet::lnPdf(stationaryPriorAlpha, currentStationary);
     oldStationaryPrior = currentStationaryPrior;
 
-    for(auto coord : valid){
-        currentQMatrix(coord.first, coord.second) = currentStationary[coord.second];
-        currentQMatrix(coord.second, coord.first) = currentStationary[coord.first];
-    }
-    for(auto coord : transition){
-        currentQMatrix(coord.first, coord.second) *= currentK;
-        currentQMatrix(coord.second, coord.first) *= currentK;
-    }
-    for(auto coord : nonsynonymous){
-        currentQMatrix(coord.first, coord.second) *= currentOmega;
-        currentQMatrix(coord.second, coord.first) *= currentOmega;
-    }
-    
+    rebuildQMatrix();
+
     oldQMatrix = currentQMatrix.copy();
 
     for(int i = 0; i < 61; i++)
         randomStates.push_back(i);
 
     dirty();
+}
+
+void M0Matrix::rebuildQMatrix() {
+    for (auto coord : valid) {
+        currentQMatrix(coord.first, coord.second) = currentStationary[coord.second];
+        currentQMatrix(coord.second, coord.first) = currentStationary[coord.first];
+    }
+    for (auto coord : transition) {
+        currentQMatrix(coord.first, coord.second) *= currentK;
+        currentQMatrix(coord.second, coord.first) *= currentK;
+    }
+    for (auto coord : nonsynonymous) {
+        currentQMatrix(coord.first, coord.second) *= currentOmega;
+        currentQMatrix(coord.second, coord.first) *= currentOmega;
+    }
 }
 
 void M0Matrix::accept() {
@@ -139,10 +143,7 @@ double M0Matrix::updateK() {
 
     currentKPrior = Probability::Exponential::lnPdf(kLambda, currentK);
 
-    for(auto coord : transition){
-        currentQMatrix(coord.first, coord.second) = currentStationary[coord.second] * currentK;
-        currentQMatrix(coord.second, coord.first) = currentStationary[coord.first] * currentK;
-    }
+    rebuildQMatrix();
 
     return hastings;
 }
@@ -165,10 +166,7 @@ double M0Matrix::updateOmega() {
 
     currentOmegaPrior = Probability::Exponential::lnPdf(omegaLambda, currentOmega);
 
-    for(auto coord : nonsynonymous){
-        currentQMatrix(coord.first, coord.second) = currentStationary[coord.second] * currentOmega;
-        currentQMatrix(coord.second, coord.first) = currentStationary[coord.first] * currentOmega;
-    }
+    rebuildQMatrix();
 
     return hastings;
 }
@@ -243,18 +241,7 @@ double M0Matrix::updateStationary() {
     hastings  = Probability::Dirichlet::lnPdf(alphaReverse, x) - Probability::Dirichlet::lnPdf(alphaForward, z);
     hastings += (60 - numElements) * log(factor);
 
-    for(auto coord : valid){
-        currentQMatrix(coord.first, coord.second) = currentStationary[coord.second];
-        currentQMatrix(coord.second, coord.first) = currentStationary[coord.first];
-    }
-    for(auto coord : nonsynonymous){
-        currentQMatrix(coord.first, coord.second) *= currentOmega;
-        currentQMatrix(coord.second, coord.first) *= currentOmega;
-    }
-    for(auto coord : transition){
-        currentQMatrix(coord.first, coord.second) *= currentK;
-        currentQMatrix(coord.second, coord.first) *= currentK;
-    }
+    rebuildQMatrix();
 
     currentStationaryPrior = Probability::Dirichlet::lnPdf(stationaryPriorAlpha, currentStationary);
 
@@ -274,7 +261,7 @@ Matrix<double> M0Matrix::Q() {
         }
         returnMatrix(i, i) = total * -1;
         scaler += returnMatrix(i, i) * currentStationary[i];
-    }	
+    }
 
     scaler = -1.0 / scaler;
     for (int i = 0; i < 61; i++)
@@ -285,15 +272,7 @@ Matrix<double> M0Matrix::Q() {
 }
 
 std::vector<double> M0Matrix::getStationary(){
-    std::vector<double> returnStationary;
-
-    for(int i = 0; i < 2; i++){
-        for(double v : currentStationary){
-            returnStationary.push_back(v/2);
-        }
-    }
-    
-    return returnStationary;
+    return currentStationary;
 }
 
 void M0Matrix::tune(){
@@ -305,6 +284,7 @@ void M0Matrix::tune(){
     else {
         kDelta /= (2.0 - kRate/0.33);
     }
+
     kAcceptCount = 0;
     kCount = 0;
 
@@ -316,6 +296,7 @@ void M0Matrix::tune(){
     else {
         omegaDelta /= (2.0 - omegaRate/0.33);
     }
+
     omegaAcceptCount = 0;
     omegaCount = 0;
 

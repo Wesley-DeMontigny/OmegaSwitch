@@ -1,19 +1,18 @@
-#ifndef DPP_MCMC_HPP
-#define DPP_MCMC_HPP
+#ifndef M0_MCMC_HPP
+#define M0_MCMC_HPP
 #include <vector>
 #include <string>
 
-class DPPModel;
+class M0Model;
 class Parameter;
 class TreeParameter;
-class DPPMatrix;
-class DirichletProcessPrior;
+class M0Matrix;
 class Settings;
 
-class DPPMcmc{
+class M0Mcmc{
     public:
-        DPPMcmc(void)=delete;
-        DPPMcmc(DPPModel* m, TreeParameter* t, DPPMatrix* cm, DirichletProcessPrior* dpp, Settings& s);
+        M0Mcmc(void)=delete;
+        M0Mcmc(M0Model* m, TreeParameter* t, M0Matrix* cm, Settings& s);
         void burnin();
         void run();
     private:
@@ -29,21 +28,15 @@ class DPPMcmc{
         double treeChoice;
         double stationaryChoice;
         double kChoice;
-        double rChoice;
-        double dppChoice;
         double omegaChoice;
 
         TreeParameter* tree;
-        DPPMatrix* codonMatrix;
-        DirichletProcessPrior* dpp;
+        M0Matrix* codonMatrix;
 
         std::string analysisLog;
         std::string treeLog;
-        std::string dppLog;
-        std::string tipsLog;
-        std::string ancestralLog;
 
-        DPPModel* model;
+        M0Model* model;
         
         double GibbsIteration(double currentLnPosterior);
 };

@@ -211,9 +211,27 @@ double M3S2Matrix::updateK() {
 
     currentKPrior = Probability::Exponential::lnPdf(kLambda, currentK);
 
+    for(auto coord : valid){
+        for(int i = 0; i < 3; i++){
+            currentQMatrix(coord.first + (i*61), coord.second + (i*61)) = currentStationary[coord.second];
+            currentQMatrix(coord.second + (i*61), coord.first + (i*61)) = currentStationary[coord.first];
+        }
+    }
     for(auto coord : transition){
-        currentQMatrix(coord.first, coord.second) = currentStationary[coord.second] * currentK;
-        currentQMatrix(coord.second, coord.first) = currentStationary[coord.first] * currentK;
+        for(int i = 0; i < 3; i++){
+            currentQMatrix(coord.first + (i*61), coord.second + (i*61)) *= currentK;
+            currentQMatrix(coord.second + (i*61), coord.first + (i*61)) *= currentK;
+        }
+    }
+    for(auto coord : nonsynonymous){
+        currentQMatrix(coord.first, coord.second) *= currentOmega1;
+        currentQMatrix(coord.second, coord.first) *= currentOmega1;
+
+        currentQMatrix(coord.first + 61, coord.second + 61) *= currentOmega1 + currentOmega2;
+        currentQMatrix(coord.second + 61, coord.first + 61) *= currentOmega1 + currentOmega2;
+
+        currentQMatrix(coord.first + 122, coord.second + 122) *= currentOmega1 + currentOmega2 + currentOmega3;
+        currentQMatrix(coord.second + 122, coord.first + 122) *= currentOmega1 + currentOmega2 + currentOmega3;
     }
 
     return hastings;
@@ -237,9 +255,27 @@ double M3S2Matrix::updateOmega1() {
 
     currentOmega1Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega1);
 
+    for(auto coord : valid){
+        for(int i = 0; i < 3; i++){
+            currentQMatrix(coord.first + (i*61), coord.second + (i*61)) = currentStationary[coord.second];
+            currentQMatrix(coord.second + (i*61), coord.first + (i*61)) = currentStationary[coord.first];
+        }
+    }
+    for(auto coord : transition){
+        for(int i = 0; i < 3; i++){
+            currentQMatrix(coord.first + (i*61), coord.second + (i*61)) *= currentK;
+            currentQMatrix(coord.second + (i*61), coord.first + (i*61)) *= currentK;
+        }
+    }
     for(auto coord : nonsynonymous){
-        currentQMatrix(coord.first, coord.second) = currentStationary[coord.second] * currentOmega1;
-        currentQMatrix(coord.second, coord.first) = currentStationary[coord.first] * currentOmega1;
+        currentQMatrix(coord.first, coord.second) *= currentOmega1;
+        currentQMatrix(coord.second, coord.first) *= currentOmega1;
+
+        currentQMatrix(coord.first + 61, coord.second + 61) *= currentOmega1 + currentOmega2;
+        currentQMatrix(coord.second + 61, coord.first + 61) *= currentOmega1 + currentOmega2;
+
+        currentQMatrix(coord.first + 122, coord.second + 122) *= currentOmega1 + currentOmega2 + currentOmega3;
+        currentQMatrix(coord.second + 122, coord.first + 122) *= currentOmega1 + currentOmega2 + currentOmega3;
     }
 
     return hastings;
@@ -263,9 +299,27 @@ double M3S2Matrix::updateOmega2() {
 
     currentOmega2Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega2);
 
+    for(auto coord : valid){
+        for(int i = 0; i < 3; i++){
+            currentQMatrix(coord.first + (i*61), coord.second + (i*61)) = currentStationary[coord.second];
+            currentQMatrix(coord.second + (i*61), coord.first + (i*61)) = currentStationary[coord.first];
+        }
+    }
+    for(auto coord : transition){
+        for(int i = 0; i < 3; i++){
+            currentQMatrix(coord.first + (i*61), coord.second + (i*61)) *= currentK;
+            currentQMatrix(coord.second + (i*61), coord.first + (i*61)) *= currentK;
+        }
+    }
     for(auto coord : nonsynonymous){
-        currentQMatrix(coord.first + 61, coord.second + 61) = currentStationary[coord.second] * (currentOmega1 + currentOmega2);
-        currentQMatrix(coord.second + 61, coord.first + 61) = currentStationary[coord.first] * (currentOmega1 + currentOmega2);
+        currentQMatrix(coord.first, coord.second) *= currentOmega1;
+        currentQMatrix(coord.second, coord.first) *= currentOmega1;
+
+        currentQMatrix(coord.first + 61, coord.second + 61) *= currentOmega1 + currentOmega2;
+        currentQMatrix(coord.second + 61, coord.first + 61) *= currentOmega1 + currentOmega2;
+
+        currentQMatrix(coord.first + 122, coord.second + 122) *= currentOmega1 + currentOmega2 + currentOmega3;
+        currentQMatrix(coord.second + 122, coord.first + 122) *= currentOmega1 + currentOmega2 + currentOmega3;
     }
 
     return hastings;
@@ -289,9 +343,27 @@ double M3S2Matrix::updateOmega3() {
 
     currentOmega3Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega3);
 
+    for(auto coord : valid){
+        for(int i = 0; i < 3; i++){
+            currentQMatrix(coord.first + (i*61), coord.second + (i*61)) = currentStationary[coord.second];
+            currentQMatrix(coord.second + (i*61), coord.first + (i*61)) = currentStationary[coord.first];
+        }
+    }
+    for(auto coord : transition){
+        for(int i = 0; i < 3; i++){
+            currentQMatrix(coord.first + (i*61), coord.second + (i*61)) *= currentK;
+            currentQMatrix(coord.second + (i*61), coord.first + (i*61)) *= currentK;
+        }
+    }
     for(auto coord : nonsynonymous){
-        currentQMatrix(coord.first + 61, coord.second + 61) = currentStationary[coord.second] * (currentOmega1 + currentOmega2 + currentOmega3);
-        currentQMatrix(coord.second + 61, coord.first + 61) = currentStationary[coord.first] * (currentOmega1 + currentOmega2 + currentOmega3);
+        currentQMatrix(coord.first, coord.second) *= currentOmega1;
+        currentQMatrix(coord.second, coord.first) *= currentOmega1;
+
+        currentQMatrix(coord.first + 61, coord.second + 61) *= currentOmega1 + currentOmega2;
+        currentQMatrix(coord.second + 61, coord.first + 61) *= currentOmega1 + currentOmega2;
+
+        currentQMatrix(coord.first + 122, coord.second + 122) *= currentOmega1 + currentOmega2 + currentOmega3;
+        currentQMatrix(coord.second + 122, coord.first + 122) *= currentOmega1 + currentOmega2 + currentOmega3;
     }
 
     return hastings;

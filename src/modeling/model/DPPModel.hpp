@@ -22,8 +22,6 @@ class DPPModel {
 
         void regenerateLikelihood();
         void regenerateTransitionProbs(int site, int category);
-        void reconstructTips();
-
         double testCategory(int site, int category, bool update);
 
         int getNumTaxa(){return aln->getNumTaxa();}

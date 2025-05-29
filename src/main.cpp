@@ -10,6 +10,9 @@
 #include "modeling/model/TransitionProbability.hpp"
 #include "modeling/parameters/DirichletProcessPrior.hpp"
 #include "modeling/analysis/DPPMcmc.hpp"
+#include "modeling/parameters/M0Matrix.hpp"
+#include "modeling/model/M0Model.hpp"
+#include "modeling/analysis/M0Mcmc.hpp"
 #include "modeling/parameters/trees/Node.hpp"
 #include <algorithm>
 #include <chrono>
@@ -25,7 +28,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Initializing model..." << std::endl;
 
     TreeParameter treeParam(&aln, settings.fixedTree, settings.treeLengthLambda);
-
+    
     DirichletProcessPrior dpp(aln.getNumChar(), settings);
 
     DPPMatrix rateMatrix(settings);
@@ -33,6 +36,14 @@ int main(int argc, char* argv[]) {
     DPPModel model(settings, &aln, &treeParam, &rateMatrix, &dpp);
 
     DPPMcmc myMCMC(&model, &treeParam, &rateMatrix, &dpp, settings);
+
+    /*
+    M0Matrix rateMatrix(settings);
+
+    M0Model model(settings, &aln, &treeParam, &rateMatrix);
+
+    M0Mcmc myMCMC(&model, &treeParam, &rateMatrix, settings);
+    */
 
     std::cout << "Starting MCMC..." << std::endl;
     myMCMC.burnin();

@@ -5,14 +5,17 @@
 #include "ncl/nxscharactersblock.h"
 #include "modeling/parameters/trees/TreeObject.hpp"
 #include "modeling/parameters/trees/TreeParameter.hpp"
-#include "modeling/parameters/DPPMatrix.hpp"
-#include "modeling/model/DPPModel.hpp"
 #include "modeling/model/TransitionProbability.hpp"
 #include "modeling/parameters/DirichletProcessPrior.hpp"
+#include "modeling/parameters/DPPMatrix.hpp"
+#include "modeling/model/DPPModel.hpp"
 #include "modeling/analysis/DPPMcmc.hpp"
 #include "modeling/parameters/M0Matrix.hpp"
 #include "modeling/model/M0Model.hpp"
 #include "modeling/analysis/M0Mcmc.hpp"
+#include "modeling/parameters/M3S2Matrix.hpp"
+#include "modeling/model/M3S2Model.hpp"
+#include "modeling/analysis/M3S2Mcmc.hpp"
 #include "modeling/parameters/trees/Node.hpp"
 #include <algorithm>
 #include <chrono>
@@ -43,6 +46,14 @@ int main(int argc, char* argv[]) {
     M0Model model(settings, &aln, &treeParam, &rateMatrix);
 
     M0Mcmc myMCMC(&model, &treeParam, &rateMatrix, settings);
+    */
+
+    /*
+    M3S2Matrix rateMatrix(settings);
+
+    M3S2Model model(settings, &aln, &treeParam, &rateMatrix);
+
+    M3S2Mcmc myMCMC(&model, &treeParam, &rateMatrix, settings);
     */
 
     std::cout << "Starting MCMC..." << std::endl;

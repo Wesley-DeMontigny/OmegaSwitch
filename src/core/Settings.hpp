@@ -33,6 +33,12 @@ struct Settings {
     double          stationaryWeight;
     int             numGibbs;
 
+    bool M0;
+    bool M3S2;
+    bool simulateM0;
+    bool simulateM3S2;
+    bool simulateDPP;
+
     void            usage();
     void            print();
 };

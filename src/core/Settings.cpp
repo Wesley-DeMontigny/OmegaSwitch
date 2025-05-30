@@ -9,7 +9,8 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                                               burnInIterations(5000), tuneFrequency(1000), rLambda(5.0), gammaLambda(5.0),
                                               kLambda(2.0), omegaLambda(2.0), treeLengthLambda(5.0), expectedCat(1.2),
                                               rWeight(1.0), kWeight(1.0), stationaryWeight(2.0), omegaWeight(2.0),
-                                              dppWeight(1.0), treeWeight(2.0), numGibbs(25), fixedTree(""){
+                                              dppWeight(1.0), treeWeight(2.0), numGibbs(25), fixedTree(""), M0(false),
+                                              M3S2(false), simulateDPP(false), simulateM0(false), simulateM3S2(false){
 
     std::vector<std::string> settings;
     for (int i=1; i<argc; i++) {
@@ -39,6 +40,36 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
     for (int i=0; i<settings.size(); i++) {
         if (currentArg == "")
             currentArg = settings[i];
+        else if(currentArg == "-M0"){
+            M0 = true;
+            if(M3S2){
+                Msg::error("Cannot do inference under both M0 and M3S2!");
+            }
+        }
+        else if(currentArg == "-M3S2"){
+            M3S2 = true;
+            if(M0){
+                Msg::error("Cannot do inference under both M0 and M3S2!");
+            }
+        }
+        else if(currentArg == "-simulateM0"){
+            simulateM0 = true;
+            if(simulateM3S2 || simulateDPP){
+                Msg::error("Cannot simulate under multiple models!");
+            }
+        }
+        else if(currentArg == "-simulateM3S2"){
+            simulateM3S2 = true;
+            if(simulateM0 || simulateDPP){
+                Msg::error("Cannot simulate under multiple models!");
+            }
+        }
+        else if(currentArg == "-simulateDPP"){
+            simulateDPP = true;
+            if(simulateM3S2 || simulateM0){
+                Msg::error("Cannot simulate under multiple models!");
+            }
+        }
         else {
             if (currentArg == "-nexus")
                 nexusInput = settings[i];
@@ -50,7 +81,7 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                 dppOutput = settings[i];
             else if (currentArg == "-tipsOut")
                 tipsOutput = settings[i];
-            else if (currentArg == "-ancestralSatetsOut")
+            else if (currentArg == "-ancestralStatesOut")
                 ancestralStatesOutput = settings[i];
             else if (currentArg == "-numIter")
                 numIterations = stoi(settings[i]);
@@ -72,6 +103,8 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                 kLambda = stod(settings[i]);
             else if (currentArg == "-rLambda")
                 rLambda = stod(settings[i]);
+            else if (currentArg == "-gammaLambda")
+                gammaLambda = stod(settings[i]);
             else if (currentArg == "-expectedCat")
                 expectedCat = stod(settings[i]);
              else if (currentArg == "-dppWeight")
@@ -96,9 +129,21 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
         }
     }
 
-    if(nexusInput == "" || treeOutput == "" || mcmcOutput == "" || dppOutput == ""){
+    bool simulating = (simulateDPP == true || simulateM0 == true || simulateM3S2 == true);
+
+    if((nexusInput == "" || treeOutput == "" || mcmcOutput == "") && !simulating){
         usage();
         Msg::error("For non-simulation analyses, nexus, treeOut, mcmcOut are required arguments.");
+    }
+
+    if(simulating && nexusInput != ""){
+        usage();
+        Msg::error("Simulation analyses cannot use a nexus input. This file will be ignored!");
+    }
+
+    if(simulating && fixedTree != ""){
+        usage();
+        Msg::error("Simulation analyses cannot use a provided tree. This file will be ignored!");
     }
 
     print();
@@ -121,6 +166,7 @@ void Settings::print(){
     std::cout << "   * -omegaLambda       : " << omegaLambda << std::endl;
     std::cout << "   * -kLambda           : " << kLambda << std::endl;
     std::cout << "   * -rLambda           : " << rLambda << std::endl;
+    std::cout << "   * -gammaLambda       : " << gammaLambda << std::endl;
     std::cout << "   * -expectedCat       : " << expectedCat << std::endl;
     std::cout << std::endl;
     
@@ -152,11 +198,20 @@ void Settings::usage(void) {
     std::cout << "   * -fixedTree         : The NEWICK string corresponding to the fixed tree you wish to analyze." << std::endl;
     std::cout << std::endl;
 
+    std::cout << "Inference Model and Simulation:" << std::endl;
+    std::cout << "   * -simulateM0        : Directs the program to simulate under M0 and test against the selected inference model." << std::endl;
+    std::cout << "   * -simulateM3S2      : Directs the program to simulate under M3S2 and test against the selected inference model." << std::endl;
+    std::cout << "   * -simulateDPP       : Directs the program to simulate under the DPP model and test against the selected inference model." << std::endl;
+    std::cout << "   * -M0                : Do inference under M0 as described by ______." << std::endl;
+    std::cout << "   * -M3S2              : Do inference under M3S2 as described by ______." << std::endl;
+    std::cout << std::endl;
+
     std::cout << "Model Parameters:" << std::endl;
     std::cout << "   * -treeLambda        : Lambda parameter for the tree length exponential prior." << std::endl;
-    std::cout << "   * -omegaLambda       : Lambda parameter for the dN/dS exponential prior." << std::endl;
-    std::cout << "   * -kAlpha            : Lambda parameter for the transition/transversion ratio exponential prior." << std::endl;
-    std::cout << "   * -rAlpha            : Lambda parameter for the matrix-swapping exponential prior." << std::endl;
+    std::cout << "   * -omegaLambda       : Lambda parameter for the nonsynonymous mutation rate's exponential prior." << std::endl;
+    std::cout << "   * -kLambda           : Lambda parameter for the transition/transversion rate's exponential prior." << std::endl;
+    std::cout << "   * -rLambda           : Lambda parameter for the matrix-swapping rate's exponential prior." << std::endl;
+    std::cout << "   * -gammaLambda       : Lambda parameter for the global matrix-swapping rate's exponential prior." << std::endl;
     std::cout << "   * -expectedCat       : The number of expected categories for the DPP." << std::endl;
     std::cout << std::endl;
     
@@ -169,7 +224,7 @@ void Settings::usage(void) {
     std::cout << "   * -numGibbs          : How many Gibbs updates to perform on the DPP partitions." << std::endl;
     std::cout << "   * -treeWeight        : How often to propose a move on the tree." << std::endl;
     std::cout << "   * -kWeight           : How often to propose a move on the K parameter." << std::endl;
-    std::cout << "   * -rWeight           : How often to propose a move on the R parameter." << std::endl;
+    std::cout << "   * -rWeight           : How often to propose a move on the R or Gamma parameter." << std::endl;
     std::cout << "   * -stationaryWeight  : How often to propose a move on the stationary distribution." << std::endl;
     std::cout << "   * -dppWeight         : How often to propose a move on the DPP partitions." << std::endl;
     std::cout << "   * -omegaWeight       : How often to propose a move on the omega parameters." << std::endl;

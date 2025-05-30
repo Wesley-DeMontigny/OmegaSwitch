@@ -28,37 +28,50 @@ int main(int argc, char* argv[]) {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
     Alignment aln(settings.nexusInput);
-    std::cout << "Initializing model..." << std::endl;
 
     TreeParameter treeParam(&aln, settings.fixedTree, settings.treeLengthLambda);
     
-    DirichletProcessPrior dpp(aln.getNumChar(), settings);
+    if(settings.M0){
+        std::cout << "Initializing the M0 model..." << std::endl;
 
-    DPPMatrix rateMatrix(settings);
+        M0Matrix rateMatrix(settings);
 
-    DPPModel model(settings, &aln, &treeParam, &rateMatrix, &dpp);
+        M0Model model(settings, &aln, &treeParam, &rateMatrix);
 
-    DPPMcmc myMCMC(&model, &treeParam, &rateMatrix, &dpp, settings);
+        M0Mcmc myMCMC(&model, &treeParam, &rateMatrix, settings);
+        
+        std::cout << "Starting MCMC..." << std::endl;
+        myMCMC.burnin();
+        myMCMC.run();
+    }
+    else if(settings.M3S2){
+        std::cout << "Initializing the M3S2 model..." << std::endl;
 
-    /*
-    M0Matrix rateMatrix(settings);
+        M3S2Matrix rateMatrix(settings);
 
-    M0Model model(settings, &aln, &treeParam, &rateMatrix);
+        M3S2Model model(settings, &aln, &treeParam, &rateMatrix);
 
-    M0Mcmc myMCMC(&model, &treeParam, &rateMatrix, settings);
-    */
+        M3S2Mcmc myMCMC(&model, &treeParam, &rateMatrix, settings);
+        
+        std::cout << "Starting MCMC..." << std::endl;
+        myMCMC.burnin();
+        myMCMC.run();
+    }
+    else {
+        std::cout << "Initializing the DPP model..." << std::endl;
 
-    /*
-    M3S2Matrix rateMatrix(settings);
+        DirichletProcessPrior dpp(aln.getNumChar(), settings);
 
-    M3S2Model model(settings, &aln, &treeParam, &rateMatrix);
+        DPPMatrix rateMatrix(settings);
 
-    M3S2Mcmc myMCMC(&model, &treeParam, &rateMatrix, settings);
-    */
+        DPPModel model(settings, &aln, &treeParam, &rateMatrix, &dpp);
 
-    std::cout << "Starting MCMC..." << std::endl;
-    myMCMC.burnin();
-    myMCMC.run();
+        DPPMcmc myMCMC(&model, &treeParam, &rateMatrix, &dpp, settings);
+
+        std::cout << "Starting MCMC..." << std::endl;
+        myMCMC.burnin();
+        myMCMC.run();
+    }
 
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::cout << "Analysis was completed in " << std::chrono::duration_cast<std::chrono::minutes>(end - begin).count() << "[m]" << std::endl;

@@ -12,13 +12,21 @@
 =======================================================================
 */
 
-TreeObject::TreeObject(int nt) : numTaxa(nt) {
+TreeObject::TreeObject(int nt, bool rooted) : numTaxa(nt) {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
     root = addNode();
     root->setName("Root");
-    for(int i = 0; i < 3; i++) {
+    int initTips = 0;
+    if(rooted == false){
+        initTips = 3;
+    }
+    else {
+        initTips = 2;
+    }
+
+    for(int i = 0; i < initTips; i++) {
         Node* p = addNode();
         p->setName("Taxon_" + std::to_string(i+1));
         p->setIsTip(true);
@@ -29,7 +37,7 @@ TreeObject::TreeObject(int nt) : numTaxa(nt) {
     }
 
     // build up the full tree by randomly adding branches to the existing tree
-    for(int i = 3; i < numTaxa; i++){
+    for(int i = initTips; i < numTaxa; i++){
         Node* p = nullptr;
         do {
             p = nodes[(int)(rng.uniformRv() * nodes.size())];
@@ -78,7 +86,7 @@ TreeObject::TreeObject(int nt) : numTaxa(nt) {
 }
 
 //Generate a random tree and connect it to an alignment
-TreeObject::TreeObject(Alignment* aln) : TreeObject(aln->getNumTaxa()) {
+TreeObject::TreeObject(Alignment* aln, bool rooted) : TreeObject(aln->getNumTaxa(), rooted) {
 
     std::vector<std::string> names = aln->getTaxaNames();
     for(Node* n : postOrderSeq){

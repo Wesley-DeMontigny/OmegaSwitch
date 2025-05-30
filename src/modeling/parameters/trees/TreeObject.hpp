@@ -14,8 +14,8 @@ class TreeObject {
 
     public:
                             TreeObject(void) = delete;
-                            TreeObject(int nt);
-                            TreeObject(Alignment* aln);
+                            TreeObject(int nt, bool rooted);
+                            TreeObject(Alignment* aln, bool rooted);
                             TreeObject(const TreeObject& t);
                             TreeObject(std::string newick, std::vector<std::string> taxaNames);
                            ~TreeObject(void);

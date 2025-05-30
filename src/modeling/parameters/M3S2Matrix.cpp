@@ -9,7 +9,7 @@
 M3S2Matrix::M3S2Matrix(Settings settings) : 
                                    currentQMatrix(183, 183, 0.0), oldQMatrix(183, 183, 0.0), currentStationary(61, -1), oldStationary(61, -1), 
                                    kLambda(settings.kLambda), gammaLambda(settings.gammaLambda), rLambda(settings.rLambda),
-                                   omegaLambda(settings.omegaLambda), r1Delta(0.5), r2Delta(0.5), gammaDelta(0.5),
+                                   omegaLambda(settings.omegaLambda), r1Delta(0.5), r2Delta(0.5), gammaDelta(0.25),
                                    stationaryAlpha(75000), kDelta(0.5), omega1Delta(0.5), omega2Delta(0.5), omega3Delta(0.5), 
                                    stationaryPriorAlpha(61, 2.0) {
     std::vector<int> aaMap = {8, 11, 8, 11, 16, 16, 16, 16, 14, 15, 14, 15, 7, 7, 10, 7, 13, 6, 13, 6, 12, 12, 12, 12, 14, 14, 14, 14, 9, 9, 9, 9, 3, 2, 3, 2, 0, 0, 0, 0, 5, 5, 5, 5, 17, 17, 17, 17, 19, 19, 15, 15, 15, 15, 1, 18, 1, 9, 4, 9, 4};  

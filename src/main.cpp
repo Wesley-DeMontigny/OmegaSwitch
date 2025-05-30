@@ -20,17 +20,7 @@
 #include <algorithm>
 #include <chrono>
 
-int main(int argc, char* argv[]) {
-
-    Settings settings(argc, argv);
-
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-
-    RandomVariable& rng = RandomVariable::randomVariableInstance();
-    Alignment aln(settings.nexusInput);
-
-    TreeParameter treeParam(&aln, settings.fixedTree, settings.treeLengthLambda);
-    
+void inference(Settings settings, Alignment aln, TreeParameter treeParam){
     if(settings.M0){
         std::cout << "Initializing the M0 model..." << std::endl;
 
@@ -59,7 +49,7 @@ int main(int argc, char* argv[]) {
     }
     else {
         std::cout << "Initializing the DPP model..." << std::endl;
-
+        
         DirichletProcessPrior dpp(aln.getNumChar(), settings);
 
         DPPMatrix rateMatrix(settings);
@@ -71,6 +61,29 @@ int main(int argc, char* argv[]) {
         std::cout << "Starting MCMC..." << std::endl;
         myMCMC.burnin();
         myMCMC.run();
+    }
+}
+
+int main(int argc, char* argv[]) {
+
+    Settings settings(argc, argv);
+
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+
+    RandomVariable& rng = RandomVariable::randomVariableInstance();
+    if(settings.simulateDPP == false && settings.simulateM0 == false && settings.simulateM3S2 == false){
+        Alignment aln(settings.nexusInput);
+        TreeParameter treeParam(&aln, settings.fixedTree, settings.treeLengthLambda);
+        inference(settings, aln, treeParam);
+    }
+    else if(settings.simulateDPP){
+        // TODO
+    }
+    else if(settings.simulateM0){
+        // TODO
+    }
+    else if(settings.simulateM3S2){
+        // TODO
     }
 
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();

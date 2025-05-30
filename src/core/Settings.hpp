@@ -32,6 +32,7 @@ struct Settings {
     double          treeWeight;
     double          stationaryWeight;
     int             numGibbs;
+    id_t            numSimulations;
 
     bool M0;
     bool M3S2;

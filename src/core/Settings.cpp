@@ -10,7 +10,8 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                                               kLambda(2.0), omegaLambda(2.0), treeLengthLambda(5.0), expectedCat(1.2),
                                               rWeight(1.0), kWeight(1.0), stationaryWeight(2.0), omegaWeight(2.0),
                                               dppWeight(1.0), treeWeight(2.0), numGibbs(25), fixedTree(""), M0(false),
-                                              M3S2(false), simulateDPP(false), simulateM0(false), simulateM3S2(false){
+                                              M3S2(false), simulateDPP(false), simulateM0(false), simulateM3S2(false),
+                                              numSimulations(1) {
 
     std::vector<std::string> settings;
     for (int i=1; i<argc; i++) {
@@ -121,6 +122,8 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                 omegaWeight = stod(settings[i]);
             else if (currentArg == "-fixedTree")
                 fixedTree = settings[i];
+            else if (currentArg == "-numSimulations")
+                numSimulations = stoi(settings[i]);
             else{
                 Msg::error("Could not interpret argument " + currentArg);
                 usage();
@@ -159,6 +162,15 @@ void Settings::print(){
     std::cout << "   * -tipsOut           : " << tipsOutput << std::endl;
     std::cout << "   * -ancestralStatesOut: " << ancestralStatesOutput << std::endl;
     std::cout << "   * -fixedTree         : " << fixedTree << std::endl;
+    std::cout << std::endl;
+
+    std::cout << "Inference Model and Simulation:" << std::endl;
+    std::cout << "   * -M0                : " << M0 << std::endl;
+    std::cout << "   * -M3S2              : " << M3S2 << std::endl;
+    std::cout << "   * -simulateM0        : " << simulateM0 << std::endl;
+    std::cout << "   * -simulateM3S2      : " << simulateM3S2 << std::endl;
+    std::cout << "   * -simulateDPP       : " << simulateDPP << std::endl;
+    std::cout << "   * -numSimulations    : " << numSimulations << std::endl;
     std::cout << std::endl;
     
     std::cout << "Model Parameters:" << std::endl;
@@ -199,11 +211,12 @@ void Settings::usage(void) {
     std::cout << std::endl;
 
     std::cout << "Inference Model and Simulation:" << std::endl;
+    std::cout << "   * -M0                : Do inference under M0 as described by ______." << std::endl;
+    std::cout << "   * -M3S2              : Do inference under M3S2 as described by ______." << std::endl;
     std::cout << "   * -simulateM0        : Directs the program to simulate under M0 and test against the selected inference model." << std::endl;
     std::cout << "   * -simulateM3S2      : Directs the program to simulate under M3S2 and test against the selected inference model." << std::endl;
     std::cout << "   * -simulateDPP       : Directs the program to simulate under the DPP model and test against the selected inference model." << std::endl;
-    std::cout << "   * -M0                : Do inference under M0 as described by ______." << std::endl;
-    std::cout << "   * -M3S2              : Do inference under M3S2 as described by ______." << std::endl;
+    std::cout << "   * -numSimulations    : The number of simulations to do inference under." << std::endl;
     std::cout << std::endl;
 
     std::cout << "Model Parameters:" << std::endl;

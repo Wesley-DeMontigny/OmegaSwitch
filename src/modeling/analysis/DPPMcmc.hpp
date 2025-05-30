@@ -36,14 +36,13 @@ class DPPMcmc{
         TreeParameter* tree;
         DPPMatrix* codonMatrix;
         DirichletProcessPrior* dpp;
+        DPPModel* model;
 
         std::string analysisLog;
         std::string treeLog;
         std::string dppLog;
         std::string tipsLog;
         std::string ancestralLog;
-
-        DPPModel* model;
         
         double GibbsIteration(double currentLnPosterior);
 };

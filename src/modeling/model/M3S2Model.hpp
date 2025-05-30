@@ -1,5 +1,5 @@
-#ifndef M0_Model_HPP
-#define M0_Model_HPP
+#ifndef M3S2_Model_HPP
+#define M3S2_Model_HPP
 #include "modeling/parameters/trees/TreeParameter.hpp"
 #include <taskflow/taskflow.hpp>
 #include "core/Alignment.hpp"
@@ -7,14 +7,14 @@
 class ConditionalLikelihood;
 class TransitionProbability;
 class RandomVariable;
-class M0Matrix;
+class M3S2Matrix;
 class Settings;
 
-class M0Model {
+class M3S2Model {
     public:
-        M0Model(void) = delete;
-        M0Model(Settings s, Alignment* a, TreeParameter* t, M0Matrix* m);
-        ~M0Model();
+        M3S2Model(void) = delete;
+        M3S2Model(Settings s, Alignment* a, TreeParameter* t, M3S2Matrix* m);
+        ~M3S2Model();
 
         void accept();
         void reject();
@@ -35,6 +35,9 @@ class M0Model {
         std::string tabularOut(int i);
         std::string treeHeader();
         std::string treeOut(int i);
+        std::string tipsHeader();
+        std::string ancestralHeader();
+        std::tuple<std::string, std::string> reconstructionOut(int i);
     protected:
         double oldLikelihood;
         double currentLikelihood;
@@ -48,7 +51,7 @@ class M0Model {
 
         tf::Executor executor;
 
-        M0Matrix* rateMatrix;
+        M3S2Matrix* rateMatrix;
         Alignment* aln;
         ConditionalLikelihood* postOrder;
         TransitionProbability* transProb;

@@ -1,4 +1,4 @@
-#include "M0Model.hpp"
+#include "M3S2Model.hpp"
 #include "core/RandomVariable.hpp"
 #include "core/Alignment.hpp"
 #include "core/Msg.hpp"
@@ -7,7 +7,7 @@
 #include "modeling/parameters/trees/Node.hpp"
 #include "modeling/parameters/trees/TreeObject.hpp"
 #include "modeling/parameters/trees/TreeParameter.hpp"
-#include "modeling/parameters/M0Matrix.hpp"
+#include "modeling/parameters/M3S2Matrix.hpp"
 #include "core/RandomVariable.hpp"
 #include "core/Settings.hpp"
 #include <cmath>
@@ -17,13 +17,13 @@
 #include <unordered_map>
 //#include <chrono>
 
-M0Model::M0Model(Settings s, Alignment* a, TreeParameter* t, M0Matrix* m) : 
+M3S2Model::M3S2Model(Settings s, Alignment* a, TreeParameter* t, M3S2Matrix* m) : 
             aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0), numChar(0) {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
     TreeObject* activeT = tree->getTree();
-    stateSpace = 61;
+    stateSpace = 183;
     numChar = aln->getNumChar();
 
     if(aln->getNumTaxa() != activeT->getNumTaxa())
@@ -49,7 +49,7 @@ M0Model::M0Model(Settings s, Alignment* a, TreeParameter* t, M0Matrix* m) :
     activeT->updateAll();
 }
 
-M0Model::~M0Model(){
+M3S2Model::~M3S2Model(){
     delete postOrder;
     delete transProb;
     delete [] rescaling;
@@ -57,7 +57,7 @@ M0Model::~M0Model(){
     delete [] activeTP;
 }
 
-void M0Model::accept() {
+void M3S2Model::accept() {
     oldLikelihood = currentLikelihood;
 
     for(int i = 0; i < numNodes; i++){
@@ -79,7 +79,7 @@ void M0Model::accept() {
     transProb->accept();
 }
 
-void M0Model::reject() {
+void M3S2Model::reject() {
     currentLikelihood = oldLikelihood;
 
     for(int i = 0; i < numNodes; i++){
@@ -101,11 +101,11 @@ void M0Model::reject() {
     transProb->reject();
 }
 
-double M0Model::lnPrior(){
+double M3S2Model::lnPrior(){
     return tree->lnPrior() + rateMatrix->lnPrior();
 }
 
-void M0Model::regenerateLikelihood(){
+void M3S2Model::regenerateLikelihood(){
     TreeObject* activeT = tree->getTree();
 
     const std::vector<Node*> poSeq = activeT->getPostOrderSeq();
@@ -243,13 +243,13 @@ void M0Model::regenerateLikelihood(){
     //std::cout << "Pruning was completed in " << std::chrono::duration_cast<std::chrono::milliseconds>(pruneTime - probsTime).count() << "[milliseconds]" << std::endl;
 }
 
-void M0Model::tuneMoves(){
+void M3S2Model::tuneMoves(){
     tree->tune();
     rateMatrix->tune();
 }
 
-std::string M0Model::tabularHeader(){
-    std::string returnString = "Iteration\tPosterior\tLikelihood\tPrior\tK\tOmega";
+std::string M3S2Model::tabularHeader(){
+    std::string returnString = "Iteration\tPosterior\tLikelihood\tPrior\tK\tOmega[1]\tOmega[2]\tOmega[3]\tR[1]\tR[2]\tGamma";
     for(int i = 0; i < 61; i++){
         returnString += "\tPi[" + std::to_string(i) + "]";
     }
@@ -257,10 +257,13 @@ std::string M0Model::tabularHeader(){
     return returnString + "\n";
 }
 
-std::string M0Model::tabularOut(int i){
+std::string M3S2Model::tabularOut(int i){
     std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" +
                                std::to_string(currentLikelihood) + "\t" + std::to_string(lnPrior()) + "\t" +
-                               std::to_string(rateMatrix->getK()) + "\t" + std::to_string(rateMatrix->getOmega());
+                               std::to_string(rateMatrix->getK()) + "\t" + std::to_string(rateMatrix->getOmega1()) + "\t" +
+                               std::to_string(rateMatrix->getOmega2()) + "\t" + std::to_string(rateMatrix->getOmega3()) + "\t" +
+                               std::to_string(rateMatrix->getR1()) + "\t" + std::to_string(rateMatrix->getR2()) + "\t" +
+                               std::to_string(rateMatrix->getGamma());
     std::vector<double> stationary = rateMatrix->getRawStationary();
     for(double i : stationary){
         returnString += "\t" + std::to_string(i);
@@ -269,10 +272,202 @@ std::string M0Model::tabularOut(int i){
     return returnString + "\n";
 }
 
-std::string M0Model::treeHeader(){
+std::string M3S2Model::treeHeader(){
     return "Iteration\tPosterior\tTree\n";
 }
 
-std::string M0Model::treeOut(int i){
+std::string M3S2Model::treeOut(int i){
     return std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" + tree->writeNewick() + "\n";
+}
+
+
+std::string M3S2Model::tipsHeader(){
+    std::string returnString = "Iteration";
+    std::vector<Node*> tips = tree->getTree()->getTips();
+
+    for(Node* n : tips){
+        std::string name = n->getName();
+        for(int c = 0; c < numChar; c++){
+            returnString += "\t" + name + "[" + std::to_string(c) + "]";
+        }
+    }
+
+    return returnString + "\n";
+}
+
+std::string M3S2Model::ancestralHeader(){
+    std::string returnString = "Iteration";
+
+    for(int i = 0; i < numNodes; i++) {
+        for(int c = 0; c < numChar; c++){
+            returnString += "\t" + std::to_string(i) + "[" + std::to_string(c) + "]";
+        }
+    }
+
+    return returnString + "\n";
+}
+
+std::tuple<std::string, std::string> M3S2Model::reconstructionOut(int i){
+    RandomVariable& rng = RandomVariable::randomVariableInstance();
+
+    std::string tipString = std::to_string(i);
+    std::string ancestralString = std::to_string(i);
+    std::vector<Node*> tips = tree->getTree()->getTips();
+
+    TreeObject* activeT = tree->getTree();
+    std::vector<Node*>&  preOrderSeq = activeT->getPostOrderSeq();
+    std::reverse(preOrderSeq.begin(), preOrderSeq.end());
+
+    auto dNdSTuple = rateMatrix->dNdS();
+    double dNdS1 = std::get<0>(dNdSTuple);
+    double dNdS2 = std::get<1>(dNdSTuple);
+    double dNdS3 = std::get<2>(dNdSTuple);
+
+    int* reconstructedStates = new int[numNodes*numChar];
+    double* reconstructeddNdS = new double[numNodes*numChar];
+
+    std::fill(reconstructeddNdS, reconstructeddNdS + numNodes*numChar, 0.0);
+
+    int numJointDraws = 10;
+
+    for(int d = 0; d < numJointDraws; d++){
+
+        std::fill(reconstructedStates, reconstructedStates + numNodes*numChar, -1);
+
+        tf::Taskflow phyloTaskflow;
+        std::unordered_map<int, tf::Task> taskMap;
+
+        Node* root = activeT->getRoot();
+        taskMap.insert(std::make_pair(root->getIndex(), phyloTaskflow.emplace([this, root, &rng, reconstructedStates, reconstructeddNdS, dNdS1, dNdS2, dNdS3](){
+            int rIndex = root->getIndex();
+            double* pR = (*postOrder)(rIndex, activeCL[rIndex], 0);
+            int* reconstructedP = reconstructedStates + rIndex*numChar;
+            double* dNdSP = reconstructeddNdS + rIndex*numChar;
+
+            for(int c = 0; c < numChar; c++){
+                double total = 0;
+                for(int i = 0; i < stateSpace; i++){
+                    total += pR[i];
+                }
+
+                double draw = rng.uniformRv() * total;
+
+                double sum = 0;
+                bool success = false;
+                for(int i = 0; i < stateSpace; i++){
+                    sum += pR[i];
+
+                    if(sum >= draw){
+                        *reconstructedP = i;
+                        if(i < 61){
+                            *dNdSP += dNdS1;
+                        }
+                        else if(i < 122){
+                            *dNdSP += dNdS2;
+                        }
+                        else{
+                            *dNdSP += dNdS3;
+                        }
+                        success = true;
+                        break;
+                    }
+                }
+
+                if(success == false)
+                    Msg::error("Failed to reconstruct state!");
+
+                pR += stateSpace;
+                reconstructedP++;
+                dNdSP++;
+            }
+        })));
+
+        for(Node* n : preOrderSeq){
+            if(n != activeT->getRoot()){
+                taskMap.insert(std::make_pair(n->getIndex(), phyloTaskflow.emplace([this, n, &rng, reconstructedStates, reconstructeddNdS, dNdS1, dNdS2, dNdS3](){
+                    int nIndex = n->getIndex();
+                    double* pN = (*postOrder)(nIndex, activeCL[nIndex], 0);
+
+                    int* reconstructedP = reconstructedStates + nIndex*numChar;
+                    double* dNdSP = reconstructeddNdS + nIndex*numChar;
+
+                    int ancestorIndex = n->getAncestor()->getIndex();
+
+                    for(int c = 0; c < numChar; c++){
+                        Matrix<double> P = (*transProb)(activeTP[nIndex], 0, nIndex);
+                        int ancestorState = *(reconstructedStates + ancestorIndex*numChar + c);
+
+                        double total = 0;
+                        for(int i = 0; i < stateSpace; i++){
+                            total += P(ancestorState, i) * pN[i];
+                        }
+
+                        double draw = rng.uniformRv() * total;
+
+                        double sum = 0;
+                        bool success = false;
+                        for(int i = 0; i < stateSpace; i++){
+                            sum += P(ancestorState, i) * pN[i];
+
+                            if(sum >= draw){
+                                *reconstructedP = i;
+                                if(i < 61){
+                                    *dNdSP += dNdS1;
+                                }
+                                else if(i < 122){
+                                    *dNdSP += dNdS2;
+                                }
+                                else{
+                                    *dNdSP += dNdS3;
+                                }
+                                success = true;
+                                break;
+                            }
+                        }
+
+                        if(success == false)
+                            Msg::error("Failed to reconstruct state!");
+
+                        pN += stateSpace;
+                        reconstructedP++;
+                        dNdSP++;
+                    }
+                })));
+            }
+        }
+
+        for(Node* n : preOrderSeq){
+            if(n->getIsTip() == false){
+                for(Node* d : n->getNeighbors()){
+                    if(d != n->getAncestor()){
+                        taskMap.at(n->getIndex()).precede(taskMap.at(d->getIndex()));
+                    }
+                }
+            }
+        }
+
+        executor.run(phyloTaskflow).wait();
+    }
+
+    for(Node* n : tips) {
+        int index = n->getIndex();
+        double* dNdSP = reconstructeddNdS + index*numChar;
+        for(int c = 0; c < numChar; c++) {
+            tipString += "\t" + std::to_string(*dNdSP/numJointDraws);
+            dNdSP++;
+        }
+    }
+
+    for(int i = 0; i < numNodes; i++) {
+        double* dNdSP = reconstructeddNdS + i*numChar;
+        for(int c = 0; c < numChar; c++) {
+            ancestralString += "\t" + std::to_string(*dNdSP/numJointDraws);
+            dNdSP++;
+        }
+    }
+
+    delete [] reconstructedStates;
+    delete [] reconstructeddNdS;
+
+    return std::make_tuple(tipString + "\n", ancestralString + "\n");
 }

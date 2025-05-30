@@ -9,8 +9,8 @@
 M3S2Matrix::M3S2Matrix(Settings settings) : 
                                    currentQMatrix(183, 183, 0.0), oldQMatrix(183, 183, 0.0), currentStationary(61, -1), oldStationary(61, -1), 
                                    kLambda(settings.kLambda), gammaLambda(settings.gammaLambda), rLambda(settings.rLambda),
-                                   omegaLambda(settings.omegaLambda), r1Delta(0.25), r2Delta(0.25), gammaDelta(0.25),
-                                   stationaryAlpha(75000), kDelta(0.25), omega1Delta(0.25), omega2Delta(0.25), omega3Delta(0.25), 
+                                   omegaLambda(settings.omegaLambda), r1Delta(0.5), r2Delta(0.5), gammaDelta(0.5),
+                                   stationaryAlpha(75000), kDelta(0.5), omega1Delta(0.5), omega2Delta(0.5), omega3Delta(0.5), 
                                    stationaryPriorAlpha(61, 2.0) {
     std::vector<int> aaMap = {8, 11, 8, 11, 16, 16, 16, 16, 14, 15, 14, 15, 7, 7, 10, 7, 13, 6, 13, 6, 12, 12, 12, 12, 14, 14, 14, 14, 9, 9, 9, 9, 3, 2, 3, 2, 0, 0, 0, 0, 5, 5, 5, 5, 17, 17, 17, 17, 19, 19, 15, 15, 15, 15, 1, 18, 1, 9, 4, 9, 4};  
     std::vector<const char*> codons = {"AAA", "AAC", "AAG", "AAT", "ACA", "ACC", "ACG", "ACT", "AGA", "AGC", "AGG", "AGT", "ATA", "ATC", "ATG", "ATT", "CAA", "CAC", "CAG", "CAT", "CCA", "CCC", "CCG", "CCT", "CGA", "CGC", "CGG", "CGT", "CTA", "CTC", "CTG", "CTT", "GAA", "GAC", "GAG", "GAT", "GCA", "GCC", "GCG", "GCT", "GGA", "GGC", "GGG", "GGT", "GTA", "GTC", "GTG", "GTT", "TAC", "TAT", "TCA", "TCC", "TCG", "TCT", "TGC", "TGG", "TGT", "TTA", "TTC", "TTG", "TTT"};
@@ -476,6 +476,51 @@ std::vector<double> M3S2Matrix::getStationary(){
     }
     
     return returnStationary;
+}
+
+std::tuple<double, double, double> M3S2Matrix::dNdS(){
+        Matrix<double> tempMatrix(currentQMatrix.copy());
+
+    for(auto coord : valid){
+        tempMatrix(coord.first, coord.second) /= currentStationary[coord.second];
+        tempMatrix(coord.second, coord.first) /= currentStationary[coord.first];
+
+        tempMatrix(coord.first + 61, coord.second +  61) /= currentStationary[coord.second];
+        tempMatrix(coord.second + 61, coord.first + 61) /= currentStationary[coord.first];
+
+        tempMatrix(coord.first + 122, coord.second +  122) /= currentStationary[coord.second];
+        tempMatrix(coord.second + 122, coord.first + 122) /= currentStationary[coord.first];
+    }
+
+    double dN1 = 0.0;
+    double dN2 = 0.0;
+    double dN3 = 0.0;
+    for(auto coord : nonsynonymous){
+        dN1 += tempMatrix(coord.first, coord.second) * currentStationary[coord.first];
+        dN1 += tempMatrix(coord.second, coord.first) * currentStationary[coord.second];
+
+        dN2 += tempMatrix(coord.first + 61, coord.second + 61) * currentStationary[coord.first];
+        dN2 += tempMatrix(coord.second + 61, coord.first + 61) * currentStationary[coord.second];
+
+        dN3 += tempMatrix(coord.first + 122, coord.second + 122) * currentStationary[coord.first];
+        dN3 += tempMatrix(coord.second + 122, coord.first + 122) * currentStationary[coord.second];
+    }
+
+    double dS1 = 0.0;
+    double dS2 = 0.0;
+    double dS3 = 0.0;
+    for(auto coord : synonymous){
+        dS1 += tempMatrix(coord.first, coord.second) * currentStationary[coord.first];
+        dS1 += tempMatrix(coord.second, coord.first) * currentStationary[coord.second];
+
+        dS2 += tempMatrix(coord.first + 61, coord.second + 61) * currentStationary[coord.first];
+        dS2 += tempMatrix(coord.second + 61, coord.first + 61) * currentStationary[coord.second];
+
+        dS3 += tempMatrix(coord.first + 61, coord.second + 61) * currentStationary[coord.first];
+        dS3 += tempMatrix(coord.second + 122, coord.first + 122) * currentStationary[coord.second];
+    }
+
+    return std::make_tuple(dN1/dS1, dN2/dS2, dN3/dS3);
 }
 
 void M3S2Matrix::tune(){

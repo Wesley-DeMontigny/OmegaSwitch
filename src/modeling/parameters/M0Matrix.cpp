@@ -8,8 +8,8 @@
 
 M0Matrix::M0Matrix(Settings settings) : 
                                    currentQMatrix(61, 61, 0.0), oldQMatrix(61, 61, 0.0), currentStationary(61, -1), oldStationary(61, -1), 
-                                   kLambda(settings.kLambda), omegaLambda(settings.omegaLambda), stationaryAlpha(75000), kDelta(0.25),
-                                   omegaDelta(0.25), stationaryPriorAlpha(61, 2.0) {
+                                   kLambda(settings.kLambda), omegaLambda(settings.omegaLambda), stationaryAlpha(75000), kDelta(0.5),
+                                   omegaDelta(0.5), stationaryPriorAlpha(61, 2.0) {
     std::vector<int> aaMap = {8, 11, 8, 11, 16, 16, 16, 16, 14, 15, 14, 15, 7, 7, 10, 7, 13, 6, 13, 6, 12, 12, 12, 12, 14, 14, 14, 14, 9, 9, 9, 9, 3, 2, 3, 2, 0, 0, 0, 0, 5, 5, 5, 5, 17, 17, 17, 17, 19, 19, 15, 15, 15, 15, 1, 18, 1, 9, 4, 9, 4};  
     std::vector<const char*> codons = {"AAA", "AAC", "AAG", "AAT", "ACA", "ACC", "ACG", "ACT", "AGA", "AGC", "AGG", "AGT", "ATA", "ATC", "ATG", "ATT", "CAA", "CAC", "CAG", "CAT", "CCA", "CCC", "CCG", "CCT", "CGA", "CGC", "CGG", "CGT", "CTA", "CTC", "CTG", "CTT", "GAA", "GAC", "GAG", "GAT", "GCA", "GCC", "GCG", "GCT", "GGA", "GGC", "GGG", "GGT", "GTA", "GTC", "GTG", "GTT", "TAC", "TAT", "TCA", "TCC", "TCG", "TCT", "TGC", "TGG", "TGT", "TTA", "TTC", "TTG", "TTT"};
 
@@ -273,6 +273,29 @@ Matrix<double> M0Matrix::Q() {
 
 std::vector<double> M0Matrix::getStationary(){
     return currentStationary;
+}
+
+double M0Matrix::dNdS(){
+        Matrix<double> tempMatrix(currentQMatrix.copy());
+
+    for(auto coord : valid){
+        tempMatrix(coord.first, coord.second) /= currentStationary[coord.second];
+        tempMatrix(coord.second, coord.first) /= currentStationary[coord.first];
+    }
+
+    double dN1 = 0.0;
+    for(auto coord : nonsynonymous){
+        dN1 += tempMatrix(coord.first, coord.second) * currentStationary[coord.first];
+        dN1 += tempMatrix(coord.second, coord.first) * currentStationary[coord.second];
+    }
+
+    double dS1 = 0.0;
+    for(auto coord : synonymous){
+        dS1 += tempMatrix(coord.first, coord.second) * currentStationary[coord.first];
+        dS1 += tempMatrix(coord.second, coord.first) * currentStationary[coord.second];
+    }
+
+    return dN1/dS1;
 }
 
 void M0Matrix::tune(){

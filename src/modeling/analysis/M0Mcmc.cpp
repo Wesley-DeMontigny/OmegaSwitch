@@ -11,12 +11,13 @@
 #include <fstream>
 
 M0Mcmc::M0Mcmc(M0Model* m, TreeParameter* t, M0Matrix* cm, Settings& s) : 
-    model(m), codonMatrix(cm), tree(t), generalUpdates(5), stationaryUpdates(10), treeUpdates(0) { 
+    model(m), codonMatrix(cm), tree(t), generalUpdates(3), stationaryUpdates(5), treeUpdates(0) { 
     numIter = s.numIterations;
     numBurnIn = s.burnInIterations;
     printFreq = s.printFrequency;
     tuneFreq = s.tuneFrequency;
     sampleFreq = s.sampleFrequency;
+    
     analysisLog = s.mcmcOutput;
     treeLog = s.treeOutput;
 
@@ -25,7 +26,7 @@ M0Mcmc::M0Mcmc(M0Model* m, TreeParameter* t, M0Matrix* cm, Settings& s) :
     omegaChoice = s.omegaWeight + treeChoice;
     stationaryChoice = s.stationaryWeight + omegaChoice;
 
-    treeUpdates = (int)(tree->getTree()->getBranchLengths().size() * 0.75);
+    treeUpdates = (int)(tree->getTree()->getBranchLengths().size() * 0.5);
 
     model->regenerateLikelihood();
     model->accept();

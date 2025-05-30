@@ -13,13 +13,17 @@ class M0Matrix : public Parameter {
         M0Matrix(Settings settings);
         Matrix<double> Q();
         std::vector<double> stationary();
+        double dNdS();
+
         void accept();
         void reject();
+        void tune();
+        double lnPrior();
+
         double updateK();
         double updateOmega();
         double updateStationary();
-        void tune();
-        double lnPrior();
+
         std::vector<double> getStationary();
         std::vector<double> getRawStationary() {return currentStationary;}
         double getK() {return currentK;}

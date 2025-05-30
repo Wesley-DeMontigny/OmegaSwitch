@@ -9,7 +9,7 @@
 DPPMatrix::DPPMatrix(Settings settings) : 
                                    currentQMatrix(122, 122, 0.0), oldQMatrix(122, 122, 0.0), 
                                    currentStationary(61, -1), oldStationary(61, -1), kLambda(settings.kLambda), rLambda(settings.rLambda),
-                                   stationaryAlpha(75000), rDelta(0.25), kDelta(0.25), stationaryPriorAlpha(61, 2.0) {
+                                   stationaryAlpha(75000), rDelta(0.5), kDelta(0.5), stationaryPriorAlpha(61, 2.0) {
     std::vector<int> aaMap = {8, 11, 8, 11, 16, 16, 16, 16, 14, 15, 14, 15, 7, 7, 10, 7, 13, 6, 13, 6, 12, 12, 12, 12, 14, 14, 14, 14, 9, 9, 9, 9, 3, 2, 3, 2, 0, 0, 0, 0, 5, 5, 5, 5, 17, 17, 17, 17, 19, 19, 15, 15, 15, 15, 1, 18, 1, 9, 4, 9, 4};  
     std::vector<const char*> codons = {"AAA", "AAC", "AAG", "AAT", "ACA", "ACC", "ACG", "ACT", "AGA", "AGC", "AGG", "AGT", "ATA", "ATC", "ATG", "ATT", "CAA", "CAC", "CAG", "CAT", "CCA", "CCC", "CCG", "CCT", "CGA", "CGC", "CGG", "CGT", "CTA", "CTC", "CTG", "CTT", "GAA", "GAC", "GAG", "GAT", "GCA", "GCC", "GCG", "GCT", "GGA", "GGC", "GGG", "GGT", "GTA", "GTC", "GTG", "GTT", "TAC", "TAT", "TCA", "TCC", "TCG", "TCT", "TGC", "TGG", "TGT", "TTA", "TTC", "TTG", "TTT"};
 
@@ -307,41 +307,42 @@ Matrix<double> DPPMatrix::Q(double omega1, double omega2) {
 }
 
 std::pair<double, double> DPPMatrix::dNdS(double omega1, double omega2) {
-    Matrix<double> returnMatrix(currentQMatrix.copy());
+    Matrix<double> tempMatrix(currentQMatrix.copy());
 
     for(auto coord : valid){
-        returnMatrix(coord.first, coord.second) /= currentStationary[coord.second];
-        returnMatrix(coord.second, coord.first) /= currentStationary[coord.first];
-        returnMatrix(coord.first + 61, coord.second +  61) /= currentStationary[coord.second];
-        returnMatrix(coord.second + 61, coord.first + 61) /= currentStationary[coord.first];
+        tempMatrix(coord.first, coord.second) /= currentStationary[coord.second];
+        tempMatrix(coord.second, coord.first) /= currentStationary[coord.first];
+        
+        tempMatrix(coord.first + 61, coord.second +  61) /= currentStationary[coord.second];
+        tempMatrix(coord.second + 61, coord.first + 61) /= currentStationary[coord.first];
     }
 
     for(auto coord : nonsynonymous){
-        returnMatrix(coord.first, coord.second) *= omega1;
-        returnMatrix(coord.second, coord.first) *= omega1; 
+        tempMatrix(coord.first, coord.second) *= omega1;
+        tempMatrix(coord.second, coord.first) *= omega1; 
 
-        returnMatrix(coord.first + 61, coord.second + 61) *= omega2;
-        returnMatrix(coord.second + 61, coord.first + 61) *= omega2; 
+        tempMatrix(coord.first + 61, coord.second + 61) *= omega2;
+        tempMatrix(coord.second + 61, coord.first + 61) *= omega2; 
     }
 
-    double dN1 = 0;
-    double dN2 = 0;
+    double dN1 = 0.0;
+    double dN2 = 0.0;
     for(auto coord : nonsynonymous){
-        dN1 += returnMatrix(coord.first, coord.second) * currentStationary[coord.first];
-        dN1 += returnMatrix(coord.second, coord.first) * currentStationary[coord.second];
+        dN1 += tempMatrix(coord.first, coord.second) * currentStationary[coord.first];
+        dN1 += tempMatrix(coord.second, coord.first) * currentStationary[coord.second];
 
-        dN2 += returnMatrix(coord.first + 61, coord.second + 61) * currentStationary[coord.first];
-        dN2 += returnMatrix(coord.second + 61, coord.first + 61) * currentStationary[coord.second];
+        dN2 += tempMatrix(coord.first + 61, coord.second + 61) * currentStationary[coord.first];
+        dN2 += tempMatrix(coord.second + 61, coord.first + 61) * currentStationary[coord.second];
     }
 
-    double dS1 = 0;
-    double dS2 = 0;
+    double dS1 = 0.0;
+    double dS2 = 0.0;
     for(auto coord : synonymous){
-        dS1 += returnMatrix(coord.first, coord.second) * currentStationary[coord.first];
-        dS1 += returnMatrix(coord.second, coord.first) * currentStationary[coord.second];
+        dS1 += tempMatrix(coord.first, coord.second) * currentStationary[coord.first];
+        dS1 += tempMatrix(coord.second, coord.first) * currentStationary[coord.second];
 
-        dS2 += returnMatrix(coord.first + 61, coord.second + 61) * currentStationary[coord.first];
-        dS2 += returnMatrix(coord.second + 61, coord.first + 61) * currentStationary[coord.second];
+        dS2 += tempMatrix(coord.first + 61, coord.second + 61) * currentStationary[coord.first];
+        dS2 += tempMatrix(coord.second + 61, coord.first + 61) * currentStationary[coord.second];
     }
 
 

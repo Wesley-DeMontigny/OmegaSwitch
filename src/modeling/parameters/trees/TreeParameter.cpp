@@ -7,7 +7,7 @@
 #include <cmath>
 
 TreeParameter::TreeParameter(Alignment* aln, std::string newick, double l) : lambda(l), currentPrior(0.0), oldPrior(0.0), 
-                                                         branchDelta(0.05), moveChoice(-1), branchCount(0), branchAcceptCount(0), 
+                                                         branchDelta(0.5), moveChoice(-1), branchCount(0), branchAcceptCount(0), 
                                                          treeCount(0), treeAcceptCount(0), treeAlpha(10000) {
     fixedTree = newick != "";
     if(!fixedTree)

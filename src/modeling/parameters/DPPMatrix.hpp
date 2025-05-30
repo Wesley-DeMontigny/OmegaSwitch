@@ -13,18 +13,21 @@ class DPPMatrix : public Parameter {
         DPPMatrix(Settings settings);
         Matrix<double> Q(double omega1, double omega2);
         std::vector<double> stationary();
+        std::pair<double, double> dNdS(double omega1, double omega2);
+
         void accept();
         void reject();
+        void tune();
+        double lnPrior();
+
         double updateK();
         double updateR();
         double updateStationary();
-        void tune();
-        double lnPrior();
+
         std::vector<double> getStationary();
         std::vector<double> getRawStationary() {return currentStationary;}
         double getK() {return currentK;}
         double getR() {return currentR;}
-        std::pair<double, double> dNdS(double omega1, double omega2);
 
         int kCount = 0;
         int kAcceptCount = 0;

@@ -17,6 +17,9 @@ class DPPModel {
         DPPModel(Settings s, Alignment* a, TreeParameter* t, DPPMatrix* m, DirichletProcessPrior* d);
         ~DPPModel();
 
+        void accept();
+        void reject();
+        void tuneMoves();
         double lnLikelihood() {return currentLikelihood;}
         double lnPrior();
 
@@ -30,10 +33,6 @@ class DPPModel {
 
         TransitionProbability* getTransitionProbability() { return transProb; }
         ConditionalLikelihood* getConditionalLikelihood() { return postOrder; }
-
-        void accept();
-        void reject();
-        void tuneMoves();
 
         std::string tabularHeader();
         std::string tabularOut(int i);

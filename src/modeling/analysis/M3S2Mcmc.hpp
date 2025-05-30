@@ -1,18 +1,18 @@
-#ifndef M0_MCMC_HPP
-#define M0_MCMC_HPP
+#ifndef M3S2_MCMC_HPP
+#define M3S2_MCMC_HPP
 #include <vector>
 #include <string>
 
-class M0Model;
+class M3S2Model;
 class Parameter;
 class TreeParameter;
-class M0Matrix;
+class M3S2Matrix;
 class Settings;
 
-class M0Mcmc{
+class M3S2Mcmc{
     public:
-        M0Mcmc(void)=delete;
-        M0Mcmc(M0Model* m, TreeParameter* t, M0Matrix* cm, Settings& s);
+        M3S2Mcmc(void)=delete;
+        M3S2Mcmc(M3S2Model* m, TreeParameter* t, M3S2Matrix* cm, Settings& s);
         void burnin();
         void run();
     private:
@@ -21,6 +21,7 @@ class M0Mcmc{
         int printFreq;
         int tuneFreq;
         int sampleFreq;
+
         int generalUpdates;
         int stationaryUpdates;
         int treeUpdates;
@@ -28,14 +29,21 @@ class M0Mcmc{
         double treeChoice;
         double stationaryChoice;
         double kChoice;
-        double omegaChoice;
+        double omega1Choice;
+        double omega2Choice;
+        double omega3Choice;
+        double r1Choice;
+        double r2Choice;
+        double gammaChoice;
 
         TreeParameter* tree;
-        M0Matrix* codonMatrix;
-        M0Model* model;
+        M3S2Matrix* codonMatrix;
+        M3S2Model* model;
 
         std::string analysisLog;
         std::string treeLog;
+        std::string tipsLog;
+        std::string ancestralLog;
         
         double GibbsIteration(double currentLnPosterior);
 };

@@ -14,7 +14,7 @@
 DirichletProcessPrior::DirichletProcessPrior(int size, Settings s) : 
                                              alpha(0), omegaLambda(s.omegaLambda),
                                              numMembers(size), currentLnPrior(0.0),
-                                             model(nullptr), omegaDelta(0.25), assignments(size, -1),
+                                             model(nullptr), omegaDelta(0.5), assignments(size, -1),
                                              omegaAcceptCount(0), omegaCount(0), moveChoice(-1),
                                              numGibbs(s.numGibbs) {
 

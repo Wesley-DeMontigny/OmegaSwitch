@@ -13,8 +13,13 @@ class M3S2Matrix : public Parameter {
         M3S2Matrix(Settings settings);
         Matrix<double> Q();
         std::vector<double> stationary();
+        std::tuple<double, double, double> dNdS();
+
         void accept();
         void reject();
+        void tune();
+        double lnPrior();
+
         double updateK();
         double updateOmega1();
         double updateOmega2();
@@ -23,8 +28,7 @@ class M3S2Matrix : public Parameter {
         double updateR1();
         double updateR2();
         double updateStationary();
-        void tune();
-        double lnPrior();
+
         std::vector<double> getStationary();
         std::vector<double> getRawStationary() {return currentStationary;}
         double getK() {return currentK;}

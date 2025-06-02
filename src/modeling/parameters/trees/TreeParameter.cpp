@@ -11,7 +11,7 @@ TreeParameter::TreeParameter(Alignment* aln, std::string newick, double l) : lam
                                                          treeCount(0), treeAcceptCount(0), treeAlpha(10000) {
     fixedTree = newick != "";
     if(!fixedTree)
-        trees[0] = new TreeObject(aln);
+        trees[0] = new TreeObject(aln, false);
     else
         trees[0] = new TreeObject(newick, aln->getTaxaNames());
 

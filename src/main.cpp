@@ -20,7 +20,7 @@
 #include <algorithm>
 #include <chrono>
 
-void inference(Settings settings, Alignment aln, TreeParameter treeParam){
+void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam){
     if(settings.M0){
         std::cout << "Initializing the M0 model..." << std::endl;
 

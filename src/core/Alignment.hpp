@@ -7,6 +7,7 @@ class Alignment{
     public:
                                     Alignment(void) = delete;
                                     Alignment(std::string fn);
+                                    Alignment(int* siteMatrix, int numChar, int numTaxa);
                                     ~Alignment();
         unsigned long long int      getCharCode(int i, int j) {return matrix[i][j];}
         unsigned long long int**    getMatrix() {return matrix;}
@@ -14,7 +15,6 @@ class Alignment{
         int                         getNumTaxa() {return numTaxa;}
         int                         getStateSpace() {return stateSpace;}
         std::vector<std::string>    getTaxaNames() {return taxaNames;}
-        std::vector<double>         getStateFrequencies() {return frequencies;}
     private:
         unsigned long long int**    matrix;
         int                         numTaxa;
@@ -22,7 +22,6 @@ class Alignment{
         int                         stateSpace;
         void                        readCodonData(NxsCharactersBlock* charBlock);
         std::vector<std::string>    taxaNames;
-        std::vector<double>         frequencies;
 };
 
 #endif

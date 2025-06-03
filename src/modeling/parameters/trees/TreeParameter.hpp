@@ -8,6 +8,7 @@ class TreeParameter : public Parameter{
     public:
         TreeParameter(void)=delete;
         TreeParameter(Alignment* aln, std::string newick, double lambda);
+        TreeParameter(TreeObject& tree, double lambda);
         ~TreeParameter();
         TreeObject* getTree(){return trees[0];}
 

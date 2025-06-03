@@ -38,6 +38,33 @@ TreeParameter::TreeParameter(Alignment* aln, std::string newick, double l) : lam
     dirty();
 }
 
+TreeParameter::TreeParameter(TreeObject& tree, double lambda) : lambda(lambda), currentPrior(0.0), oldPrior(0.0), 
+                                                                branchDelta(0.5), moveChoice(-1), branchCount(0), branchAcceptCount(0), 
+                                                                treeCount(0), treeAcceptCount(0), treeAlpha(10000), fixedTree(true) {
+
+    trees[0] = new TreeObject(tree);
+
+    RandomVariable& rng = RandomVariable::randomVariableInstance();
+    std::vector<Node*> nodes = trees[0]->getPostOrderSeq();
+    for(Node* n : nodes) {
+        if(n != trees[0]->getRoot()) {
+            trees[0]->setBranchLength(n, Probability::Exponential::rv(&rng, lambda));
+        }
+    }
+
+    trees[1] = new TreeObject(*trees[0]);
+
+    std::vector<double> values = trees[0]->getBranchLengths();
+    double totalLength = 0.0;
+    for(double val : values){
+        totalLength += val;
+    }
+    currentPrior = Probability::Gamma::lnPdf(values.size(), lambda, totalLength);
+    oldPrior = currentPrior;
+
+    dirty();
+}
+
 TreeParameter::~TreeParameter(){
     delete trees[0];
     delete trees[1]; 

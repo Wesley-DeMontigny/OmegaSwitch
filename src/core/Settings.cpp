@@ -8,8 +8,8 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                                               numIterations(30000), printFrequency(10), sampleFrequency(100),
                                               burnInIterations(5000), tuneFrequency(1000), rLambda(5.0), gammaLambda(5.0),
                                               kLambda(2.0), omegaLambda(2.0), treeLengthLambda(5.0), expectedCat(1.2),
-                                              rWeight(1.0), kWeight(1.0), stationaryWeight(2.0), omegaWeight(2.0),
-                                              dppWeight(1.0), treeWeight(2.0), numGibbs(25), fixedTree(""), M0(false),
+                                              rWeight(1.0), kWeight(1.0), stationaryWeight(2.0), omegaWeight(1.0),
+                                              dppWeight(2.0), treeWeight(2.0), numGibbs(25), fixedTree(""), M0(false),
                                               M3S2(false), simulateDPP(false), simulateM0(false), simulateM3S2(false),
                                               numSimulations(1) {
 
@@ -29,6 +29,8 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
     settings.push_back("/workspaces/Varying_Selection_DPP/res/dpp.log");
     settings.push_back("-tipsOut");
     settings.push_back("/workspaces/Varying_Selection_DPP/res/tips.log");
+    //settings.push_back("-simulationOutput");
+    //settings.push_back("/workspaces/Varying_Selection_DPP/res/simulation.log");
     settings.push_back("-fixedTree");
     settings.push_back("(((((((HBACmydas:1,HBAPcastaneus:1):1,HBACniloticus:1):1,(HBAAindicus:1,(HBACminor:1,HBAGgallus:1):1):1):1,(HBABtaurus:1,HBAHsapiens:1):1):1,(HBABbombina:1,HBAXborealis:1):1):1,((HBADrerio:1,HBACcarpio:1):1,HBASsalar:1):1):1,((((((HBBCmydas:1,HBBPcastaneus:1):1,HBBCniloticus:1):1,(HBBAindicus:1,(HBBCminor:1,HBBGgallus:1):1):1):1,(HBBBtaurus:1,HBBHsapiens:1):1):1,(HBBBbombina:1,HBBXborealis:1):1):1,((HBBDrerio:1,HBBCcarpio:1):1,HBBSsalar:1):1):1);");
 */
@@ -39,38 +41,38 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
 
     std::string currentArg = "";
     for (int i=0; i<settings.size(); i++) {
-        if (currentArg == "")
-            currentArg = settings[i];
-        else if(currentArg == "-M0"){
+        if(settings[i] == "-M0"){
             M0 = true;
             if(M3S2){
                 Msg::error("Cannot do inference under both M0 and M3S2!");
             }
         }
-        else if(currentArg == "-M3S2"){
+        else if(settings[i] == "-M3S2"){
             M3S2 = true;
             if(M0){
                 Msg::error("Cannot do inference under both M0 and M3S2!");
             }
         }
-        else if(currentArg == "-simulateM0"){
+        else if(settings[i] == "-simulateM0"){
             simulateM0 = true;
             if(simulateM3S2 || simulateDPP){
                 Msg::error("Cannot simulate under multiple models!");
             }
         }
-        else if(currentArg == "-simulateM3S2"){
+        else if(settings[i] == "-simulateM3S2"){
             simulateM3S2 = true;
             if(simulateM0 || simulateDPP){
                 Msg::error("Cannot simulate under multiple models!");
             }
         }
-        else if(currentArg == "-simulateDPP"){
+        else if(settings[i] == "-simulateDPP"){
             simulateDPP = true;
             if(simulateM3S2 || simulateM0){
                 Msg::error("Cannot simulate under multiple models!");
             }
         }
+        else if (currentArg == "")
+            currentArg = settings[i];
         else {
             if (currentArg == "-nexus")
                 nexusInput = settings[i];
@@ -124,6 +126,8 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                 fixedTree = settings[i];
             else if (currentArg == "-numSimulations")
                 numSimulations = stoi(settings[i]);
+            else if (currentArg == "-simulationOutput")
+                simulationOutput = settings[i];
             else{
                 Msg::error("Could not interpret argument " + currentArg);
                 usage();
@@ -136,17 +140,26 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
 
     if((nexusInput == "" || treeOutput == "" || mcmcOutput == "") && !simulating){
         usage();
-        Msg::error("For non-simulation analyses, nexus, treeOut, mcmcOut are required arguments.");
+        Msg::error("For non-simulation analyses, nexusInput, treeOut, mcmcOut are required arguments.");
     }
 
     if(simulating && nexusInput != ""){
         usage();
-        Msg::error("Simulation analyses cannot use a nexus input. This file will be ignored!");
+        Msg::warning("Simulation analyses cannot use a nexus input. This file will be ignored!");
     }
 
     if(simulating && fixedTree != ""){
         usage();
-        Msg::error("Simulation analyses cannot use a provided tree. This file will be ignored!");
+        Msg::warning("Simulation analyses cannot use a provided tree. This file will be ignored!");
+    }
+
+    if(simulating && simulationOutput == ""){
+        usage();
+        Msg::warning("Simulation analyses require an output to be set!");
+    }
+
+    if(simulating && (treeOutput == "" || mcmcOutput == "")){
+        Msg::error("For simulation analyses, treeOut, mcmcOut are required arguments.");
     }
 
     print();
@@ -162,6 +175,7 @@ void Settings::print(){
     std::cout << "   * -tipsOut           : " << tipsOutput << std::endl;
     std::cout << "   * -ancestralStatesOut: " << ancestralStatesOutput << std::endl;
     std::cout << "   * -fixedTree         : " << fixedTree << std::endl;
+    std::cout << "   * -simulationOutput  : " << simulationOutput << std::endl;
     std::cout << std::endl;
 
     std::cout << "Inference Model and Simulation:" << std::endl;
@@ -208,6 +222,7 @@ void Settings::usage(void) {
     std::cout << "   * -tipsOut           : The output file name for the reconstructed tip dNdS ratios." << std::endl;
     std::cout << "   * -ancestralStatesOut: The output file name for the all ancestral dNdS ratios." << std::endl;
     std::cout << "   * -fixedTree         : The NEWICK string corresponding to the fixed tree you wish to analyze." << std::endl;
+    std::cout << "   * -simulationOutput  : The output file name for the true simulation parameters." << std::endl;
     std::cout << std::endl;
 
     std::cout << "Inference Model and Simulation:" << std::endl;

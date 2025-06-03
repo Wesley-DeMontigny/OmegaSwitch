@@ -12,6 +12,7 @@ struct Settings {
     std::string     mcmcOutput;
     std::string     tipsOutput;
     std::string     ancestralStatesOutput;
+    std::string     simulationOutput;
 
     std::string     fixedTree;
     int             numIterations;

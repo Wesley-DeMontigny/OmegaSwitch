@@ -27,12 +27,31 @@ Alignment::Alignment(std::string fn) {
             NxsCharactersBlock* charBlock = nexusReader.GetCharactersBlock(taxaBlock, cBlock);
             std::string charBlockTitle = charBlock->GetTitle();
             stateSpace = 61;
-            for(int i = 0; i < stateSpace; i++)
-                frequencies.push_back(0);
             readCodonData(charBlock);
         }
         
     }
+}
+
+Alignment::Alignment(int* siteMatrix, int nC, int nT) : numChar(nC), numTaxa(nT) {
+
+    matrix = new unsigned long long int*[numTaxa];
+
+    matrix[0] = new unsigned long long int[numTaxa*numChar];
+    for(int i = 1; i < numTaxa; i++)
+        matrix[i] = matrix[i-1] + numChar;
+    for(int i = 0; i < numTaxa; i++)
+        for(int j = 0; j < numChar; j++)
+            matrix[i][j] = 0;
+
+    for(int i = 0; i < numTaxa; i++){
+        for(int j = 0; j < numChar; j++){
+            int charType = siteMatrix[j*numTaxa +i] % 61;
+            matrix[i][j] = 1ULL << charType;
+        }
+    }
+
+    std::cout << "Initialized alignment from simulation" << std::endl;
 }
 
 Alignment::~Alignment(){
@@ -69,7 +88,6 @@ void Alignment::readCodonData(NxsCharactersBlock* charBlock){
             for(int k = 0, len = 61; k < len; k++){
                 if(codonDict.codonStrings[k] == state){
                     matrix[i][j] = 1ULL << k;
-                    frequencies[k] += 1;
                     break;
                 }
 
@@ -81,13 +99,4 @@ void Alignment::readCodonData(NxsCharactersBlock* charBlock){
         }
     }
     delete [] state;
-
-    double total = 0.0;
-    for(double v : frequencies){
-        total += v + 1;
-    }
-
-    for(double& v : frequencies){
-        v = (v + 1)/total;
-    }
 }

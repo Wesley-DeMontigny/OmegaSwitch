@@ -106,7 +106,7 @@ int main(int argc, char* argv[]) {
         inference(settings, aln, treeParam);
     }
     else{
-        int numSites = 250;
+        int numSites = 150;
         int numTaxa = 10;
         std::string mcmcOutput = settings.mcmcOutput;
         std::string tipsOutput = settings.tipsOutput;
@@ -381,9 +381,9 @@ int main(int argc, char* argv[]) {
             if(settings.mcmcOutput != "")
                 settings.mcmcOutput = mcmcOutput + std::to_string(i);
             if(settings.dppOutput != "")
-                settings.mcmcOutput = dppOutput + std::to_string(i);
+                settings.dppOutput = dppOutput + std::to_string(i);
             if(settings.tipsOutput != "")
-                settings.mcmcOutput = tipsOutput + std::to_string(i);
+                settings.tipsOutput = tipsOutput + std::to_string(i);
             if(settings.ancestralStatesOutput != "")
                 settings.ancestralStatesOutput = ancestralStatesOutput + std::to_string(i);
             

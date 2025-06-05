@@ -265,8 +265,8 @@ Matrix<double> DPPMatrix::Q(double omega1, double omega2) {
         returnMatrix(coord.first, coord.second) *= omega1;
         returnMatrix(coord.second, coord.first) *= omega1; 
 
-        returnMatrix(coord.first + 61, coord.second + 61) *= omega2;
-        returnMatrix(coord.second + 61, coord.first + 61) *= omega2; 
+        returnMatrix(coord.first + 61, coord.second + 61) *= omega1 + omega2;
+        returnMatrix(coord.second + 61, coord.first + 61) *= omega1 + omega2; 
     }
 
     double scaler= 0.0;
@@ -321,8 +321,8 @@ std::pair<double, double> DPPMatrix::dNdS(double omega1, double omega2) {
         tempMatrix(coord.first, coord.second) *= omega1;
         tempMatrix(coord.second, coord.first) *= omega1; 
 
-        tempMatrix(coord.first + 61, coord.second + 61) *= omega2;
-        tempMatrix(coord.second + 61, coord.first + 61) *= omega2; 
+        tempMatrix(coord.first + 61, coord.second + 61) *= omega1 + omega2;
+        tempMatrix(coord.second + 61, coord.first + 61) *= omega1 + omega2; 
     }
 
     double dN1 = 0.0;

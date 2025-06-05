@@ -17,3 +17,4 @@ add_executable(main ${SOURCES})
 target_link_libraries(main PRIVATE ncl_static)
 
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer -g -O1")
+add_compile_definitions(TIME_PROFILE=1)

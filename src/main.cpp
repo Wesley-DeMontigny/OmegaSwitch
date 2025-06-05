@@ -106,8 +106,8 @@ int main(int argc, char* argv[]) {
         inference(settings, aln, treeParam);
     }
     else{
-        int numSites = 150;
-        int numTaxa = 10;
+        int numSites = 50;
+        int numTaxa = 25;
         std::string mcmcOutput = settings.mcmcOutput;
         std::string tipsOutput = settings.tipsOutput;
         std::string dppOutput = settings.dppOutput;
@@ -126,7 +126,7 @@ int main(int argc, char* argv[]) {
         for(int i = 0; i < settings.numSimulations; i++){
             std::cout << "Starting simulation " << i << "..." << std::endl;
 
-            TreeObject tree(10, true);
+            TreeObject tree(numTaxa, true);
             std::vector<Node*> preOrderSeq = tree.getPostOrderSeq();
             std::reverse(preOrderSeq.begin(), preOrderSeq.end());
             Node* root = tree.getRoot();

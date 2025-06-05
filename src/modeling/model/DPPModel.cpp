@@ -125,7 +125,9 @@ void DPPModel::regenerateLikelihood(){
     std::vector<Category> categories = dpp->getCategories();
     int numCats = dpp->getNumCategories();
 
-    //std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+    #if TIME_PROFILE==1
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+    #endif
 
     tf::Taskflow rateTaskflow;
 
@@ -156,8 +158,10 @@ void DPPModel::regenerateLikelihood(){
 
     executor.run(rateTaskflow).wait();
 
-    //std::chrono::steady_clock::time_point rateTime = std::chrono::steady_clock::now();
-    //std::cout << "Rate computation was completed in " << std::chrono::duration_cast<std::chrono::milliseconds>(rateTime - begin).count() << "[milliseconds]" << std::endl;
+    #if TIME_PROFILE==1
+    std::chrono::steady_clock::time_point rateTime = std::chrono::steady_clock::now();
+    std::cout << "Rate computation was completed in " << std::chrono::duration_cast<std::chrono::milliseconds>(rateTime - begin).count() << "[milliseconds]" << std::endl;
+    #endif
 
     tf::Taskflow probsTaskflow;
 
@@ -180,8 +184,10 @@ void DPPModel::regenerateLikelihood(){
 
     executor.run(probsTaskflow).wait();
 
-    //std::chrono::steady_clock::time_point probsTime = std::chrono::steady_clock::now();
-    //std::cout << "Probs computation was completed in " << std::chrono::duration_cast<std::chrono::milliseconds>(probsTime - rateTime).count() << "[milliseconds]" << std::endl;
+    #if TIME_PROFILE==1
+    std::chrono::steady_clock::time_point probsTime = std::chrono::steady_clock::now();
+    std::cout << "Probs computation was completed in " << std::chrono::duration_cast<std::chrono::milliseconds>(probsTime - rateTime).count() << "[milliseconds]" << std::endl;
+    #endif
 
     for(Node* n : poSeq){
         if(n->getNeedsCLUpdate() == true){
@@ -280,8 +286,10 @@ void DPPModel::regenerateLikelihood(){
 
     currentLikelihood = lnL;
 
-    //std::chrono::steady_clock::time_point pruneTime = std::chrono::steady_clock::now();
-    //std::cout << "Pruning was completed in " << std::chrono::duration_cast<std::chrono::milliseconds>(pruneTime - probsTime).count() << "[milliseconds]" << std::endl;
+    #if TIME_PROFILE==1
+    std::chrono::steady_clock::time_point pruneTime = std::chrono::steady_clock::now();
+    std::cout << "Pruning was completed in " << std::chrono::duration_cast<std::chrono::milliseconds>(pruneTime - probsTime).count() << "[milliseconds]" << std::endl;
+    #endif
 }
 
 void DPPModel::regenerateTransitionProbs(int site, int category){

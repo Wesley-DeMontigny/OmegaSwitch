@@ -59,7 +59,7 @@ double DPPMcmc::GibbsIteration(double currentLnPosterior){
         }
         else if(randomMove < omegaChoice){
             updater = [this]() { return dpp->updateOmega(); };
-            numUpdates = dpp->getNumCategories() * 2;
+            numUpdates = std::max(dpp->getNumCategories(), generalUpdates) * 2;
         }
         else if(randomMove < stationaryChoice){
             updater = [this]() { return codonMatrix->updateStationary(); };

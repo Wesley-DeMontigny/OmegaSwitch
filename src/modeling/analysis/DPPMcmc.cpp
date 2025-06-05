@@ -49,21 +49,36 @@ double DPPMcmc::GibbsIteration(double currentLnPosterior){
 
         if(randomMove < kChoice){
             updater = [this]() { return codonMatrix->updateK(); };
+            #if LOGGING==1
+            std::cout << "Updating K..." << std::endl;
+            #endif
         }
         else if(randomMove < rChoice){
             updater = [this]() { return codonMatrix->updateR(); };
+            #if LOGGING==1
+            std::cout << "Updating R..." << std::endl;
+            #endif
         }
         else if(randomMove < treeChoice){
             updater = [this]() { return tree->update(); };
             numUpdates = treeUpdates;
+            #if LOGGING==1
+            std::cout << "Updating Tree..." << std::endl;
+            #endif
         }
         else if(randomMove < omegaChoice){
             updater = [this]() { return dpp->updateOmega(); };
             numUpdates = std::max(dpp->getNumCategories(), generalUpdates) * 2;
+            #if LOGGING==1
+            std::cout << "Updating Omega..." << std::endl;
+            #endif
         }
         else if(randomMove < stationaryChoice){
             updater = [this]() { return codonMatrix->updateStationary(); };
             numUpdates = stationaryUpdates;
+            #if LOGGING==1
+            std::cout << "Updating Stationary..." << std::endl;
+            #endif
         }
 
         for(int i = 0; i < numUpdates; i++){
@@ -75,16 +90,29 @@ double DPPMcmc::GibbsIteration(double currentLnPosterior){
             double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
             double lnR = lnProposalRatio + lnPosteriorRatio;
 
+            #if LOGGING==1
+            std::cout << "Evalulating proposal with acceptance ratio of " << lnR << std::endl;
+            #endif
+
             if(std::log(rng.uniformRv()) < lnR){
+                #if LOGGING==1
+                std::cout << "Accepted proposal!" << std::endl;
+                #endif
                 model->accept();
                 currentLnPosterior = newLnPosterior;
             }
             else{
+                #if LOGGING==1
+                std::cout << "Rejected proposal!" << std::endl;
+                #endif
                 model->reject();
             }
         }
     }
     else {
+        #if LOGGING==1
+        std::cout << "Updating the DPP..." << std::endl;
+        #endif
         dpp->updateDPP();
 
         model->regenerateLikelihood();

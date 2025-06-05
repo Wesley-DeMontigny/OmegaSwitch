@@ -49,32 +49,59 @@ double M3S2Mcmc::GibbsIteration(double currentLnPosterior){
 
     if(randomMove < kChoice){
         updater = [this]() { return codonMatrix->updateK(); };
+        #if LOGGING==1
+        std::cout << "Updating K..." << std::endl;
+        #endif
     }
     else if(randomMove < treeChoice){
         updater = [this]() { return tree->update(); };
         numUpdates = treeUpdates;
+        #if LOGGING==1
+        std::cout << "Updating Tree..." << std::endl;
+        #endif
     }
     else if(randomMove < omega1Choice){
         updater = [this]() { return codonMatrix->updateOmega1(); };
+        #if LOGGING==1
+        std::cout << "Updating Omega1..." << std::endl;
+        #endif
     }
     else if(randomMove < omega2Choice){
         updater = [this]() { return codonMatrix->updateOmega2(); };
+        #if LOGGING==1
+        std::cout << "Updating Omega2..." << std::endl;
+        #endif
     }
     else if(randomMove < omega3Choice){
         updater = [this]() { return codonMatrix->updateOmega3(); };
+        #if LOGGING==1
+        std::cout << "Updating Omega3..." << std::endl;
+        #endif
     }
     else if(randomMove < r1Choice){
         updater = [this]() { return codonMatrix->updateR1(); };
+        #if LOGGING==1
+        std::cout << "Updating R1..." << std::endl;
+        #endif
     }
     else if(randomMove < r2Choice){
         updater = [this]() { return codonMatrix->updateR2(); };
+        #if LOGGING==1
+        std::cout << "Updating R2..." << std::endl;
+        #endif
     }
     else if(randomMove < gammaChoice){
         updater = [this]() { return codonMatrix->updateGamma(); };
+        #if LOGGING==1
+        std::cout << "Updating Gamma..." << std::endl;
+        #endif
     }
     else if(randomMove < stationaryChoice){
         updater = [this]() { return codonMatrix->updateStationary(); };
         numUpdates = stationaryUpdates;
+        #if LOGGING==1
+        std::cout << "Updating Stationary..." << std::endl;
+        #endif
     }
 
     for(int i = 0; i < numUpdates; i++){
@@ -86,11 +113,21 @@ double M3S2Mcmc::GibbsIteration(double currentLnPosterior){
         double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
         double lnR = lnProposalRatio + lnPosteriorRatio;
 
+        #if LOGGING==1
+        std::cout << "Evalulating proposal with acceptance ratio of " << lnR << std::endl;
+        #endif
+
         if(std::log(rng.uniformRv()) < lnR){
+            #if LOGGING==1
+            std::cout << "Accepted proposal!" << std::endl;
+            #endif
             model->accept();
             currentLnPosterior = newLnPosterior;
         }
         else{
+            #if LOGGING==1
+            std::cout << "Rejected proposal!" << std::endl;
+            #endif
             model->reject();
         }
     }

@@ -18,22 +18,19 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
         std::string arg = argv[i];
         settings.push_back(arg);
     }
-/*
-    settings.push_back("-nexus");
-    settings.push_back("/workspaces/Varying_Selection_DPP/publication_analyses/globin_analysis/globins.nex");
+#if TEST_RUN==1
     settings.push_back("-treeOut");
-    settings.push_back("/workspaces/Varying_Selection_DPP/res/trees.trees");
+    settings.push_back("./trees.trees");
     settings.push_back("-mcmcOut");
-    settings.push_back("/workspaces/Varying_Selection_DPP/res/analysis.log");
+    settings.push_back("./analysis.log");
     settings.push_back("-dppOut");
-    settings.push_back("/workspaces/Varying_Selection_DPP/res/dpp.log");
+    settings.push_back("./dpp.log");
     settings.push_back("-tipsOut");
-    settings.push_back("/workspaces/Varying_Selection_DPP/res/tips.log");
-    //settings.push_back("-simulationOutput");
-    //settings.push_back("/workspaces/Varying_Selection_DPP/res/simulation.log");
-    settings.push_back("-fixedTree");
-    settings.push_back("(((((((HBACmydas:1,HBAPcastaneus:1):1,HBACniloticus:1):1,(HBAAindicus:1,(HBACminor:1,HBAGgallus:1):1):1):1,(HBABtaurus:1,HBAHsapiens:1):1):1,(HBABbombina:1,HBAXborealis:1):1):1,((HBADrerio:1,HBACcarpio:1):1,HBASsalar:1):1):1,((((((HBBCmydas:1,HBBPcastaneus:1):1,HBBCniloticus:1):1,(HBBAindicus:1,(HBBCminor:1,HBBGgallus:1):1):1):1,(HBBBtaurus:1,HBBHsapiens:1):1):1,(HBBBbombina:1,HBBXborealis:1):1):1,((HBBDrerio:1,HBBCcarpio:1):1,HBBSsalar:1):1):1);");
-*/
+    settings.push_back("./tips.log");
+    settings.push_back("-simulationOutput");
+    settings.push_back("./simulation.log");
+    settings.push_back("-simulateDPP");
+#endif
     if (settings.size() == 0) {
         usage();
         Msg::error("Expected command line arguments");

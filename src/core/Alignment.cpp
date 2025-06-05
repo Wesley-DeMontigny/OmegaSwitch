@@ -93,7 +93,9 @@ void Alignment::readCodonData(NxsCharactersBlock* charBlock){
 
                 if(k == len-1) { // We did not find something here...
                     matrix[i][j] = (1ULL << 61) - 1;
-                    //Msg::error("Found an unsupported codon (" + std::string(state) + ") at "  + to_string(i) + "," + to_string(j));             
+                    #if LOGGING==1
+                    Msg::warning("Found an unsupported codon (" + std::string(state) + ") at "  + to_string(i) + "," + to_string(j));  
+                    #endif           
                 }
             }
         }

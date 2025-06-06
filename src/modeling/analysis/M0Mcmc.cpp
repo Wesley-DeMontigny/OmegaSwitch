@@ -37,6 +37,10 @@ double M0Mcmc::GibbsIteration(double currentLnPosterior){
 
     double randomMove = rng.uniformRv() * stationaryChoice;
 
+    #if TIME_PROFILE==1
+    std::chrono::steady_clock::time_point initTime = std::chrono::steady_clock::now();
+    #endif
+
     std::function<double()> updater;
     int numUpdates = generalUpdates;
 
@@ -94,6 +98,11 @@ double M0Mcmc::GibbsIteration(double currentLnPosterior){
             model->reject();
         }
     }
+
+    #if TIME_PROFILE==1
+    std::chrono::steady_clock::time_point finalTime = std::chrono::steady_clock::now();
+    std::cout << "Gibbs iteration was completed in " << std::chrono::duration_cast<std::chrono::milliseconds>(finalTime - initTime).count() << "[milliseconds]" << std::endl;
+    #endif
 
     return currentLnPosterior;
 }

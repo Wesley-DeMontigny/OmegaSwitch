@@ -241,10 +241,6 @@ double DirichletProcessPrior::updateDPP(){
 
         tf::Taskflow taskflow;
 
-        #if TIME_PROFILE==1
-        std::chrono::steady_clock::time_point preEmplacement1 = std::chrono::steady_clock::now();
-        #endif
-
         for(int i = 0; i < numCats; i++){
             conditionalL.push_back(0.0);
 
@@ -253,10 +249,6 @@ double DirichletProcessPrior::updateDPP(){
                 conditionalL[i] = likelihood + std::log(currentCategories[i].size);
             });
         }
-        #if TIME_PROFILE==1
-        std::chrono::steady_clock::time_point postEmplacement1 = std::chrono::steady_clock::now();
-        std::cout << "Emplacement1 completed in " << std::chrono::duration_cast<std::chrono::milliseconds>(postEmplacement1 - preEmplacement1).count() << "[milliseconds]" << std::endl;
-        #endif
 
         std::vector<double> omega1Vec;
         std::vector<double> omega2Vec;
@@ -286,20 +278,10 @@ double DirichletProcessPrior::updateDPP(){
             });
         }
 
-        #if TIME_PROFILE==1
-        std::chrono::steady_clock::time_point preTask = std::chrono::steady_clock::now();
-        std::cout << "Emplacement2 completed in " << std::chrono::duration_cast<std::chrono::milliseconds>(preTask - postEmplacement1).count() << "[milliseconds]" << std::endl;
-        #endif
-
         executor.run(taskflow).wait();
 
         for(int i = 0; i < numAux; i++)
             currentCategories.pop_back();
-
-        #if TIME_PROFILE==1
-        std::chrono::steady_clock::time_point postTask = std::chrono::steady_clock::now();
-        std::cout << "DPP tasks completed in " << std::chrono::duration_cast<std::chrono::milliseconds>(postTask - preTask).count() << "[milliseconds]" << std::endl;
-        #endif
 
         //Do some adjustments here to get relative probabilities
         double maxL = *std::max_element(conditionalL.begin(), conditionalL.end());
@@ -311,9 +293,7 @@ double DirichletProcessPrior::updateDPP(){
         }
 
         double categoryDraw = total * rng.uniformRv();
-        #if TIME_PROFILE==1
-        std::chrono::steady_clock::time_point preAssignment = std::chrono::steady_clock::now();
-        #endif
+
         total = 0.0;
         bool assigned = false;
         for(int i = 0; i < conditionalL.size(); i++){
@@ -332,14 +312,9 @@ double DirichletProcessPrior::updateDPP(){
         }
 
         int bufferDiff = model->getTransitionProbability()->getNumMatrices() - currentCategories.size();
-        if(bufferDiff > 20){
-            model->getTransitionProbability()->deleteNQ(bufferDiff - 20);
+        if(bufferDiff > 30){
+            model->getTransitionProbability()->deleteNQ(bufferDiff - 30);
         }
-
-        #if TIME_PROFILE==1
-        std::chrono::steady_clock::time_point postAssignment = std::chrono::steady_clock::now();
-        std::cout << "DPP assignment completed in " << std::chrono::duration_cast<std::chrono::milliseconds>(postAssignment - preAssignment).count() << "[milliseconds]" << std::endl;
-        #endif
 
         #if TIME_PROFILE==1
         std::chrono::steady_clock::time_point finalTime = std::chrono::steady_clock::now();

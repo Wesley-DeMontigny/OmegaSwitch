@@ -21,6 +21,14 @@
 #include <algorithm>
 #include <chrono>
 
+#ifdef __AVX2__
+#pragma message("Optimizing using AVX2")
+#elif defined(__ARM_NEON__)
+#pragma message("Optimizing using ARM NEON")
+#else
+#pragma message("No CPU optimizations available")
+#endif
+
 void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam){
     if(settings.M0){
         std::cout << "Initializing the M0 model..." << std::endl;

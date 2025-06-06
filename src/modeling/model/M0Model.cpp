@@ -15,8 +15,14 @@
 #include <string>
 #include <iostream>
 #include <unordered_map>
-//#include <chrono>
-
+#if TIME_PROFILE==1
+#include <chrono>
+#endif
+#ifdef __AVX2__
+#include <immintrin.h>
+#elif defined(__ARM_NEON__)
+#include <arm_neon.h>
+#endif
 M0Model::M0Model(Settings s, Alignment* a, TreeParameter* t, M0Matrix* m) : 
             aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0), numChar(0) {
 
@@ -183,9 +189,47 @@ void M0Model::regenerateLikelihood(){
                             for(int c = 0; c < currentChunkSize; c++){
                                 for(int i = 0; i < stateSpace; i++){
                                     double sum = 0.0;
+                                    #ifdef __AVX2__
+                                    int j = 0;
+
+                                    // SIMD block - we will process multiples of 4 at a time
+                                    __m256d sumVec = _mm256_setzero_pd();
+                                    for (; j <= stateSpace - 4; j += 4) {
+                                        __m256d pj = _mm256_loadu_pd(&P(i, j));
+                                        __m256d vj = _mm256_loadu_pd(&pD[j]);
+                                        sumVec = _mm256_fmadd_pd(pj, vj, sumVec); // += P(i,j) * pD(j)
+                                    }
+
+                                    double tmp[4];
+                                    _mm256_storeu_pd(tmp, sumVec); //Access all of the things we were doing simultaneous operations on and sum them
+                                    sum = tmp[0] + tmp[1] + tmp[2] + tmp[3];
+
+                                    //In most of our models the state space is not perfectly divisible by 4
+                                    for (; j < stateSpace; ++j) {
+                                        sum += P(i, j) * pD[j];
+                                    }
+                                    #elif defined(__ARM_NEON__)
+                                    int j = 0;
+                                    
+                                    // For the M series chips
+                                    for (; j <= stateSpace - 2; j += 2) {
+                                        float64x2_t pj = vld1q_f64(&P(i, j)); 
+                                        float64x2_t vj = vld1q_f64(&pD[j]);
+                                        float64x2_t prod = vmulq_f64(pj, vj);
+
+                                        sum += vgetq_lane_f64(prod, 0) + vgetq_lane_f64(prod, 1);
+                                    }
+
+                                    // In some of our models the state space is not perfectly divisible by 2
+                                    for (; j < stateSpace; ++j) {
+                                        sum += P(i, j) * pD[j];
+                                    }
+                                    #else
+                                    // In case our CPU really doesn't have any optimizations available.
                                     for(int j = 0; j < stateSpace; j++){
                                         sum += P(i, j) * pD[j];
                                     }
+                                    #endif
                                     (*pN) *= sum;
                                     pN++;
                                 }

@@ -10,6 +10,7 @@
 #include <cmath>
 #include <iostream>
 #include <fstream>
+#include <chrono>
 
 DPPMcmc::DPPMcmc(DPPModel* m, TreeParameter* t, DPPMatrix* cm, DirichletProcessPrior* d, Settings& s) : 
     model(m), dpp(d), codonMatrix(cm), tree(t), generalUpdates(3), stationaryUpdates(5), treeUpdates(0) { 
@@ -42,6 +43,10 @@ double DPPMcmc::GibbsIteration(double currentLnPosterior){
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
     double randomMove = rng.uniformRv() * dppChoice;
+
+    #if TIME_PROFILE==1
+    std::chrono::steady_clock::time_point initTime = std::chrono::steady_clock::now();
+    #endif
 
     if(randomMove < stationaryChoice){
         std::function<double()> updater;
@@ -119,6 +124,11 @@ double DPPMcmc::GibbsIteration(double currentLnPosterior){
         currentLnPosterior = model->lnLikelihood() + model->lnPrior();
         model->accept();
     }
+
+    #if TIME_PROFILE==1
+    std::chrono::steady_clock::time_point finalTime = std::chrono::steady_clock::now();
+    std::cout << "Gibbs iteration was completed in " << std::chrono::duration_cast<std::chrono::milliseconds>(finalTime - initTime).count() << "[milliseconds]" << std::endl;
+    #endif
 
     return currentLnPosterior;
 }

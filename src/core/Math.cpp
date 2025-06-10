@@ -90,6 +90,26 @@ void Math::computeLandU(Matrix<double> &aMat, Matrix<double> &lMat, Matrix<doubl
 		}
 }
 
+/* 
+	Cholesky–Banachiewicz algorithm
+   	I am not going to check positive definiteness and just assume that I am being smart with this
+*/
+void Math::choleskyDecomposition(Matrix<double>& spd, Matrix<double>& cf){
+
+	for (int i = 0; i < spd.dim1(); i++){
+		for (int j = 0; j <= i; j++){
+			float sum = 0;
+			for (int k = 0; k < j; k++)
+				sum += cf(i, k) * cf(j, k);
+
+			if (i == j)
+				cf(i, j) = std::sqrt(spd(i, i) - sum);
+			else
+				cf(i, j) = (1.0 / cf(j,j) * (spd(i, j) - sum));
+		}
+	}
+}
+
 /* This function approximates the matrix exponential, f = e^a, using
    the Pade method, which has the advantage of error control. The error
    is controlled by setting qValue appropriately (using the function SetQValue).

@@ -14,6 +14,7 @@
 namespace Math {
 
     void    backSubstitutionRow(Matrix<double>& u, std::vector<double>& b);                            //!< back substitution of row
+    void    choleskyDecomposition(Matrix<double>& spd, Matrix<double>& cf);
     void    computeLandU(Matrix<double>& aMat, Matrix<double>& lMat, Matrix<double>& uMat);        //!< LU decomposition
     int     expMatrixPade(Matrix<double>& a, Matrix<double>& f, int q);                              //!< exponentiate matrix using Pade approximation
     double  factorial(int x);                                                                            //!< return x! (x factorial)

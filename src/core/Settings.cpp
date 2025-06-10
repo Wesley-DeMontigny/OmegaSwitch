@@ -5,8 +5,8 @@
 #include <vector>
 
 Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dppOutput(""), mcmcOutput(""), tipsOutput(""),
-                                              numIterations(30000), printFrequency(10), sampleFrequency(100),
-                                              burnInIterations(5000), tuneFrequency(1000), rLambda(5.0), gammaLambda(5.0),
+                                              numIterations(10000), printFrequency(10), sampleFrequency(100),
+                                              burnInIterations(2000), tuneFrequency(100), rLambda(5.0), gammaLambda(5.0),
                                               kLambda(2.0), omegaLambda(2.0), treeLengthLambda(5.0), expectedCat(1.2),
                                               rWeight(1.0), kWeight(1.0), stationaryWeight(2.0), omegaWeight(1.0),
                                               dppWeight(2.0), treeWeight(2.0), numGibbs(25), fixedTree(""), M0(false),
@@ -20,15 +20,15 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
     }
 #if TEST_RUN==1
     settings.push_back("-treeOut");
-    settings.push_back("./trees.trees");
+    settings.push_back("/workspaces/Varying_Selection_DPP/res/trees.trees");
     settings.push_back("-mcmcOut");
-    settings.push_back("./analysis.log");
+    settings.push_back("/workspaces/Varying_Selection_DPP/res/analysis.log");
     settings.push_back("-dppOut");
-    settings.push_back("./dpp.log");
+    settings.push_back("/workspaces/Varying_Selection_DPP/res/dpp.log");
     settings.push_back("-tipsOut");
-    settings.push_back("./tips.log");
+    settings.push_back("/workspaces/Varying_Selection_DPP/res/tips.log");
     settings.push_back("-simulationOutput");
-    settings.push_back("./simulation.log");
+    settings.push_back("/workspaces/Varying_Selection_DPP/res/simulation.log");
     settings.push_back("-simulateDPP");
 #endif
     if (settings.size() == 0) {

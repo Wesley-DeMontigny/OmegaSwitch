@@ -9,8 +9,7 @@
 M3S2Matrix::M3S2Matrix(Settings settings) : 
                                    currentQMatrix(183, 183, 0.0), oldQMatrix(183, 183, 0.0), currentStationary(61, -1), oldStationary(61, -1), 
                                    kLambda(settings.kLambda), gammaLambda(settings.gammaLambda), rLambda(settings.rLambda),
-                                   omegaLambda(settings.omegaLambda), r1Delta(0.5), r2Delta(0.5), gammaDelta(0.25),
-                                   stationaryAlpha(75000), kDelta(0.5), omega1Delta(0.5), omega2Delta(0.5), omega3Delta(0.5), 
+                                   omegaLambda(settings.omegaLambda), rDelta(0.5),  stationaryAlpha(75000), kDelta(0.5), omegaDelta(0.5),
                                    stationaryPriorAlpha(61, 2.0) {
     std::vector<int> aaMap = {8, 11, 8, 11, 16, 16, 16, 16, 14, 15, 14, 15, 7, 7, 10, 7, 13, 6, 13, 6, 12, 12, 12, 12, 14, 14, 14, 14, 9, 9, 9, 9, 3, 2, 3, 2, 0, 0, 0, 0, 5, 5, 5, 5, 17, 17, 17, 17, 19, 19, 15, 15, 15, 15, 1, 18, 1, 9, 4, 9, 4};  
     std::vector<const char*> codons = {"AAA", "AAC", "AAG", "AAT", "ACA", "ACC", "ACG", "ACT", "AGA", "AGC", "AGG", "AGT", "ATA", "ATC", "ATG", "ATT", "CAA", "CAC", "CAG", "CAT", "CCA", "CCC", "CCG", "CCT", "CGA", "CGC", "CGG", "CGT", "CTA", "CTC", "CTG", "CTT", "GAA", "GAC", "GAG", "GAT", "GCA", "GCC", "GCG", "GCT", "GGA", "GGC", "GGG", "GGT", "GTA", "GTC", "GTG", "GTT", "TAC", "TAT", "TCA", "TCC", "TCG", "TCT", "TGC", "TGG", "TGT", "TTA", "TTC", "TTG", "TTT"};
@@ -149,22 +148,10 @@ void M3S2Matrix::accept() {
         stationaryAcceptCount += 1;
     }
     else if(moveChoice == 2){
-        omega1AcceptCount += 1;
+        omegaAcceptCount += 1;
     }
     else if(moveChoice == 3){
-        omega2AcceptCount += 1;
-    }
-    else if(moveChoice == 4){
-        omega3AcceptCount += 1;
-    }
-    else if(moveChoice == 5){
-        gammaAcceptCount= 1;
-    }
-    else if(moveChoice == 6){
-        r1AcceptCount += 1;
-    }
-    else if(moveChoice == 7){
-        r2AcceptCount += 1;
+        rAcceptCount += 1;
     }
 
     moveChoice = -1;
@@ -220,134 +207,92 @@ double M3S2Matrix::updateK() {
     return hastings;
 }
 
-double M3S2Matrix::updateOmega1() {
+double M3S2Matrix::updateOmega() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
     double hastings = 0.0;
+    this->dirty();
 
     moveChoice = 2;
-    omega1Count += 1;
+    omegaCount += 1;
 
+    double randomOmega = rng.uniformRv();
+
+    if(randomOmega < 0.33){
     double currentV = currentOmega1;
-    double scale = std::exp(omega1Delta * (rng.uniformRv() - 0.5));
+    double scale = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
     double newV = currentOmega1 * scale;
 
     currentOmega1 = newV;
     hastings = std::log(scale);
 
-    this->dirty();
-
     currentOmega1Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega1);
+    }
+    else if(randomOmega < 0.66){
+        double currentV = currentOmega2;
+        double scale = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
+        double newV = currentOmega2 * scale;
+
+        currentOmega2 = newV;
+        hastings = std::log(scale);
+
+        currentOmega2Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega2);
+    }
+    else{
+        double currentV = currentOmega3;
+        double scale = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
+        double newV = currentOmega3 * scale;
+
+        currentOmega3 = newV;
+        hastings = std::log(scale);
+
+        currentOmega3Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega3);
+    }
 
     rebuildQMatrix();
 
     return hastings;
 }
 
-double M3S2Matrix::updateOmega2() {
+double M3S2Matrix::updateR() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
     double hastings = 0.0;
+    this->dirty();
 
     moveChoice = 3;
-    omega2Count += 1;
+    rCount += 1;
 
-    double currentV = currentOmega2;
-    double scale = std::exp(omega2Delta * (rng.uniformRv() - 0.5));
-    double newV = currentOmega2 * scale;
+    double randomR = rng.uniformRv();
 
-    currentOmega2 = newV;
-    hastings = std::log(scale);
+    if(randomR < 0.33){
+        double currentV = currentGamma;
+        double scale = std::exp(rDelta * (rng.uniformRv() - 0.5));
+        double newV = currentGamma * scale;
 
-    this->dirty();
+        currentGamma = newV;
+        hastings = std::log(scale);
 
-    currentOmega2Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega2);
+        currentGammaPrior = Probability::Exponential::lnPdf(gammaLambda, currentGamma);
+    }
+    else if(randomR < 0.66){
+        double currentV = currentR1;
+        double scale = std::exp(rDelta * (rng.uniformRv() - 0.5));
+        double newV = currentR1 * scale;
 
-    rebuildQMatrix();
+        currentR1 = newV;
+        hastings = std::log(scale);
 
-    return hastings;
-}
+        currentR1Prior = Probability::Exponential::lnPdf(rLambda, currentR1);
+    }
+    else{
+        double currentV = currentR2;
+        double scale = std::exp(rDelta * (rng.uniformRv() - 0.5));
+        double newV = currentR2 * scale;
 
-double M3S2Matrix::updateOmega3() {
-    RandomVariable& rng = RandomVariable::randomVariableInstance();
-    double hastings = 0.0;
+        currentR2 = newV;
+        hastings = std::log(scale);
 
-    moveChoice = 4;
-    omega3Count += 1;
-
-    double currentV = currentOmega3;
-    double scale = std::exp(omega3Delta * (rng.uniformRv() - 0.5));
-    double newV = currentOmega3 * scale;
-
-    currentOmega3 = newV;
-    hastings = std::log(scale);
-
-    this->dirty();
-
-    currentOmega3Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega3);
-
-    rebuildQMatrix();
-
-    return hastings;
-}
-
-double M3S2Matrix::updateGamma() {
-    RandomVariable& rng = RandomVariable::randomVariableInstance();
-    double hastings = 0.0;
-
-    moveChoice = 5;
-    gammaCount += 1;
-
-    double currentV = currentGamma;
-    double scale = std::exp(gammaDelta * (rng.uniformRv() - 0.5));
-    double newV = currentGamma * scale;
-
-    currentGamma = newV;
-    hastings = std::log(scale);
-
-    this->dirty();
-
-    currentGammaPrior = Probability::Exponential::lnPdf(gammaLambda, currentGamma);
-
-    return hastings;
-}
-
-double M3S2Matrix::updateR1() {
-    RandomVariable& rng = RandomVariable::randomVariableInstance();
-    double hastings = 0.0;
-
-    moveChoice = 6;
-    r1Count += 1;
-
-    double currentV = currentR1;
-    double scale = std::exp(r1Delta * (rng.uniformRv() - 0.5));
-    double newV = currentR1 * scale;
-
-    currentR1 = newV;
-    hastings = std::log(scale);
-
-    this->dirty();
-
-    currentR1Prior = Probability::Exponential::lnPdf(rLambda, currentR1);
-
-    return hastings;
-}
-
-double M3S2Matrix::updateR2() {
-    RandomVariable& rng = RandomVariable::randomVariableInstance();
-    double hastings = 0.0;
-
-    moveChoice = 7;
-    r2Count += 1;
-
-    double currentV = currentR2;
-    double scale = std::exp(r2Delta * (rng.uniformRv() - 0.5));
-    double newV = currentR2 * scale;
-
-    currentR2 = newV;
-    hastings = std::log(scale);
-
-    this->dirty();
-
-    currentR2Prior = Probability::Exponential::lnPdf(rLambda, currentR2);
+        currentR2Prior = Probability::Exponential::lnPdf(rLambda, currentR2);
+    }
 
     return hastings;
 }
@@ -535,71 +480,27 @@ void M3S2Matrix::tune(){
     kAcceptCount = 0;
     kCount = 0;
 
-    double gammaRate = (double)gammaAcceptCount/(double)gammaCount;
+    double rRate = (double)rAcceptCount/(double)rCount;
 
-    if ( gammaRate > 0.33 ) {
-        gammaDelta *= (1.0 + ((gammaRate-0.33)/0.67));
+    if ( rRate > 0.33 ) {
+        rDelta *= (1.0 + ((rRate-0.33)/0.67));
     }
     else {
-        gammaDelta /= (2.0 - gammaRate/0.33);
+        rDelta /= (2.0 - rRate/0.33);
     }
-    gammaAcceptCount = 0;
-    gammaCount = 0;
+    rAcceptCount = 0;
+    rCount = 0;
 
-    double r1Rate = (double)r1AcceptCount/(double)r1Count;
+    double omegaRate = (double)omegaAcceptCount/(double)omegaCount;
 
-    if ( r1Rate > 0.33 ) {
-        r1Delta *= (1.0 + ((r1Rate-0.33)/0.67));
+    if ( omegaRate > 0.33 ) {
+        omegaDelta *= (1.0 + ((omegaRate-0.33)/0.67));
     }
     else {
-        r1Delta /= (2.0 - r1Rate/0.33);
+        omegaDelta /= (2.0 - omegaRate/0.33);
     }
-    r1AcceptCount = 0;
-    r1Count = 0;
-
-    double r2Rate = (double)r2AcceptCount/(double)r2Count;
-
-    if ( r2Rate > 0.33 ) {
-        r2Delta *= (1.0 + ((r2Rate-0.33)/0.67));
-    }
-    else {
-        r2Delta /= (2.0 - r2Rate/0.33);
-    }
-    r2AcceptCount = 0;
-    r2Count = 0;
-
-    double omega1Rate = (double)omega1AcceptCount/(double)omega1Count;
-
-    if ( omega1Rate > 0.33 ) {
-        omega1Delta *= (1.0 + ((omega1Rate-0.33)/0.67));
-    }
-    else {
-        omega1Delta /= (2.0 - omega1Rate/0.33);
-    }
-    omega1AcceptCount = 0;
-    omega1Count = 0;
-
-    double omega2Rate = (double)omega1AcceptCount/(double)omega1Count;
-
-    if ( omega2Rate > 0.33 ) {
-        omega2Delta *= (1.0 + ((omega2Rate-0.33)/0.67));
-    }
-    else {
-        omega2Delta /= (2.0 - omega2Rate/0.33);
-    }
-    omega2AcceptCount = 0;
-    omega2Count = 0;
-
-    double omega3Rate = (double)omega1AcceptCount/(double)omega1Count;
-
-    if ( omega3Rate > 0.33 ) {
-        omega3Delta *= (1.0 + ((omega3Rate-0.33)/0.67));
-    }
-    else {
-        omega3Delta /= (2.0 - omega3Rate/0.33);
-    }
-    omega3AcceptCount = 0;
-    omega3Count = 0;
+    omegaAcceptCount = 0;
+    omegaCount = 0;
 
     double stationaryRate = (double)stationaryAcceptCount/(double)stationaryCount;
 

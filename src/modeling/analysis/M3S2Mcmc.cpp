@@ -25,13 +25,9 @@ M3S2Mcmc::M3S2Mcmc(M3S2Model* m, TreeParameter* t, M3S2Matrix* cm, Settings& s) 
 
     kChoice = s.kWeight;
     treeChoice = s.treeWeight + kChoice;
-    omega1Choice = s.omegaWeight + treeChoice;
-    omega2Choice = s.omegaWeight + omega1Choice;
-    omega3Choice = s.omegaWeight + omega2Choice;
-    r1Choice = s.rWeight + omega3Choice;
-    r2Choice = s.rWeight + r1Choice;
-    gammaChoice = s.rWeight + r2Choice;
-    stationaryChoice = s.stationaryWeight + gammaChoice;
+    omegaChoice = s.omegaWeight + treeChoice;
+    rChoice = s.rWeight + omegaChoice;
+    stationaryChoice = s.stationaryWeight + rChoice;
 
     treeUpdates = (int)(tree->getTree()->getBranchLengths().size() * 0.5);
 
@@ -64,40 +60,18 @@ double M3S2Mcmc::GibbsIteration(double currentLnPosterior){
         std::cout << "Updating Tree..." << std::endl;
         #endif
     }
-    else if(randomMove < omega1Choice){
-        updater = [this]() { return codonMatrix->updateOmega1(); };
+    else if(randomMove < omegaChoice){
+        updater = [this]() { return codonMatrix->updateOmega(); };
+        numUpdates = 3*generalUpdates;
         #if LOGGING==1
-        std::cout << "Updating Omega1..." << std::endl;
+        std::cout << "Updating Omega..." << std::endl;
         #endif
     }
-    else if(randomMove < omega2Choice){
-        updater = [this]() { return codonMatrix->updateOmega2(); };
+    else if(randomMove < rChoice){
+        updater = [this]() { return codonMatrix->updateR(); };
+        numUpdates = 3*generalUpdates;
         #if LOGGING==1
-        std::cout << "Updating Omega2..." << std::endl;
-        #endif
-    }
-    else if(randomMove < omega3Choice){
-        updater = [this]() { return codonMatrix->updateOmega3(); };
-        #if LOGGING==1
-        std::cout << "Updating Omega3..." << std::endl;
-        #endif
-    }
-    else if(randomMove < r1Choice){
-        updater = [this]() { return codonMatrix->updateR1(); };
-        #if LOGGING==1
-        std::cout << "Updating R1..." << std::endl;
-        #endif
-    }
-    else if(randomMove < r2Choice){
-        updater = [this]() { return codonMatrix->updateR2(); };
-        #if LOGGING==1
-        std::cout << "Updating R2..." << std::endl;
-        #endif
-    }
-    else if(randomMove < gammaChoice){
-        updater = [this]() { return codonMatrix->updateGamma(); };
-        #if LOGGING==1
-        std::cout << "Updating Gamma..." << std::endl;
+        std::cout << "Updating R..." << std::endl;
         #endif
     }
     else if(randomMove < stationaryChoice){
@@ -155,12 +129,8 @@ void M3S2Mcmc::burnin(){
                          "\tBranch Rate=" << (double)tree->branchAcceptCount/(double)tree->branchCount <<
                          "\tStationary Rate=" << (double)codonMatrix->stationaryAcceptCount/(double)codonMatrix->stationaryCount <<
                          "\tK Rate=" << (double)codonMatrix->kAcceptCount/(double)codonMatrix->kCount <<
-                         "\tOmega[1] Rate=" << (double)codonMatrix->omega1AcceptCount/(double)codonMatrix->omega1Count <<
-                         "\tOmega[2] Rate=" << (double)codonMatrix->omega2AcceptCount/(double)codonMatrix->omega2Count <<
-                         "\tOmega[3] Rate=" << (double)codonMatrix->omega3AcceptCount/(double)codonMatrix->omega3Count <<
-                         "\tR[1] Rate=" << (double)codonMatrix->r1AcceptCount/(double)codonMatrix->r1Count <<
-                         "\tR[2] Rate=" << (double)codonMatrix->r2AcceptCount/(double)codonMatrix->r2Count <<
-                         "\tGamma Rate=" << (double)codonMatrix->gammaAcceptCount/(double)codonMatrix->gammaCount << std::endl;
+                         "\tOmega Rate=" << (double)codonMatrix->omegaAcceptCount/(double)codonMatrix->omegaCount <<
+                         "\tR Rate=" << (double)codonMatrix->rAcceptCount/(double)codonMatrix->rCount << std::endl;
         }
         if(n % tuneFreq == 0){
             model->tuneMoves();

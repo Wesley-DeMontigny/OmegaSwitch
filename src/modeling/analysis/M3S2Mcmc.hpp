@@ -29,12 +29,8 @@ class M3S2Mcmc{
         double treeChoice;
         double stationaryChoice;
         double kChoice;
-        double omega1Choice;
-        double omega2Choice;
-        double omega3Choice;
-        double r1Choice;
-        double r2Choice;
-        double gammaChoice;
+        double omegaChoice;
+        double rChoice;
 
         TreeParameter* tree;
         M3S2Matrix* codonMatrix;

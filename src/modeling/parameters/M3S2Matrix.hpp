@@ -21,12 +21,8 @@ class M3S2Matrix : public Parameter {
         double lnPrior();
 
         double updateK();
-        double updateOmega1();
-        double updateOmega2();
-        double updateOmega3();
-        double updateGamma();
-        double updateR1();
-        double updateR2();
+        double updateOmega();
+        double updateR();
         double updateStationary();
 
         std::vector<double> getStationary();
@@ -43,18 +39,10 @@ class M3S2Matrix : public Parameter {
         int kAcceptCount = 0;
         int stationaryCount = 0;
         int stationaryAcceptCount = 0;
-        int omega1Count = 0;
-        int omega1AcceptCount = 0;
-        int omega2Count = 0;
-        int omega2AcceptCount = 0;
-        int omega3Count = 0;
-        int omega3AcceptCount = 0;
-        int gammaCount = 0;
-        int gammaAcceptCount = 0;
-        int r1Count = 0;
-        int r1AcceptCount = 0;
-        int r2Count = 0;
-        int r2AcceptCount = 0;
+        int omegaCount = 0;
+        int omegaAcceptCount = 0;
+        int rCount = 0;
+        int rAcceptCount = 0;
     private:
         Matrix<double> currentQMatrix;
         Matrix<double> oldQMatrix;
@@ -64,12 +52,8 @@ class M3S2Matrix : public Parameter {
         int moveChoice = -1;
 
         double kDelta;
-        double omega1Delta;
-        double omega2Delta;
-        double omega3Delta;
-        double gammaDelta;
-        double r1Delta;
-        double r2Delta;
+        double omegaDelta;
+        double rDelta;
         double stationaryAlpha;
 
         std::vector<int> randomStates;

@@ -2,6 +2,7 @@
 #define BAYESIAN_OPTIMIZER_HPP
 
 #include <vector>
+#include "Math.hpp"
 
 class BayesianOptimizer {
     public:
@@ -10,14 +11,12 @@ class BayesianOptimizer {
         ~BayesianOptimizer();
 
         static double objective(std::vector<double> r);
-        std::vector<double> maximizeAcquisition(std::vector<double> s, double o); // TODO: Self explainatory
-        std::vector<double> getMaximum(); // TODO: Final thing to implement
-        void updateGaussianProcess(); // TODO: Implement Cholesky decomposition instead of LU. Update choleskyFactor and alpha. Update hyperparameters
-        void initializeHyperparameters(); // TODO: Use latin hypercubes to set initial hyperparameters?
-        void updateHyperparameters(); // TODO: Maximize the likelihood of hyperparameters
+        std::vector<double> maximizeAcquisition(); // TODO: Implement expected improvement acquisition function
+        std::vector<double> getMaximum(); // Return the sample corresponding to the highest objective function evalulation
+        void updateGaussianProcess(); // Update choleskyFactor, alpha, and the length scale hyperparams
 
-        void registerSample(std::vector<double> s) {samples.push_back(s);}
-        void setScale(std::vector<double> s) {scale = s;}
+        void registerSample(std::vector<double> s, double o) {samples.push_back(s); objectives.push_back(o);}
+        void setBounds(std::vector<double>& sd, std::vector<double>& m); // Define the bounds of our search using the standard deviation of the parameters so far and the current center
     private:
         int numParams;
         int iterationsPerSample;
@@ -25,14 +24,18 @@ class BayesianOptimizer {
         std::vector<std::vector<double>> samples; // The MCMC parameters associated with a particular batch of MCMC iterations
         std::vector<double> objectives; // The values of the objective function for each of the samples
 
-        std::vector<double> hyperparams; // The length scale of the ARD kernel
-        std::vector<double> scale; // Gives us a good judge of how to box off our search.
+        std::vector<double> hyperparams; // The length scales of the ARD kernel
+        std::vector<double> defaultHyperparams;
+        std::vector<double> upperBound;
+        std::vector<double> lowerBound;    
 
         Matrix<double> choleskyFactor;
         std::vector<double> alpha;
 
         static double autocorrelationScore(const std::vector<double>& r, int end); //Mahendran et al. 2010
-        double kernel(std::vector<double> a, std::vector<double> b); // ARD kernel
+        double kernel(std::vector<double>& a, std::vector<double>& b); // ARD kernel
+        double marginalLikelihood();
+        void updateCholesky();
 };
 
 #endif

@@ -218,7 +218,7 @@ void DPPMcmc::run(){
             }
 
             if(branchLog != ""){
-                fs.open(branchLog, std::ofstream::out);
+                fs.open(branchLog, std::ofstream::app);
                 fs << model->branchOut(n);
                 fs.close();
             }

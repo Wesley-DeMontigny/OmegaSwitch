@@ -253,7 +253,7 @@ void M0Mcmc::run(){
             fs.clear();
 
             if(branchLog != ""){
-                fs.open(branchLog, std::ofstream::out);
+                fs.open(branchLog, std::ofstream::app);
                 fs << model->branchOut(n);
                 fs.close();
             }

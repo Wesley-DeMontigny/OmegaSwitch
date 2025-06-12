@@ -2,6 +2,7 @@
 #define DPP_MCMC_HPP
 #include <vector>
 #include <string>
+#include "core/BayesianOptimizer.hpp"
 
 class DPPModel;
 class Parameter;
@@ -22,6 +23,8 @@ class DPPMcmc{
         int printFreq;
         int tuneFreq;
         int sampleFreq;
+        int bayesOptFreq;
+        int bayesOptIter;
         int generalUpdates;
         int stationaryUpdates;
         int treeUpdates;
@@ -37,12 +40,14 @@ class DPPMcmc{
         DPPMatrix* codonMatrix;
         DirichletProcessPrior* dpp;
         DPPModel* model;
+        BayesianOptimizer optim;
 
         std::string analysisLog;
         std::string treeLog;
         std::string dppLog;
         std::string tipsLog;
         std::string ancestralLog;
+        std::string branchLog;
         
         double GibbsIteration(double currentLnPosterior);
 };

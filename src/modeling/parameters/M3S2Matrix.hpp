@@ -35,6 +35,10 @@ class M3S2Matrix : public Parameter {
         double getR1() {return currentR1;}
         double getR2() {return currentR2;}
 
+        double kDelta;
+        double omegaDelta;
+        double rDelta;
+        double stationaryAlpha;
         int kCount = 0;
         int kAcceptCount = 0;
         int stationaryCount = 0;
@@ -50,11 +54,6 @@ class M3S2Matrix : public Parameter {
         void rebuildQMatrix();
 
         int moveChoice = -1;
-
-        double kDelta;
-        double omegaDelta;
-        double rDelta;
-        double stationaryAlpha;
 
         std::vector<int> randomStates;
 

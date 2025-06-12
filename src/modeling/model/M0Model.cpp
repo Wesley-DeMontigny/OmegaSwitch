@@ -330,3 +330,42 @@ std::string M0Model::treeHeader(){
 std::string M0Model::treeOut(int i){
     return std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" + tree->writeNewick() + "\n";
 }
+
+std::string M0Model::branchHeader(){
+    std::string returnString = "Iteration\tPosterior";
+    TreeObject* treeObj = tree->getTree();
+    std::vector<Node*> poSeq = treeObj->getPostOrderSeq();
+    std::vector<Node*> nodes;
+    for(Node* n : poSeq)
+        nodes.push_back(n);
+    std::sort(nodes.begin(), nodes.end(), [](const Node* a, const Node* b) {
+        return a->getIndex() > b->getIndex();
+    });
+
+    for(Node* n : nodes){
+        if(n != treeObj->getRoot()){
+            returnString += "\tBranch[" + std::to_string(n->getIndex()) + "]";
+        }
+    }
+    return returnString + "\n";
+}
+
+std::string M0Model::branchOut(int i){
+    std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood);
+    TreeObject* treeObj = tree->getTree();
+    std::vector<Node*> poSeq = treeObj->getPostOrderSeq();
+    std::vector<Node*> nodes;
+    for(Node* n : poSeq)
+        nodes.push_back(n);
+    std::sort(nodes.begin(), nodes.end(), [](const Node* a, const Node* b) {
+        return a->getIndex() > b->getIndex();
+    });
+
+    for(Node* n : nodes){
+        if(n != treeObj->getRoot()){
+            returnString += "\t" + std::to_string(treeObj->getBranchLength(n));
+        }
+    }
+
+    return returnString + "\n";
+}

@@ -29,7 +29,7 @@
 #pragma message("No CPU optimizations available")
 #endif
 
-void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam){
+void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, bool disableBayesOpt){
     if(settings.M0){
         std::cout << "Initializing the M0 model..." << std::endl;
 
@@ -37,7 +37,7 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam){
 
         M0Model model(settings, &aln, &treeParam, &rateMatrix);
 
-        M0Mcmc myMCMC(&model, &treeParam, &rateMatrix, settings);
+        M0Mcmc myMCMC(&model, &treeParam, &rateMatrix, settings, disableBayesOpt);
         
         std::cout << "Starting MCMC..." << std::endl;
         myMCMC.burnin();
@@ -111,7 +111,7 @@ int main(int argc, char* argv[]) {
     if(settings.simulateDPP == false && settings.simulateM0 == false && settings.simulateM3S2 == false){
         Alignment aln(settings.nexusInput);
         TreeParameter treeParam(&aln, settings.fixedTree, settings.treeLengthLambda);
-        inference(settings, aln, treeParam);
+        inference(settings, aln, treeParam, false);
     }
     else{
         int numSites = 50;
@@ -121,6 +121,7 @@ int main(int argc, char* argv[]) {
         std::string dppOutput = settings.dppOutput;
         std::string ancestralStatesOutput = settings.ancestralStatesOutput;
         std::string treeOutput = settings.treeOutput;
+        std::string branchOutput = settings.branchOutput;
         
         std::string modelClass = "";
         if(settings.simulateDPP)
@@ -381,21 +382,57 @@ int main(int argc, char* argv[]) {
             delete [] tipSites;
             delete [] truedNdS;
 
-            TreeParameter treeParam(tree, settings.treeLengthLambda);
-
             //Change the name I am logging to according to the number simulation it is
-            if(settings.treeOutput != "")
-                settings.treeOutput = treeOutput + std::to_string(i);
-            if(settings.mcmcOutput != "")
-                settings.mcmcOutput = mcmcOutput + std::to_string(i);
-            if(settings.dppOutput != "")
-                settings.dppOutput = dppOutput + std::to_string(i);
-            if(settings.tipsOutput != "")
-                settings.tipsOutput = tipsOutput + std::to_string(i);
-            if(settings.ancestralStatesOutput != "")
-                settings.ancestralStatesOutput = ancestralStatesOutput + std::to_string(i);
-            
-            inference(settings, aln, treeParam);
+            if(!settings.sequentialTuningSim){
+                TreeParameter treeParam(tree, settings.treeLengthLambda);
+                if(settings.treeOutput != "")
+                    settings.treeOutput = treeOutput + std::to_string(i);
+                if(settings.mcmcOutput != "")
+                    settings.mcmcOutput = mcmcOutput + std::to_string(i);
+                if(settings.dppOutput != "")
+                    settings.dppOutput = dppOutput + std::to_string(i);
+                if(settings.tipsOutput != "")
+                    settings.tipsOutput = tipsOutput + std::to_string(i);
+                if(settings.ancestralStatesOutput != "")
+                    settings.ancestralStatesOutput = ancestralStatesOutput + std::to_string(i);
+                if(settings.branchOutput != "")
+                    settings.branchOutput = branchOutput + std::to_string(i);
+                
+                inference(settings, aln, treeParam, false);
+            }
+            else{
+                if(settings.treeOutput != "")
+                    settings.treeOutput = treeOutput + std::to_string(i) + "_Bayes";
+                if(settings.mcmcOutput != "")
+                    settings.mcmcOutput = mcmcOutput + std::to_string(i) + "_Bayes";
+                if(settings.dppOutput != "")
+                    settings.dppOutput = dppOutput + std::to_string(i) + "_Bayes";
+                if(settings.tipsOutput != "")
+                    settings.tipsOutput = tipsOutput + std::to_string(i) + "_Bayes";
+                if(settings.ancestralStatesOutput != "")
+                    settings.ancestralStatesOutput = ancestralStatesOutput + std::to_string(i) + "_Bayes";
+                if(settings.branchOutput != "")
+                    settings.branchOutput = branchOutput + std::to_string(i) + "_Bayes";
+                
+                TreeParameter treeParamA(tree, settings.treeLengthLambda);
+                inference(settings, aln, treeParamA, false);
+
+                if(settings.treeOutput != "")
+                    settings.treeOutput = treeOutput + std::to_string(i) + "_Classic";
+                if(settings.mcmcOutput != "")
+                    settings.mcmcOutput = mcmcOutput + std::to_string(i) + "_Classic";
+                if(settings.dppOutput != "")
+                    settings.dppOutput = dppOutput + std::to_string(i) + "_Classic";
+                if(settings.tipsOutput != "")
+                    settings.tipsOutput = tipsOutput + std::to_string(i) + "_Classic";
+                if(settings.ancestralStatesOutput != "")
+                    settings.ancestralStatesOutput = ancestralStatesOutput + std::to_string(i) + "_Classic";
+                if(settings.branchOutput != "")
+                    settings.branchOutput = branchOutput + std::to_string(i) + "_Classic";
+                
+                TreeParameter treeParamB(tree, settings.treeLengthLambda);
+                inference(settings, aln, treeParamB, true);
+            }
         }
     }
 

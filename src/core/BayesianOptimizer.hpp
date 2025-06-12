@@ -4,25 +4,35 @@
 #include <vector>
 #include "Math.hpp"
 
+struct ParamScorePair {
+    std::vector<double> params;
+    double score;
+
+    bool operator<(const ParamScorePair& other) const {
+        return score < other.score;
+    }
+};
+
 class BayesianOptimizer {
     public:
         BayesianOptimizer(void)=delete;
         BayesianOptimizer(int nP, int s);
         ~BayesianOptimizer();
 
-        static double objective(std::vector<double> r);
-        std::vector<double> maximizeAcquisition(); // TODO: Implement expected improvement acquisition function
+        double objective(std::vector<std::vector<double>>& r) {return smoothAverageAutocorrelation(r);}
+        std::vector<double> maximizeAcquisition(); // Expected improvement acquisition maximization
         std::vector<double> getMaximum(); // Return the sample corresponding to the highest objective function evalulation
+        std::vector<std::vector<double>> getMaximumN(int N); // Return the top N samples corresponding to the highest objective function evalulation
         void updateGaussianProcess(); // Update choleskyFactor, alpha, and the length scale hyperparams
 
-        void registerSample(std::vector<double> s, double o) {samples.push_back(s); objectives.push_back(o);}
-        void setBounds(std::vector<double>& diff, std::vector<double>& mean, std::vector<bool>& sign); // Define the bounds of our search using the change of the parameters so far and the current center
+        void registerSample(std::vector<double> s, double o);
+        void setBounds(std::vector<double>& diff, std::vector<double>& mean); // Define the bounds of our search using the change of the parameters so far and the current center
     private:
         int numParams;
         int iterationsPerSample;
 
-        std::vector<std::vector<double>> samples; // The MCMC parameters associated with a particular batch of MCMC iterations
-        std::vector<double> objectives; // The values of the objective function for each of the samples
+        std::vector<ParamScorePair> samples; // The MCMC parameters associated with a particular batch of MCMC iterations
+        double sampleVariance;
 
         std::vector<double> hyperparams; // The length scales of the ARD kernel
         std::vector<double> upperBound;
@@ -32,9 +42,13 @@ class BayesianOptimizer {
         Matrix<double> choleskyFactor;
         std::vector<double> alpha;
 
-        static double autocorrelationScore(const std::vector<double>& r, int end); //Mahendran et al. 2010
         double kernel(std::vector<double>& a, std::vector<double>& b); // ARD kernel
         double marginalLogLikelihood();
+        double autocorrelationScore(const std::vector<std::vector<double>>& r, int start, int end);
+        double smoothAverageAutocorrelation(const std::vector<std::vector<double>>& r);
+        double averageProportionalJumpingDistance(const std::vector<std::vector<double>>& r);
+        double expectedImprovement(std::vector<double>& sample, double currentMaxObjective, int numSamples);
+        double UBC(std::vector<double>& sample, int numSamples);
         void updateCholesky();
 };
 

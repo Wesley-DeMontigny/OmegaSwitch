@@ -11,6 +11,7 @@ struct Settings {
     std::string     dppOutput;
     std::string     mcmcOutput;
     std::string     tipsOutput;
+    std::string     branchOutput;
     std::string     ancestralStatesOutput;
     std::string     simulationOutput;
 
@@ -20,6 +21,8 @@ struct Settings {
     int             sampleFrequency;
     int             burnInIterations;
     int             tuneFrequency;
+    int             bayesOpt;
+    int             bayesOptFrequency;
     double          kLambda;
     double          rLambda;
     double          omegaLambda;
@@ -33,13 +36,14 @@ struct Settings {
     double          treeWeight;
     double          stationaryWeight;
     int             numGibbs;
-    id_t            numSimulations;
+    int             numSimulations;
 
     bool M0;
     bool M3S2;
     bool simulateM0;
     bool simulateM3S2;
     bool simulateDPP;
+    bool sequentialTuningSim;
 
     void            usage();
     void            print();

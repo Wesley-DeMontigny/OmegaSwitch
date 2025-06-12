@@ -2,6 +2,7 @@
 #define M0_MCMC_HPP
 #include <vector>
 #include <string>
+#include "core/BayesianOptimizer.hpp"
 
 class M0Model;
 class Parameter;
@@ -12,7 +13,7 @@ class Settings;
 class M0Mcmc{
     public:
         M0Mcmc(void)=delete;
-        M0Mcmc(M0Model* m, TreeParameter* t, M0Matrix* cm, Settings& s);
+        M0Mcmc(M0Model* m, TreeParameter* t, M0Matrix* cm, Settings& s, bool dBO);
         void burnin();
         void run();
     private:
@@ -21,6 +22,8 @@ class M0Mcmc{
         int printFreq;
         int tuneFreq;
         int sampleFreq;
+        int bayesOptFreq;
+        int bayesOptIter;
         int generalUpdates;
         int stationaryUpdates;
         int treeUpdates;
@@ -34,8 +37,13 @@ class M0Mcmc{
         M0Matrix* codonMatrix;
         M0Model* model;
 
+        BayesianOptimizer optim;
+        std::vector<std::vector<double>> bayesianOptimizedKernels;
+        bool disableBayesOpt;
+
         std::string analysisLog;
         std::string treeLog;
+        std::string branchLog;
         
         double GibbsIteration(double currentLnPosterior);
 };

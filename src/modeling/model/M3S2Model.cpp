@@ -525,3 +525,42 @@ std::tuple<std::string, std::string> M3S2Model::reconstructionOut(int i){
 
     return std::make_tuple(tipString + "\n", ancestralString + "\n");
 }
+
+std::string M3S2Model::branchHeader(){
+    std::string returnString = "Iteration\tPosterior";
+    TreeObject* treeObj = tree->getTree();
+    std::vector<Node*> poSeq = treeObj->getPostOrderSeq();
+    std::vector<Node*> nodes;
+    for(Node* n : poSeq)
+        nodes.push_back(n);
+    std::sort(nodes.begin(), nodes.end(), [](const Node* a, const Node* b) {
+        return a->getIndex() > b->getIndex();
+    });
+
+    for(Node* n : nodes){
+        if(n != treeObj->getRoot()){
+            returnString += "\tBranch[" + std::to_string(n->getIndex()) + "]";
+        }
+    }
+    return returnString + "\n";
+}
+
+std::string M3S2Model::branchOut(int i){
+    std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood);
+    TreeObject* treeObj = tree->getTree();
+    std::vector<Node*> poSeq = treeObj->getPostOrderSeq();
+    std::vector<Node*> nodes;
+    for(Node* n : poSeq)
+        nodes.push_back(n);
+    std::sort(nodes.begin(), nodes.end(), [](const Node* a, const Node* b) {
+        return a->getIndex() > b->getIndex();
+    });
+
+    for(Node* n : nodes){
+        if(n != treeObj->getRoot()){
+            returnString += "\t" + std::to_string(treeObj->getBranchLength(n));
+        }
+    }
+
+    return returnString + "\n";
+}

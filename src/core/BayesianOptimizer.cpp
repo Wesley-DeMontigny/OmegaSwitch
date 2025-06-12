@@ -7,62 +7,91 @@
 #include "RandomVariable.hpp"
 #include "Probability.hpp"
 
-
-struct SimplexVertex {
-    std::vector<double> params;
-    double logLikelihood;
-
-    bool operator<(const SimplexVertex& other) const {
-        return logLikelihood < other.logLikelihood;
-    }
-};
-
-BayesianOptimizer::BayesianOptimizer(int nP, int s) : numParams(nP), iterationsPerSample(s), hyperparams(nP, 1.0) {
-
+std::vector<double> pow10Vector(std::vector<double> v){
+    std::vector<double> returnVec;
+    for(double n : v)
+        returnVec.push_back(std::pow(10.0, n));
+    return returnVec;
 }
+
+BayesianOptimizer::BayesianOptimizer(int nP, int s) : numParams(nP), iterationsPerSample(s), hyperparams(nP, 1.0) {}
 
 BayesianOptimizer::~BayesianOptimizer() {}
 
-std::vector<double> BayesianOptimizer::getMaximum(){
-    double max = -1.0;
-    int maxIndex = -1;
-    for(int i = 0; i < samples.size(); i++){
-        if(objectives[i] > max){
-            max = objectives[i];
-            maxIndex = i;
-        }
+double BayesianOptimizer::autocorrelationScore(const std::vector<std::vector<double>>& r, int start, int end){
+    int window = 25;
+
+    std::vector<double> mean(r[0].size(), 0.0);
+    for(int i = start; i < end; i++)
+        for(int j = 0; j < r[0].size(); j++)
+            mean[j] += r[i][j];
+    for(int i = 0; i < mean.size(); i++)
+        mean[i] /= window;
+
+    std::vector<double> variance(r[0].size(), 0.0);
+    for(int i = start; i < end; i++)
+        for(int j = 0; j < r[0].size(); j++)
+            variance[j] += std::pow(r[i][j] - mean[j], 2);
+    
+    double var_sum = 0.0;
+    for(int i = 0; i < mean.size(); i++){
+        variance[i] /= window;
+        var_sum += variance[i];
     }
 
-    return samples[maxIndex];
-}
-
-double BayesianOptimizer::autocorrelationScore(const std::vector<double>& r, int end){
-    assert(end <= r.size());
-
-    double mean = 0.0;
-    for(int i = 0; i < end; i++)
-        mean += r[i];
-    mean /= end;
-
-    double variance = 0.0;
-    for(int i = 0; i < end; i++)
-        variance += std::pow(r[i] - mean, 2);
-    variance /= end;
-
-    int lMax = end;
     double autoCorrSum = 0.0;
 
-    for(int i = 1; i < lMax; i++){
+    for(int i = 1; i < window; i++){
         double sum = 0;
-        for(int t = 0; t < end - i; t++){
-            sum += (r[t] - mean) * (r[t+i] - mean);
+        for(int t = start; t < end - i; t++){
+            for(int j = 0; j < r[0].size(); j++)
+                sum += (r[t][j] - mean[j]) * (r[t+i][j] - mean[j]);
         }
-        sum /= (end - i)*variance;
+        sum /= (window - i)*var_sum;
 
         autoCorrSum += std::abs(sum);
     }
 
-    return 1 - (autoCorrSum / lMax - 1);
+    return 1 - (autoCorrSum / window - 1);
+}
+
+double BayesianOptimizer::averageProportionalJumpingDistance(const std::vector<std::vector<double>>& r){
+    double apjd = 0.0; // Average proportional jumping distance
+    for(int i = 1; i < r.size(); i++){
+        double sum = 0.0;
+        for(int j = 0; j < r[0].size(); j++){
+            sum += std::abs(r[i][j] - r[i-1][j])/r[i-1][j];
+        }
+        apjd += sum;
+    }
+
+    return apjd/r.size();
+}
+
+std::vector<double> BayesianOptimizer::getMaximum(){
+
+    std::sort(samples.begin(), samples.end(), [](const ParamScorePair& a, const ParamScorePair& b) {
+        return a.score > b.score;
+    });
+
+
+    std::cout << "Using parameters with maximum score of " << samples[0].score << std::endl;;
+
+    return samples[0].params;
+}
+
+std::vector<std::vector<double>> BayesianOptimizer::getMaximumN(int N){
+    std::vector<std::vector<double>> returnVec;
+
+    std::sort(samples.begin(), samples.end(), [](const ParamScorePair& a, const ParamScorePair& b) {
+        return a.score > b.score;
+    });
+    
+    for(int i = 0; i < N; i++){
+        returnVec.push_back(samples[i].params);
+    }
+
+    return returnVec;
 }
 
 double BayesianOptimizer::kernel(std::vector<double>& a, std::vector<double>& b){
@@ -73,7 +102,7 @@ double BayesianOptimizer::kernel(std::vector<double>& a, std::vector<double>& b)
     }
     sum /= -2.0;
 
-    return std::exp(sum);
+    return sampleVariance * std::exp(sum);
 }
 
 double BayesianOptimizer::marginalLogLikelihood(){
@@ -83,7 +112,7 @@ double BayesianOptimizer::marginalLogLikelihood(){
     double sum = 0.0;
     double logDet = 0.0;
     for(int i = 0; i < numSamples; i++){
-        sum += objectives[i] * alpha[i];
+        sum += samples[i].score * alpha[i];
         logDet += std::log(choleskyFactor(i,i));
     }
     likelihood *= sum;
@@ -94,12 +123,87 @@ double BayesianOptimizer::marginalLogLikelihood(){
     return likelihood;
 }
 
+void BayesianOptimizer::registerSample(std::vector<double> s, double o){
+    ParamScorePair sample;
+    sample.score = o;
+    sample.params = s;
+    samples.push_back(sample); 
+
+    double sampleMean = 0.0;
+    for(int i = 0; i < samples.size(); i++){
+        sampleMean += samples[i].score;
+    }
+    sampleMean /= samples.size();
+
+    sampleVariance = 0.0;
+    for(int i = 0; i < samples.size(); i++){
+        sampleVariance += pow(samples[i].score - sampleMean, 2);
+    }
+    sampleVariance /= samples.size();
+}
+
+double BayesianOptimizer::expectedImprovement(std::vector<double>& sample, double currentMaxObjective, int numSamples){
+    std::vector<double> kStar(numSamples, 0.0);
+    for(int j = 0; j < numSamples; j++){
+        kStar[j] = kernel(sample, samples[j].params);
+    }
+
+    double predictive_mean = 0.0;
+    for(int j = 0; j < numSamples; j++){
+        predictive_mean += kStar[j] * alpha[j];
+    }
+
+    std::vector<double> v = kStar;
+    Math::forwardSubstitutionRow(choleskyFactor, v);
+
+    double predictive_variance = kernel(kStar, kStar);
+    for(int j = 0; j < numSamples; j++){
+        predictive_variance -= v[j]*v[j];
+    }
+    double predictive_std = std::sqrt(predictive_variance);
+
+    // Compute expected improvement and compare
+    double diff = predictive_mean - currentMaxObjective;
+    double z = diff/predictive_std;
+    double EI = std::max(0.0, diff) + 
+                predictive_std * Probability::Normal::pdf(0, 1, z) - 
+                std::abs(diff) * Probability::Normal::cdf(0, 1, z);
+    
+    return EI;
+}
+
+double BayesianOptimizer::UBC(std::vector<double>& sample, int numSamples){
+    std::vector<double> kStar(numSamples, 0.0);
+    for(int j = 0; j < numSamples; j++){
+        kStar[j] = kernel(sample, samples[j].params);
+    }
+
+    double predictive_mean = 0.0;
+    for(int j = 0; j < numSamples; j++){
+        predictive_mean += kStar[j] * alpha[j];
+    }
+
+    std::vector<double> v = kStar;
+    Math::forwardSubstitutionRow(choleskyFactor, v);
+
+    double predictive_variance = kernel(kStar, kStar);
+    for(int j = 0; j < numSamples; j++){
+        predictive_variance -= v[j]*v[j];
+    }
+    double predictive_std = std::sqrt(predictive_variance);
+
+    // Set kappa to 0.5? We are encouraging it to stay in a somewhat reasonable area
+    return predictive_mean + 0.5*predictive_std;
+}
+
 std::vector<double> BayesianOptimizer::maximizeAcquisition(){
     assert(samples.size() >= 3); // We need to make sure that we have selected three coherent points
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
-    int numLHCSamples = 300;
+    std::cout << "Using latin hypercube sampling to sample candidate parameters..." << std::endl;
+
+    int numLHCSamples = 2500;
     int numSamples = samples.size();
 
     std::vector<std::vector<double>> lhcSamples;
@@ -119,103 +223,52 @@ std::vector<double> BayesianOptimizer::maximizeAcquisition(){
             auto it = std::find(availableDraws.begin(), availableDraws.end(), assigningIndex);
             availableDraws.erase(it);
 
-            lhcSamples[assigningIndex][d] = increment*n + (rng.uniformRv() * increment);
+            lhcSamples[assigningIndex][d] = lB + increment*n + (rng.uniformRv() * increment);
         }
     }
 
-    double currentMaxObjective = 0.0;
-    for(int i = 0; i < numSamples; i++){
-        if(objectives[i] > currentMaxObjective)
-            currentMaxObjective = objectives[i];
-    }
+    std::sort(samples.begin(), samples.end(), [](const ParamScorePair& a, const ParamScorePair& b) {
+        return a.score > b.score;
+    });
 
-    #if LOGGING==1
-    std::cout << "Maximizing expected improvement..." << std::endl;
-    #endif
+    double currentMaxObjective = samples[0].score;
 
-    int maxIndex = 0;
-    double maxExpectedImprovement = -1;
+    std::cout << "Maximizing acquisition function..." << std::endl;
+
+    std::vector<ParamScorePair> parameterScorePairs;
     for(int i = 0; i < numLHCSamples; i++){
-        std::vector<double> kStar(numSamples, 0.0);
-        for(int j = 0; j < numSamples; j++){
-            kStar[j] = kernel(lhcSamples[i], samples[j]);
-        }
-
-        double predictive_mean = 0.0;
-        for(int j = 0; j < numSamples; j++){
-            predictive_mean += kStar[j] * alpha[j];
-        }
-
-        std::vector<double> v = kStar;
-        Math::forwardSubstitutionRow(choleskyFactor, v);
-
-        double predictive_variance = kernel(kStar, kStar);
-        for(int j = 0; j < numSamples; j++){
-            predictive_variance -= v[j]*v[j];
-        }
-        double predictive_std = std::sqrt(predictive_variance);
-
-        // Compute expected improvement and compare
-        double diff = predictive_mean - currentMaxObjective;
-        double z = diff/predictive_std;
-        double EI = std::max(0.0, diff) + 
-                    predictive_std * Probability::Normal::pdf(0, 1, z) - 
-                    std::abs(diff) * Probability::Normal::cdf(0, 1, z);
         
-        if(maxExpectedImprovement < EI){
-            maxExpectedImprovement = EI;
-            maxIndex = i;
-        }
+        //double score = expectedImprovement(lhcSamples[i], currentMaxObjective, numSamples);
+        double score = UBC(lhcSamples[i], numSamples);
+
+        ParamScorePair point;
+        point.params = lhcSamples[i];
+        point.score = score;
+        parameterScorePairs.push_back(point);
     }
 
-    #if LOGGING==1
-    std::cout << "Expected improvement maximized at " << maxExpectedImprovement << std::endl;
-    #endif
+    std::sort(parameterScorePairs.begin(), parameterScorePairs.end(), [](const ParamScorePair& a, const ParamScorePair& b) {
+        return a.score > b.score;
+    });
 
-    return lhcSamples[maxIndex];
+    return parameterScorePairs[0].params;
 }
 
-double BayesianOptimizer::objective(std::vector<double> r) {
-    int L = r.size();
-
-    assert(L >= 25);
-
-    double sum = 0;
-    for(int i = 25; i < L; i++){
-        sum += autocorrelationScore(r, i);
-    }
-
-    return sum / (L - 25 + 1);
-}
-
-void BayesianOptimizer::setBounds(std::vector<double>& diff, std::vector<double>& mean, std::vector<bool>& sign){
-    assert(diff.size() == mean.size() && sign.size() == mean.size());
+void BayesianOptimizer::setBounds(std::vector<double>& diff, std::vector<double>& mean){
+    assert(diff.size() == mean.size());
     upperBound.clear();
     lowerBound.clear();
 
     for(int i = 0; i < diff.size(); i++){
-        if(sign[i]){
-            upperBound.push_back(mean[i] + diff[i]);
-            lowerBound.push_back(std::max(mean[i] - 3*diff[i], 1e-3));
-            hyperparams[i] = std::abs(mean[i] - upperBound[i]) * 0.1;
-        }
-        else {
-            upperBound.push_back(mean[i] + 3*diff[i]);
-            lowerBound.push_back(std::max(mean[i] - diff[i], 1e-3));
-            hyperparams[i] = std::abs(mean[i] - lowerBound[i]) * 0.1;
-        }
+        double abs_diff = std::max(std::abs(diff[i]), 0.75*mean[i]);
+        upperBound.push_back(mean[i] + abs_diff);
+        lowerBound.push_back(std::max(mean[i] - abs_diff, 1e-3));
     }
 
-    #if LOGGING==1
-    std::cout << "Setting bounds on the hyperparameter optimization:" << std::endl;
+    std::cout << "Setting bounds on the MCMC parameter optimization:" << std::endl;
     for(int i = 0; i < upperBound.size(); i++){
         std::cout << "\t" << i << ": " << lowerBound[i] << "-" << upperBound[i] << std::endl;
     }
-    std::cout << "Setting intial hyperparameters:" << std::endl;
-    for(int i = 0; i < hyperparams.size(); i++){
-        std::cout << "\t" << i << ": " << hyperparams[i] << std::endl;
-    }
-    #endif
 }
 
 // See Rasmussen and Williams (2008) Algorithm 2.1
@@ -225,20 +278,23 @@ void BayesianOptimizer::updateCholesky(){
     Matrix<double> K(numSamples, numSamples, 0.0);
     for(int i = 0; i < numSamples; i++){
         for(int j = 0; j < numSamples; j++){
-            K(i, j) = kernel(samples[i], samples[j]);
+            K(i, j) = kernel(samples[i].params, samples[j].params);
             if(i == j)
-                K(i, j) += 1e-6; // For numerical stability
+                K(i, j) += 0.1; // For numerical stability
         }
     }
 
     choleskyFactor = Matrix<double>(numSamples, numSamples, 0.0);
     Math::choleskyDecomposition(K, choleskyFactor);
-    
+
+    std::vector<double> objectives;
+    for(ParamScorePair s : samples)
+        objectives.push_back(s.score);
     alpha = objectives; // This will be overwritten
     Math::forwardSubstitutionRow(choleskyFactor, alpha);
 
-    Matrix<double> LT;
-    Math::transposeMatrix(choleskyFactor, LT);
+    Matrix<double> LT(numSamples, numSamples, 0.0);
+    int tSuccess = Math::transposeMatrix(choleskyFactor, LT);
     Math::backSubstitutionRow(LT, alpha);
 }
 
@@ -247,31 +303,48 @@ void BayesianOptimizer::updateGaussianProcess() {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
-    // Initialize simplex
-    updateCholesky();
-    std::vector<SimplexVertex> hyperparamPoints;
-    SimplexVertex initPoint;
-    initPoint.params = hyperparams;
-    initPoint.logLikelihood = marginalLogLikelihood();
-    hyperparamPoints.push_back(initPoint);
+    // Initialize simplex using latin hypercube sampling
+    std::cout << "Using latin hypercube sampling to get initial Nelder-Mead simplex..." << std::endl;
+    std::vector<ParamScorePair> hyperparamPoints;
 
-    for(int i = 0; i < numParams; i++){
-        SimplexVertex newPoint;
-        newPoint.params = hyperparamPoints[0].params;
-        for(int j = 0; j < numParams; j++){
-            double modifiedDim = newPoint.params[j] * std::exp(0.25*(rng.uniformRv() - 0.5));
-            modifiedDim = std::clamp(modifiedDim, lowerBound[j], upperBound[j]);
-            newPoint.params[j] = modifiedDim;
-        }
-        hyperparams = newPoint.params;
-        updateCholesky();
-        newPoint.logLikelihood = marginalLogLikelihood();
-        hyperparamPoints.push_back(newPoint);
+    int numLHCSamples = 1000;
+    int numSamples = samples.size();
+
+    std::vector<std::vector<double>> lhcSamples;
+    std::vector<int> randomIndices;
+    for(int i = 0; i < numLHCSamples; i++){
+        lhcSamples.push_back(std::vector<double>(numParams, 0.0));
+        randomIndices.push_back(i);
     }
 
-    std::sort(hyperparamPoints.begin(), hyperparamPoints.end(), [](const SimplexVertex& a, const SimplexVertex& b) {
-        return a.logLikelihood > b.logLikelihood;
+    for(int d = 0; d < numParams; d++){
+        std::vector<int> availableDraws = randomIndices;
+        double lB = std::max(std::floor(std::log10(lowerBound[d]))-2.0, -2.0);
+        double increment = std::max(std::floor(std::log10(upperBound[d]) - 1.0 - lB), 2.0)/(double)numLHCSamples;
+        for(int n = 0; n < numLHCSamples; n++){
+            int assigningIndex = availableDraws[(int)(rng.uniformRv() * availableDraws.size())];
+            auto it = std::find(availableDraws.begin(), availableDraws.end(), assigningIndex);
+            availableDraws.erase(it);
+
+            lhcSamples[assigningIndex][d] = lB + increment*n + (rng.uniformRv() * increment);
+        }
+    }
+
+    for(int i = 0; i < numLHCSamples; i++){
+        hyperparams = pow10Vector(lhcSamples[i]);
+        updateCholesky();
+        double marginalL = marginalLogLikelihood();
+        ParamScorePair newVertex;
+        newVertex.params = lhcSamples[i];
+        newVertex.score = marginalL;
+        hyperparamPoints.push_back(newVertex);
+    }
+
+    std::sort(hyperparamPoints.begin(), hyperparamPoints.end(), [](const ParamScorePair& a, const ParamScorePair& b) {
+        return a.score > b.score;
     });
+
+    hyperparamPoints.erase(hyperparamPoints.begin() + numParams + 1, hyperparamPoints.end());
 
     #if LOGGING==1
     std::cout << "Initialized hyperparameter simplex..." << std::endl;
@@ -287,14 +360,12 @@ void BayesianOptimizer::updateGaussianProcess() {
     int iterations = 0;
     int maxIterations = 1000;
 
-    #if LOGGING==1
-    std::cout << "Starting Nelder-Mead optimization..." << std::endl;
-    #endif
+    std::cout << "Starting Nelder-Mead optimization of hyperparameters..." << std::endl;
 
     bool converged = false;
     do{
         if(iterations >= maxIterations){
-            std::cout << "Warning: Nelder-Mead Optimization Failed to Converge in " << maxIterations << " Iterations..." << std::endl;
+            std::cout << "Warning: Nelder-Mead Optimization Failed to Converge in " << maxIterations << " Iterations!" << std::endl;
             break;
         }
         iterations++;
@@ -314,33 +385,33 @@ void BayesianOptimizer::updateGaussianProcess() {
         for(int i = 0; i < numParams; i++){
             reflected[i] += reflectParam * (centroid[i] - hyperparamPoints[numSimplexPoints-1].params[i]);
         }
-        hyperparams = reflected;
+        hyperparams = pow10Vector(reflected);
         updateCholesky();
         double reflectedMarginalLL = marginalLogLikelihood();
-        if(reflectedMarginalLL > hyperparamPoints[numSimplexPoints-1].logLikelihood){
+        if(reflectedMarginalLL > hyperparamPoints[numSimplexPoints-1].score){
             // Can we get away with an expansion?
-            if(reflectedMarginalLL > hyperparamPoints[0].logLikelihood){
+            if(reflectedMarginalLL > hyperparamPoints[0].score){
                 std::vector<double> expanded = centroid;
                 for(int i = 0; i < numParams; i++){
                     expanded[i] += expandParam * (reflected[i] - centroid[i]);
                 }
-                hyperparams = expanded;
+                hyperparams = pow10Vector(expanded);
                 updateCholesky();
                 double expandedMarginalLL = marginalLogLikelihood();
                 if(expandedMarginalLL > reflectedMarginalLL){
                     // Accept expansion
-                    hyperparamPoints[numSimplexPoints-1].logLikelihood = expandedMarginalLL;
+                    hyperparamPoints[numSimplexPoints-1].score = expandedMarginalLL;
                     hyperparamPoints[numSimplexPoints-1].params = expanded;
                 }
                 else {
                     // Accept reflection
-                    hyperparamPoints[numSimplexPoints-1].logLikelihood = reflectedMarginalLL;
+                    hyperparamPoints[numSimplexPoints-1].score = reflectedMarginalLL;
                     hyperparamPoints[numSimplexPoints-1].params = reflected;
                 }
             }
             else{
                 // Accept reflection
-                hyperparamPoints[numSimplexPoints-1].logLikelihood = reflectedMarginalLL;
+                hyperparamPoints[numSimplexPoints-1].score = reflectedMarginalLL;
                 hyperparamPoints[numSimplexPoints-1].params = reflected;
             }
         }
@@ -350,12 +421,12 @@ void BayesianOptimizer::updateGaussianProcess() {
             for(int i = 0; i < numParams; i++){
                 contracted[i] += contractParam * (reflected[i] - centroid[i]);
             }
-            hyperparams = contracted;
+            hyperparams = pow10Vector(contracted);
             updateCholesky();
             double contractedMarginalLL = marginalLogLikelihood();
             if(contractedMarginalLL > reflectedMarginalLL){
                 // Accept contraction
-                hyperparamPoints[numSimplexPoints-1].logLikelihood = contractedMarginalLL;
+                hyperparamPoints[numSimplexPoints-1].score = contractedMarginalLL;
                 hyperparamPoints[numSimplexPoints-1].params = contracted;
             }
             else{ // Shrink the whole simplex towards the max
@@ -363,25 +434,29 @@ void BayesianOptimizer::updateGaussianProcess() {
                     for(int j = 0; j < numParams; j++){
                         hyperparamPoints[i].params[j] = hyperparamPoints[0].params[j] - shrinkParam * (hyperparamPoints[i].params[j] - hyperparamPoints[0].params[j]);
                     }
-                    hyperparams = hyperparamPoints[i].params;
+                    hyperparams = pow10Vector(hyperparamPoints[i].params);
                     updateCholesky();
-                    hyperparamPoints[i].logLikelihood = marginalLogLikelihood();
+                    hyperparamPoints[i].score = marginalLogLikelihood();
                 }
             }
         }
 
-        std::sort(hyperparamPoints.begin(), hyperparamPoints.end(), [](const SimplexVertex& a, const SimplexVertex& b) {
-            return a.logLikelihood > b.logLikelihood;
+        std::sort(hyperparamPoints.begin(), hyperparamPoints.end(), [](const ParamScorePair& a, const ParamScorePair& b) {
+            return a.score > b.score;
         });
 
         double max_diff = 0.0;
         for(int i = 1; i < hyperparamPoints.size(); i++){
             for(int j = 0; j < numParams; j++){
-                double diff = abs(hyperparamPoints[i].params[j] - hyperparamPoints[0].params[j]);
+                double diff = std::abs(hyperparamPoints[i].params[j] - hyperparamPoints[0].params[j]);
                 if(diff > max_diff){
                     max_diff = diff;
                 }
             }
+        }
+
+        if(iterations % 25 == 0){
+            std::cout << "Nelder-Mead Optimization " << iterations << ": " << hyperparamPoints[0].score << std::endl;
         }
 
         if(max_diff < 1e-2)
@@ -390,13 +465,26 @@ void BayesianOptimizer::updateGaussianProcess() {
     while(converged == false);
 
 
-    hyperparams = hyperparamPoints[0].params;
+    hyperparams = pow10Vector(hyperparamPoints[0].params);
     updateCholesky();
     
-    #if LOGGING==1
-    std::cout << "Optimization has convered with parameters:" << std::endl;
+    //#if LOGGING==1
+    std::cout << "Optimization has converged with parameters:" << std::endl;
     for(int i = 0; i < numParams; i++){
         std::cout << "\t" << i << ": " << hyperparams[i] << std::endl;
     }
-    #endif
+    //#endif
+}
+
+double BayesianOptimizer::smoothAverageAutocorrelation(const std::vector<std::vector<double>>& r){
+    int L = r.size();
+
+    assert(L >= 25);
+
+    double sum = 0;
+    for(int i = 25; i < L; i++){
+        sum += autocorrelationScore(r, i-25, i);
+    }
+
+    return sum / (L - 25 + 1);
 }

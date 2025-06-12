@@ -13,7 +13,7 @@
 #include <chrono>
 
 DPPMcmc::DPPMcmc(DPPModel* m, TreeParameter* t, DPPMatrix* cm, DirichletProcessPrior* d, Settings& s) : 
-    model(m), dpp(d), codonMatrix(cm), tree(t), generalUpdates(3), stationaryUpdates(5), treeUpdates(0) { 
+    model(m), dpp(d), codonMatrix(cm), tree(t), generalUpdates(3), stationaryUpdates(5), treeUpdates(0), optim(6, s.bayesOptFrequency)  { 
     numIter = s.numIterations;
     numBurnIn = s.burnInIterations;
     printFreq = s.printFrequency;
@@ -25,6 +25,7 @@ DPPMcmc::DPPMcmc(DPPModel* m, TreeParameter* t, DPPMatrix* cm, DirichletProcessP
     dppLog = s.dppOutput;
     tipsLog = s.tipsOutput;
     ancestralLog = s.ancestralStatesOutput;
+    branchLog = s.branchOutput;
 
     kChoice = s.kWeight;
     rChoice = s.rWeight + kChoice;
@@ -188,6 +189,12 @@ void DPPMcmc::run(){
         fs.close();
     }
 
+    if(branchLog != ""){
+        fs.open(branchLog, std::ofstream::out);
+        fs << model->branchHeader();
+        fs.close();
+    }
+
     for(int n = 1; n <= numIter; n++){
         if(n % printFreq == 0){
             std::cout << model->tabularOut(n);
@@ -208,6 +215,12 @@ void DPPMcmc::run(){
                 fs << model->dppOut(n);
                 fs.close();
                 fs.clear();
+            }
+
+            if(branchLog != ""){
+                fs.open(branchLog, std::ofstream::out);
+                fs << model->branchOut(n);
+                fs.close();
             }
 
             if(tipsLog != "" || ancestralLog != ""){

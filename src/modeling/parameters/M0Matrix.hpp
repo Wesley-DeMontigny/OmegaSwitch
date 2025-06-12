@@ -29,6 +29,9 @@ class M0Matrix : public Parameter {
         double getK() {return currentK;}
         double getOmega() {return currentOmega;}
 
+        double kDelta;
+        double omegaDelta;
+        double stationaryAlpha;
         int kCount = 0;
         int kAcceptCount = 0;
         int stationaryCount = 0;
@@ -42,9 +45,6 @@ class M0Matrix : public Parameter {
         void rebuildQMatrix();
 
         int moveChoice = -1;
-        double kDelta;
-        double omegaDelta;
-        double stationaryAlpha;
 
         std::vector<int> randomStates;
 

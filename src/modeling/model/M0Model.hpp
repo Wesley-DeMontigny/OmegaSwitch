@@ -35,6 +35,8 @@ class M0Model {
         std::string tabularOut(int i);
         std::string treeHeader();
         std::string treeOut(int i);
+        std::string branchHeader();
+        std::string branchOut(int i);
     protected:
         double oldLikelihood;
         double currentLikelihood;

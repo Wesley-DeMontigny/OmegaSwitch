@@ -11,7 +11,7 @@
 #include <fstream>
 
 M3S2Mcmc::M3S2Mcmc(M3S2Model* m, TreeParameter* t, M3S2Matrix* cm, Settings& s) : 
-    model(m), codonMatrix(cm), tree(t), generalUpdates(3), stationaryUpdates(5), treeUpdates(0) { 
+    model(m), codonMatrix(cm), tree(t), generalUpdates(3), stationaryUpdates(5), treeUpdates(0), optim(6, s.bayesOptFrequency) { 
     numIter = s.numIterations;
     numBurnIn = s.burnInIterations;
     printFreq = s.printFrequency;
@@ -22,6 +22,7 @@ M3S2Mcmc::M3S2Mcmc(M3S2Model* m, TreeParameter* t, M3S2Matrix* cm, Settings& s) 
     treeLog = s.treeOutput;
     tipsLog = s.tipsOutput;
     ancestralLog = s.ancestralStatesOutput;
+    branchLog = s.branchOutput;
 
     kChoice = s.kWeight;
     treeChoice = s.treeWeight + kChoice;
@@ -167,6 +168,12 @@ void M3S2Mcmc::run(){
         fs.close();
     }
 
+    if(branchLog != ""){
+        fs.open(branchLog, std::ofstream::out);
+        fs << model->branchHeader();
+        fs.close();
+    }
+
     for(int n = 1; n <= numIter; n++){
         if(n % printFreq == 0){
             std::cout << model->tabularOut(n);
@@ -181,6 +188,12 @@ void M3S2Mcmc::run(){
             fs << model->treeOut(n);
             fs.close();
             fs.clear();
+
+            if(branchLog != ""){
+                fs.open(branchLog, std::ofstream::out);
+                fs << model->branchOut(n);
+                fs.close();
+            }
 
             if(tipsLog != "" || ancestralLog != ""){
                 auto reconstruction = model->reconstructionOut(n);

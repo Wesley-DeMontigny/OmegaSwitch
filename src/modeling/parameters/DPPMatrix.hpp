@@ -29,6 +29,9 @@ class DPPMatrix : public Parameter {
         double getK() {return currentK;}
         double getR() {return currentR;}
 
+        double kDelta;
+        double rDelta;
+        double stationaryAlpha;
         int kCount = 0;
         int kAcceptCount = 0;
         int rCount = 0;
@@ -40,9 +43,6 @@ class DPPMatrix : public Parameter {
         Matrix<double> oldQMatrix;
 
         int moveChoice = -1;
-        double kDelta;
-        double rDelta;
-        double stationaryAlpha;
 
         std::vector<int> randomStates;
 

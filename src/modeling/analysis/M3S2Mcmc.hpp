@@ -2,6 +2,7 @@
 #define M3S2_MCMC_HPP
 #include <vector>
 #include <string>
+#include "core/BayesianOptimizer.hpp"
 
 class M3S2Model;
 class Parameter;
@@ -21,7 +22,8 @@ class M3S2Mcmc{
         int printFreq;
         int tuneFreq;
         int sampleFreq;
-
+        int bayesOptFreq;
+        int bayesOptIter;
         int generalUpdates;
         int stationaryUpdates;
         int treeUpdates;
@@ -35,11 +37,13 @@ class M3S2Mcmc{
         TreeParameter* tree;
         M3S2Matrix* codonMatrix;
         M3S2Model* model;
+        BayesianOptimizer optim;
 
         std::string analysisLog;
         std::string treeLog;
         std::string tipsLog;
         std::string ancestralLog;
+        std::string branchLog;
         
         double GibbsIteration(double currentLnPosterior);
 };

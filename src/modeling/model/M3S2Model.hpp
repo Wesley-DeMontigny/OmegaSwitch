@@ -38,6 +38,8 @@ class M3S2Model {
         std::string tipsHeader();
         std::string ancestralHeader();
         std::tuple<std::string, std::string> reconstructionOut(int i);
+        std::string branchHeader();
+        std::string branchOut(int i);
     protected:
         double oldLikelihood;
         double currentLikelihood;

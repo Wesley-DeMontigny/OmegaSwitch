@@ -5,13 +5,13 @@
 #include <vector>
 
 Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dppOutput(""), mcmcOutput(""), tipsOutput(""),
-                                              numIterations(10000), printFrequency(10), sampleFrequency(100),
-                                              burnInIterations(2000), tuneFrequency(100), rLambda(5.0), gammaLambda(5.0),
+                                              branchOutput(""), numIterations(10000), printFrequency(10), sampleFrequency(25),
+                                              burnInIterations(1000), tuneFrequency(100), rLambda(5.0), gammaLambda(5.0),
                                               kLambda(2.0), omegaLambda(2.0), treeLengthLambda(5.0), expectedCat(1.2),
                                               rWeight(1.0), kWeight(1.0), stationaryWeight(2.0), omegaWeight(1.0),
                                               dppWeight(2.0), treeWeight(2.0), numGibbs(25), fixedTree(""), M0(false),
                                               M3S2(false), simulateDPP(false), simulateM0(false), simulateM3S2(false),
-                                              numSimulations(1) {
+                                              numSimulations(1), bayesOpt(0), bayesOptFrequency(0), sequentialTuningSim(false) {
 
     std::vector<std::string> settings;
     for (int i=1; i<argc; i++) {
@@ -27,9 +27,17 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
     settings.push_back("/workspaces/Varying_Selection_DPP/res/dpp.log");
     settings.push_back("-tipsOut");
     settings.push_back("/workspaces/Varying_Selection_DPP/res/tips.log");
+    settings.push_back("-branchOut");
+    settings.push_back("/workspaces/Varying_Selection_DPP/res/branches.log");
     settings.push_back("-simulationOutput");
     settings.push_back("/workspaces/Varying_Selection_DPP/res/simulation.log");
-    settings.push_back("-simulateDPP");
+    settings.push_back("-simulateM0");
+    settings.push_back("-M0");
+    settings.push_back("-bayesOpt");
+    settings.push_back("19000");
+    settings.push_back("-bayesOptFreq");
+    settings.push_back("500");
+    settings.push_back("-sequentialTuningSim");
 #endif
     if (settings.size() == 0) {
         usage();
@@ -68,6 +76,9 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                 Msg::error("Cannot simulate under multiple models!");
             }
         }
+        else if(settings[i] == "-sequentialTuningSim"){
+            sequentialTuningSim = true;
+        }
         else if (currentArg == "")
             currentArg = settings[i];
         else {
@@ -81,6 +92,8 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                 dppOutput = settings[i];
             else if (currentArg == "-tipsOut")
                 tipsOutput = settings[i];
+            else if (currentArg == "-branchOut")
+                branchOutput = settings[i];
             else if (currentArg == "-ancestralStatesOut")
                 ancestralStatesOutput = settings[i];
             else if (currentArg == "-numIter")
@@ -95,6 +108,10 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                 burnInIterations = stoi(settings[i]);
             else if (currentArg == "-tuneFreq")
                 tuneFrequency = stoi(settings[i]);
+            else if (currentArg == "-bayesOpt")
+                bayesOpt = stoi(settings[i]);
+            else if (currentArg == "-bayesOptFreq")
+                bayesOptFrequency = stoi(settings[i]);
             else if (currentArg == "-treeLambda")
                 treeLengthLambda = stod(settings[i]);
             else if (currentArg == "-omegaLambda")
@@ -159,6 +176,10 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
         Msg::error("For simulation analyses, treeOut, mcmcOut are required arguments.");
     }
 
+    if(sequentialTuningSim && !simulating){
+        Msg::error("For a sequential tuning simulation, the software must be in simulation mode.");
+    }
+
     print();
 }
 
@@ -199,6 +220,8 @@ void Settings::print(){
     std::cout << "   * -sampleFreq        : " << sampleFrequency << std::endl;
     std::cout << "   * -burnInIter        : " << burnInIterations << std::endl;
     std::cout << "   * -tuneFreq          : " << tuneFrequency << std::endl;
+    std::cout << "   * -bayesOpt          : " << bayesOpt << std::endl;
+    std::cout << "   * -bayesOptFreq      : " << bayesOptFrequency << std::endl;
     std::cout << "   * -numGibbs          : " << numGibbs << std::endl;
     std::cout << "   * -treeWeight        : " << treeWeight << std::endl;
     std::cout << "   * -kWeight           : " << kWeight << std::endl;
@@ -245,7 +268,9 @@ void Settings::usage(void) {
     std::cout << "   * -printFreq         : How often to output the MCMC state to the screen." << std::endl;
     std::cout << "   * -sampleFreq        : How often to ouput the MCMC state to log files." << std::endl;
     std::cout << "   * -burnInIter        : The number of iterations for the burn-in." << std::endl;
-    std::cout << "   * -tuneFreq          : How often to tune the MCMC moves during the burn-in." << std::endl;
+    std::cout << "   * -tuneFreq          : How often to tune the acceptance rate of the MCMC moves during the burn-in." << std::endl;
+    std::cout << "   * -bayesOpt          : The number of iterations to run Bayesian optimization on the MCMC moves after the burn-in." << std::endl;
+    std::cout << "   * -bayesOptFreq      : How often to sample the trace for Bayesian optimization." << std::endl;
     std::cout << "   * -numGibbs          : How many Gibbs updates to perform on the DPP partitions." << std::endl;
     std::cout << "   * -treeWeight        : How often to propose a move on the tree." << std::endl;
     std::cout << "   * -kWeight           : How often to propose a move on the K parameter." << std::endl;

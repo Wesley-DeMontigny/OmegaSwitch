@@ -9,7 +9,7 @@
 M3S2Matrix::M3S2Matrix(Settings settings) : 
                                    currentQMatrix(183, 183, 0.0), oldQMatrix(183, 183, 0.0), currentStationary(61, -1), oldStationary(61, -1), 
                                    kLambda(settings.kLambda), gammaLambda(settings.gammaLambda), rLambda(settings.rLambda),
-                                   omegaLambda(settings.omegaLambda), rDelta(0.5),  stationaryAlpha(75000), kDelta(0.5), omegaDelta(0.5),
+                                   omegaLambda(settings.omegaLambda), rDelta(0.5),  stationaryAlpha(30000), kDelta(0.5), omegaDelta(0.5),
                                    stationaryPriorAlpha(61, 2.0) {
     std::vector<int> aaMap = {8, 11, 8, 11, 16, 16, 16, 16, 14, 15, 14, 15, 7, 7, 10, 7, 13, 6, 13, 6, 12, 12, 12, 12, 14, 14, 14, 14, 9, 9, 9, 9, 3, 2, 3, 2, 0, 0, 0, 0, 5, 5, 5, 5, 17, 17, 17, 17, 19, 19, 15, 15, 15, 15, 1, 18, 1, 9, 4, 9, 4};  
     std::vector<const char*> codons = {"AAA", "AAC", "AAG", "AAT", "ACA", "ACC", "ACG", "ACT", "AGA", "AGC", "AGG", "AGT", "ATA", "ATC", "ATG", "ATT", "CAA", "CAC", "CAG", "CAT", "CCA", "CCC", "CCG", "CCT", "CGA", "CGC", "CGG", "CGT", "CTA", "CTC", "CTG", "CTT", "GAA", "GAC", "GAG", "GAT", "GCA", "GCC", "GCG", "GCT", "GGA", "GGC", "GGG", "GGT", "GTA", "GTC", "GTG", "GTT", "TAC", "TAT", "TCA", "TCC", "TCG", "TCT", "TGC", "TGG", "TGT", "TTA", "TTC", "TTG", "TTT"};

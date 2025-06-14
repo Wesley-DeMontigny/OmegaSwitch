@@ -1,3 +1,6 @@
+/*
+    EXPERIMENTAL FEATURE!
+*/
 #include "BayesianOptimizer.hpp"
 #include <cmath>
 #include <cassert>
@@ -123,6 +126,64 @@ double BayesianOptimizer::marginalLogLikelihood(){
     return likelihood;
 }
 
+// See Rasmussen and Williams Ch. 5
+std::vector<double> BayesianOptimizer::marginalLogLikelihoodGradient(){
+    int numSamples = samples.size();
+    std::vector<double> gradients(numParams, 0.0);
+
+    std::vector<std::vector<double>> kernelInvColumns;
+
+    Matrix<double> choleskyFactorTranspose(numSamples, numSamples, 0.0);
+    Math::transposeMatrix(choleskyFactor, choleskyFactorTranspose);
+
+    for(int i = 0; i < numSamples; i++){
+        kernelInvColumns.push_back(std::vector<double>(numSamples, 0.0));
+        kernelInvColumns[i][i] = 1.0;
+        Math::forwardSubstitutionRow(choleskyFactor, kernelInvColumns[i]);
+
+
+
+        Math::backSubstitutionRow(choleskyFactorTranspose, kernelInvColumns[i]);
+    }
+
+    Matrix<double> difference(numSamples, numSamples, 0.0);
+    for(int i = 0; i < numSamples; i++){
+        for(int j = 0; j < numSamples; j++){
+            difference(i,j) = alpha[i] * alpha[j];
+        }
+    }
+
+    for(int i = 0; i < numSamples; i++){
+        for(int j = 0; j < numSamples; j++){
+            difference(i,j) -= kernelInvColumns[j][i];
+        }
+    }
+
+    for(int p = 0; p < numParams; p++){
+        Matrix<double> kCopy = kernelMatrix.copy();
+        double hyperParamCubed = std::pow(hyperparams[p], 3);
+
+        for(int i = 0; i < numSamples; i++){
+            for(int j = 0; j < numSamples; j++){
+                double diff = samples[i].params[p] - samples[j].params[p];
+                kCopy(i,j) *= std::pow(diff, 2);
+            }
+        }
+
+        kCopy /= hyperParamCubed;
+
+        Matrix<double> matProd = difference * kCopy;
+        double trace = 0.0;
+        for(int i = 0; i < numSamples; i++){
+            trace += matProd(i,i);
+        }
+
+        gradients[p] = trace * 0.5;
+    }
+    
+    return gradients;
+}
+
 void BayesianOptimizer::registerSample(std::vector<double> s, double o){
     ParamScorePair sample;
     sample.score = o;
@@ -172,7 +233,7 @@ double BayesianOptimizer::expectedImprovement(std::vector<double>& sample, doubl
     return EI;
 }
 
-double BayesianOptimizer::UBC(std::vector<double>& sample, int numSamples){
+double BayesianOptimizer::UCB(std::vector<double>& sample, int numSamples){
     std::vector<double> kStar(numSamples, 0.0);
     for(int j = 0; j < numSamples; j++){
         kStar[j] = kernel(sample, samples[j].params);
@@ -201,7 +262,9 @@ std::vector<double> BayesianOptimizer::maximizeAcquisition(){
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
+    #if LOGGING==1
     std::cout << "Using latin hypercube sampling to sample candidate parameters..." << std::endl;
+    #endif
 
     int numLHCSamples = 2500;
     int numSamples = samples.size();
@@ -233,13 +296,15 @@ std::vector<double> BayesianOptimizer::maximizeAcquisition(){
 
     double currentMaxObjective = samples[0].score;
 
+    #if LOGGING==1
     std::cout << "Maximizing acquisition function..." << std::endl;
+    #endif
 
     std::vector<ParamScorePair> parameterScorePairs;
     for(int i = 0; i < numLHCSamples; i++){
         
         //double score = expectedImprovement(lhcSamples[i], currentMaxObjective, numSamples);
-        double score = UBC(lhcSamples[i], numSamples);
+        double score = UCB(lhcSamples[i], numSamples);
 
         ParamScorePair point;
         point.params = lhcSamples[i];
@@ -280,9 +345,11 @@ void BayesianOptimizer::updateCholesky(){
         for(int j = 0; j < numSamples; j++){
             K(i, j) = kernel(samples[i].params, samples[j].params);
             if(i == j)
-                K(i, j) += 0.1; // For numerical stability
+                K(i, j) += 0.01; // For numerical stability
         }
     }
+
+    kernelMatrix = K.copy();
 
     choleskyFactor = Matrix<double>(numSamples, numSamples, 0.0);
     Math::choleskyDecomposition(K, choleskyFactor);
@@ -304,7 +371,9 @@ void BayesianOptimizer::updateGaussianProcess() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
     // Initialize simplex using latin hypercube sampling
-    std::cout << "Using latin hypercube sampling to get initial Nelder-Mead simplex..." << std::endl;
+    #if LOGGING==1
+    std::cout << "Using latin hypercube sampling to get initial hyperparameter candidates..." << std::endl;
+    #endif
     std::vector<ParamScorePair> hyperparamPoints;
 
     int numLHCSamples = 1000;
@@ -340,140 +409,159 @@ void BayesianOptimizer::updateGaussianProcess() {
         hyperparamPoints.push_back(newVertex);
     }
 
-    std::sort(hyperparamPoints.begin(), hyperparamPoints.end(), [](const ParamScorePair& a, const ParamScorePair& b) {
-        return a.score > b.score;
-    });
+    ParamScorePair currentValue;
+    for(ParamScorePair psp : hyperparamPoints){
+        if(currentValue < psp)
+            currentValue = psp;
+    }
+    currentValue.params = pow10Vector(currentValue.params);
+    hyperparams = currentValue.params;
+    updateCholesky();
 
-    hyperparamPoints.erase(hyperparamPoints.begin() + numParams + 1, hyperparamPoints.end());
-
-    #if LOGGING==1
-    std::cout << "Initialized hyperparameter simplex..." << std::endl;
-    #endif
-
-
-    double reflectParam = 1.0;
-    double expandParam = 2.0;
-    double contractParam = 0.5;
-    double shrinkParam = 0.5;
-
-    int numSimplexPoints = hyperparamPoints.size();
-    int iterations = 0;
-    int maxIterations = 1000;
-
-    std::cout << "Starting Nelder-Mead optimization of hyperparameters..." << std::endl;
-
+    std::vector<std::vector<double>> history;
+    std::vector<std::vector<double>> grads;
+    int history_length = 10;
+    double sufficientIncrease = 1e-4;
+    int numIter = 0;
     bool converged = false;
-    do{
-        if(iterations >= maxIterations){
-            std::cout << "Warning: Nelder-Mead Optimization Failed to Converge in " << maxIterations << " Iterations!" << std::endl;
-            break;
-        }
-        iterations++;
-        // Compute the centroid
-        std::vector<double> centroid(numParams, 0.0);
-        for(int i = 1; i < numSimplexPoints; i++){
+
+    history.push_back(currentValue.params);
+    grads.push_back(marginalLogLikelihoodGradient());
+    double currentLogL = marginalLogLikelihood();
+
+    do {
+        std::vector<double> q = grads.back();;
+
+        std::vector<double> rhoVec;
+        std::vector<double> alphaVec;
+
+        for(int i = grads.size()-1; i >= 1; i--){
+            double rhoI = 0.0;
             for(int j = 0; j < numParams; j++){
-                centroid[j] += hyperparamPoints[i].params[j];
+                rhoI += (grads[i][j] - grads[i-1][j]) * (history[i][j] - history[i-1][j]);
             }
-        }
-        for(int i = 0; i < numParams; i++){
-            centroid[i] /= numSimplexPoints - 1;
+            rhoI = 1/rhoI;
+            rhoVec.push_back(rhoI);
+
+            double alphaI = 0.0;
+            for(int j = 0; j < numParams; j++){
+                alphaI += (history[i][j] - history[i-1][j]) * q[j];
+            }
+            alphaI *= rhoI;
+            alphaVec.push_back(alphaI);
+
+            for(int j = 0; j < numParams; j++){
+                q[j] = q[j] - alphaI * (grads[i][j] - grads[i-1][j]);
+            }
         }
 
-        // Do we reflect the point?
-        std::vector<double> reflected = centroid;
-        for(int i = 0; i < numParams; i++){
-            reflected[i] += reflectParam * (centroid[i] - hyperparamPoints[numSimplexPoints-1].params[i]);
-        }
-        hyperparams = pow10Vector(reflected);
-        updateCholesky();
-        double reflectedMarginalLL = marginalLogLikelihood();
-        if(reflectedMarginalLL > hyperparamPoints[numSimplexPoints-1].score){
-            // Can we get away with an expansion?
-            if(reflectedMarginalLL > hyperparamPoints[0].score){
-                std::vector<double> expanded = centroid;
-                for(int i = 0; i < numParams; i++){
-                    expanded[i] += expandParam * (reflected[i] - centroid[i]);
-                }
-                hyperparams = pow10Vector(expanded);
-                updateCholesky();
-                double expandedMarginalLL = marginalLogLikelihood();
-                if(expandedMarginalLL > reflectedMarginalLL){
-                    // Accept expansion
-                    hyperparamPoints[numSimplexPoints-1].score = expandedMarginalLL;
-                    hyperparamPoints[numSimplexPoints-1].params = expanded;
-                }
-                else {
-                    // Accept reflection
-                    hyperparamPoints[numSimplexPoints-1].score = reflectedMarginalLL;
-                    hyperparamPoints[numSimplexPoints-1].params = reflected;
-                }
-            }
-            else{
-                // Accept reflection
-                hyperparamPoints[numSimplexPoints-1].score = reflectedMarginalLL;
-                hyperparamPoints[numSimplexPoints-1].params = reflected;
-            }
-        }
-        else {
-            // Should we contract the point?
-            std::vector<double> contracted  = centroid;
+        if(history.size() > 2){
+            double numerator = 0.0;
+            double denominator = 0.0;
             for(int i = 0; i < numParams; i++){
-                contracted[i] += contractParam * (reflected[i] - centroid[i]);
+                double y = (grads[grads.size() - 2][i] - grads[grads.size() - 3][i]);
+                double s = (history[grads.size() - 2][i] - history[grads.size() - 3][i]);
+                numerator += y * s;
+                denominator += y * y;
             }
-            hyperparams = pow10Vector(contracted);
+            double gamma = numerator/denominator;
+
+            for(int i = 0; i < numParams; i++){
+                q[i] *= gamma;
+            }
+
+            int k = grads.size() - 1;  // Most recent index
+
+            for (int i = 1; i <= k; i++) {
+                int offset = k - i; // The indexing is weird here because of how I push it
+
+                double beta = 0.0;
+                for (int j = 0; j < numParams; j++) {
+                    beta += (grads[i][j] - grads[i-1][j]) * q[j];
+                }
+                beta *= rhoVec[offset];
+
+                for (int j = 0; j < numParams; j++) {
+                    q[j] += (history[i][j] - history[i-1][j]) * (alphaVec[offset] - beta);
+                }
+            }
+        }
+
+        //q now contains a valid step in the positive direction. Now we do a Line Search to find the step size that will satisfy Armijo's condition
+        double epsilon = 1.0;
+        double tempLogL = currentLogL;
+        std::vector<double> newHyperparams;
+        while (true) {
+            newHyperparams = currentValue.params;
+            for(int i = 0; i < numParams; i++){
+                newHyperparams[i] += epsilon * q[i];
+            }
+            hyperparams = newHyperparams;
             updateCholesky();
-            double contractedMarginalLL = marginalLogLikelihood();
-            if(contractedMarginalLL > reflectedMarginalLL){
-                // Accept contraction
-                hyperparamPoints[numSimplexPoints-1].score = contractedMarginalLL;
-                hyperparamPoints[numSimplexPoints-1].params = contracted;
-            }
-            else{ // Shrink the whole simplex towards the max
-                for(int i = 1; i < numSimplexPoints; i++){
-                    for(int j = 0; j < numParams; j++){
-                        hyperparamPoints[i].params[j] = hyperparamPoints[0].params[j] - shrinkParam * (hyperparamPoints[i].params[j] - hyperparamPoints[0].params[j]);
-                    }
-                    hyperparams = pow10Vector(hyperparamPoints[i].params);
-                    updateCholesky();
-                    hyperparamPoints[i].score = marginalLogLikelihood();
-                }
-            }
-        }
+            tempLogL = marginalLogLikelihood();
 
-        std::sort(hyperparamPoints.begin(), hyperparamPoints.end(), [](const ParamScorePair& a, const ParamScorePair& b) {
-            return a.score > b.score;
-        });
+            double condition = 0.0;
+            for(int i = 0; i < numParams; i++){
+                condition += grads.back()[i] * q[i];
+            }
 
-        double max_diff = 0.0;
-        for(int i = 1; i < hyperparamPoints.size(); i++){
-            for(int j = 0; j < numParams; j++){
-                double diff = std::abs(hyperparamPoints[i].params[j] - hyperparamPoints[0].params[j]);
-                if(diff > max_diff){
-                    max_diff = diff;
-                }
+            condition *= sufficientIncrease * epsilon;
+            condition += currentLogL;
+
+            if (tempLogL >= condition) {
+                break;  // Armijo condition met
+            }
+            
+            epsilon *= 0.5;  // Shrink step size
+
+            if (epsilon < 1e-8) {
+                std::cout << "Warning: Line search failed to find sufficient increase!" << std::endl;
+                break;
             }
         }
 
-        if(iterations % 25 == 0){
-            std::cout << "Nelder-Mead Optimization " << iterations << ": " << hyperparamPoints[0].score << std::endl;
-        }
+        currentValue.score = tempLogL;
+        currentValue.params = newHyperparams;
+        
+        history.push_back(newHyperparams);
+        grads.push_back(marginalLogLikelihoodGradient());
 
-        if(max_diff < 1e-2)
-            converged = true;
+        // Only maintain a certain length of entries
+        if(history.size() > history_length){
+            history.erase(history.begin());
+            grads.erase(grads.begin());
+        }
+        // If norm of difference is less than 1e-4 we quit
+        if(history.size() > 1){
+            double sum = 0.0;
+            for(int i = 0; i < numParams; i++){
+                sum += std::pow(history.back()[i] - history[history.size()-2][i], 2);
+            }
+            if(std::sqrt(sum) < 1e-4){
+                converged = true;
+            }
+        }
+        #if LOGGING==1
+        if(numIter % 1 == 0){
+            std::cout << "L-BFGS Optimization " << numIter << ": " << tempLogL << std::endl;
+        }
+        #endif
+        if(numIter > 10000){
+            break;
+            std::cout << "Warning: L-BFGS failed to converge!" << std::endl;
+        }
+        numIter++;
     }
     while(converged == false);
 
 
-    hyperparams = pow10Vector(hyperparamPoints[0].params);
-    updateCholesky();
-    
-    //#if LOGGING==1
+    #if LOGGING==1
     std::cout << "Optimization has converged with parameters:" << std::endl;
     for(int i = 0; i < numParams; i++){
-        std::cout << "\t" << i << ": " << hyperparams[i] << std::endl;
+        std::cout << "\t" << i << ": " << std::abs(hyperparams[i]) << std::endl;
     }
-    //#endif
+    #endif
+
 }
 
 double BayesianOptimizer::smoothAverageAutocorrelation(const std::vector<std::vector<double>>& r){

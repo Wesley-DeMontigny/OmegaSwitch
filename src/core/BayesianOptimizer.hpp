@@ -40,15 +40,17 @@ class BayesianOptimizer {
         std::vector<double> initialSampleScale;  
 
         Matrix<double> choleskyFactor;
+        Matrix<double> kernelMatrix;
         std::vector<double> alpha;
 
         double kernel(std::vector<double>& a, std::vector<double>& b); // ARD kernel
         double marginalLogLikelihood();
+        std::vector<double> marginalLogLikelihoodGradient();
         double autocorrelationScore(const std::vector<std::vector<double>>& r, int start, int end);
         double smoothAverageAutocorrelation(const std::vector<std::vector<double>>& r);
         double averageProportionalJumpingDistance(const std::vector<std::vector<double>>& r);
         double expectedImprovement(std::vector<double>& sample, double currentMaxObjective, int numSamples);
-        double UBC(std::vector<double>& sample, int numSamples);
+        double UCB(std::vector<double>& sample, int numSamples);
         void updateCholesky();
 };
 

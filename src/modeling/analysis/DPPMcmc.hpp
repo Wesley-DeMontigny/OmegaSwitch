@@ -14,7 +14,7 @@ class Settings;
 class DPPMcmc{
     public:
         DPPMcmc(void)=delete;
-        DPPMcmc(DPPModel* m, TreeParameter* t, DPPMatrix* cm, DirichletProcessPrior* dpp, Settings& s);
+        DPPMcmc(DPPModel* m, TreeParameter* t, DPPMatrix* cm, DirichletProcessPrior* dpp, Settings& s, bool dBO);
         void burnin();
         void run();
     private:
@@ -40,7 +40,9 @@ class DPPMcmc{
         DPPMatrix* codonMatrix;
         DirichletProcessPrior* dpp;
         DPPModel* model;
+
         BayesianOptimizer optim;
+        bool disableBayesOpt;
 
         std::string analysisLog;
         std::string treeLog;

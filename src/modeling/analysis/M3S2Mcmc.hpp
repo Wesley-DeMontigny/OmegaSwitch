@@ -13,7 +13,7 @@ class Settings;
 class M3S2Mcmc{
     public:
         M3S2Mcmc(void)=delete;
-        M3S2Mcmc(M3S2Model* m, TreeParameter* t, M3S2Matrix* cm, Settings& s);
+        M3S2Mcmc(M3S2Model* m, TreeParameter* t, M3S2Matrix* cm, Settings& s, bool dBO);
         void burnin();
         void run();
     private:
@@ -37,7 +37,9 @@ class M3S2Mcmc{
         TreeParameter* tree;
         M3S2Matrix* codonMatrix;
         M3S2Model* model;
+
         BayesianOptimizer optim;
+        bool disableBayesOpt;
 
         std::string analysisLog;
         std::string treeLog;

@@ -12,14 +12,19 @@
 #include <fstream>
 #include <chrono>
 
-DPPMcmc::DPPMcmc(DPPModel* m, TreeParameter* t, DPPMatrix* cm, DirichletProcessPrior* d, Settings& s) : 
-    model(m), dpp(d), codonMatrix(cm), tree(t), generalUpdates(3), stationaryUpdates(5), treeUpdates(0), optim(6, s.bayesOptFrequency)  { 
+DPPMcmc::DPPMcmc(DPPModel* m, TreeParameter* t, DPPMatrix* cm, DirichletProcessPrior* d, Settings& s, bool dBO) : 
+    model(m), dpp(d), codonMatrix(cm), tree(t), generalUpdates(3), stationaryUpdates(5), treeUpdates(0), optim(5, s.bayesOptFrequency), disableBayesOpt(dBO)  { 
     numIter = s.numIterations;
     numBurnIn = s.burnInIterations;
     printFreq = s.printFrequency;
     tuneFreq = s.tuneFrequency;
     sampleFreq = s.sampleFrequency;
     
+    if(!disableBayesOpt){
+        bayesOptFreq = s.bayesOptFrequency;
+        bayesOptIter = s.bayesOpt;
+    }
+
     analysisLog = s.mcmcOutput;
     treeLog = s.treeOutput;
     dppLog = s.dppOutput;
@@ -48,6 +53,7 @@ double DPPMcmc::GibbsIteration(double currentLnPosterior){
     #if TIME_PROFILE==1
     std::chrono::steady_clock::time_point initTime = std::chrono::steady_clock::now();
     #endif
+    
 
     if(randomMove < stationaryChoice){
         std::function<double()> updater;
@@ -135,7 +141,18 @@ double DPPMcmc::GibbsIteration(double currentLnPosterior){
 }
 
 void DPPMcmc::burnin(){
+    RandomVariable& rng = RandomVariable::randomVariableInstance();
+
     double currentLnPosterior = model->lnLikelihood() + model->lnPrior();
+
+    std::vector<double> initTuning(5, 0.0);
+    initTuning[0] = tree->treeAlpha;
+    initTuning[1] = tree->branchDelta;
+    initTuning[2] = codonMatrix->stationaryAlpha;
+    initTuning[3] = codonMatrix->kDelta;
+    initTuning[4] = codonMatrix->rDelta;
+    // We are excluding omega. That will be tuned with acceptance rate because it is really weird to handle autocorrelation in a Dirichlet Process distributed parameter
+
 
     for(int n = 1; n <= numBurnIn; n++){
         if(n % printFreq == 0){
@@ -153,6 +170,71 @@ void DPPMcmc::burnin(){
         }
 
         currentLnPosterior = GibbsIteration(currentLnPosterior);
+    }
+
+    if(!disableBayesOpt && bayesOptIter > 0){
+        std::vector<double> diffVec = {initTuning[0] - tree->treeAlpha, initTuning[1] - tree->branchDelta, initTuning[2] - codonMatrix->stationaryAlpha, initTuning[3] - codonMatrix->kDelta, initTuning[4] - codonMatrix->rDelta};
+        std::vector<double> currVec = {tree->treeAlpha, tree->branchDelta, codonMatrix->stationaryAlpha, codonMatrix->kDelta, codonMatrix->rDelta};
+        optim.setBounds(diffVec, currVec);
+
+        #if LOGGING==1
+        std::cout << "Tuning parameters are:" << std::endl;
+        std::cout << "\t1: " << tree->treeAlpha << std::endl;
+        std::cout << "\t2: " << tree->branchDelta << std::endl;
+        std::cout << "\t3: " << codonMatrix->stationaryAlpha << std::endl;
+        std::cout << "\t4: " << codonMatrix->kDelta << std::endl;
+        std::cout << "\t5: " << codonMatrix->rDelta << std::endl;
+        #endif
+
+        int sampleCount = 0;
+        std::vector<std::vector<double>> posteriorSamples;
+        for(int n = 1; n<= bayesOptIter; n++){
+            currentLnPosterior = GibbsIteration(currentLnPosterior);
+            std::vector<double> record = {codonMatrix->getK(), codonMatrix->getR()};
+            for(double entry : codonMatrix->getRawStationary())
+                record.push_back(entry);
+            for(double entry : tree->getTree()->getBranchLengths())
+                record.push_back(entry);
+
+            posteriorSamples.push_back(record);
+
+            if(n % bayesOptFreq == 0){
+                std::cout << "Performing Bayesian Optimization..." << std::endl;
+                currVec = {tree->treeAlpha, tree->branchDelta, codonMatrix->stationaryAlpha, codonMatrix->kDelta, codonMatrix->rDelta};
+                double objective = optim.objective(posteriorSamples);
+                std::cout << "Parameters had score " << objective << std::endl;
+                optim.registerSample(currVec, objective);
+                if(sampleCount <= 2){ // For samples 2 and 3 we just shuffle the values a bit
+                    tree->treeAlpha *= std::exp(0.5* (rng.uniformRv() - 0.5));
+                    tree->branchDelta *= std::exp(0.5* (rng.uniformRv() - 0.5));
+                    codonMatrix->stationaryAlpha *= std::exp(0.5* (rng.uniformRv() - 0.5));
+                    codonMatrix->kDelta *= std::exp(0.5* (rng.uniformRv() - 0.5));
+                    codonMatrix->rDelta *= std::exp(0.5* (rng.uniformRv() - 0.5));
+                }
+                else {
+                    optim.updateGaussianProcess();
+                    std::vector<double> newParams = optim.maximizeAcquisition();
+                    tree->treeAlpha = newParams[0];
+                    tree->branchDelta = newParams[1];
+                    codonMatrix->stationaryAlpha = newParams[2];
+                    codonMatrix->kDelta = newParams[3];
+                    codonMatrix->rDelta = newParams[4];
+                }
+                sampleCount++;
+                posteriorSamples.clear();
+                #if LOGGING==1
+                std::cout << "Continuing MCMC..." << std::endl;
+                #endif
+            }
+        }
+
+        std::cout << "Choosing optimal parameters..." << std::endl;
+        std::vector<double> optimParams = optim.getMaximum();
+        tree->treeAlpha = optimParams[0];
+        tree->branchDelta = optimParams[1];
+        codonMatrix->stationaryAlpha = optimParams[2];
+        codonMatrix->kDelta = optimParams[3];
+        codonMatrix->rDelta = optimParams[4];
     }
 }
 

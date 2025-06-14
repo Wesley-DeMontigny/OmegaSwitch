@@ -22,9 +22,6 @@ M0Mcmc::M0Mcmc(M0Model* m, TreeParameter* t, M0Matrix* cm, Settings& s, bool dBO
         bayesOptFreq = s.bayesOptFrequency;
         bayesOptIter = s.bayesOpt;
     }
-    else{
-        numBurnIn += s.bayesOpt;
-    }
 
     analysisLog = s.mcmcOutput;
     treeLog = s.treeOutput;
@@ -81,16 +78,6 @@ double M0Mcmc::GibbsIteration(double currentLnPosterior){
     }
 
     for(int i = 0; i < numUpdates; i++){
-        if(bayesianOptimizedKernels.size() > 0){
-            int kernelChoice = (int)(rng.uniformRv()  * bayesianOptimizedKernels.size());
-            
-            tree->treeAlpha = bayesianOptimizedKernels[kernelChoice][0];
-            tree->branchDelta = bayesianOptimizedKernels[kernelChoice][1];
-            codonMatrix->stationaryAlpha = bayesianOptimizedKernels[kernelChoice][2];
-            codonMatrix->kDelta = bayesianOptimizedKernels[kernelChoice][3];
-            codonMatrix->omegaDelta = bayesianOptimizedKernels[kernelChoice][4];
-        }
-
         double lnProposalRatio = updater();
         model->regenerateLikelihood();
 
@@ -155,7 +142,7 @@ void M0Mcmc::burnin(){
         currentLnPosterior = GibbsIteration(currentLnPosterior);
     }
 
-    if(!disableBayesOpt){
+    if(!disableBayesOpt && bayesOptIter > 0){
         std::vector<double> diffVec = {initTuning[0] - tree->treeAlpha, initTuning[1] - tree->branchDelta, initTuning[2] - codonMatrix->stationaryAlpha, initTuning[3] - codonMatrix->kDelta, initTuning[4] - codonMatrix->omegaDelta};
         std::vector<double> currVec = {tree->treeAlpha, tree->branchDelta, codonMatrix->stationaryAlpha, codonMatrix->kDelta, codonMatrix->omegaDelta};
         optim.setBounds(diffVec, currVec);
@@ -188,11 +175,11 @@ void M0Mcmc::burnin(){
                 std::cout << "Parameters had score " << objective << std::endl;
                 optim.registerSample(currVec, objective);
                 if(sampleCount <= 2){ // For samples 2 and 3 we just shuffle the values a bit
-                    tree->treeAlpha *= std::exp(rng.uniformRv() - 0.5);
-                    tree->branchDelta *= std::exp(rng.uniformRv() - 0.5);
-                    codonMatrix->stationaryAlpha *= std::exp(rng.uniformRv() - 0.5);
-                    codonMatrix->kDelta *= std::exp(rng.uniformRv() - 0.5);
-                    codonMatrix->omegaDelta *= std::exp(rng.uniformRv() - 0.5);
+                    tree->treeAlpha *= std::exp(0.5* (rng.uniformRv() - 0.5));
+                    tree->branchDelta *= std::exp(0.5* (rng.uniformRv() - 0.5));
+                    codonMatrix->stationaryAlpha *= std::exp(0.5* (rng.uniformRv() - 0.5));
+                    codonMatrix->kDelta *= std::exp(0.5* (rng.uniformRv() - 0.5));
+                    codonMatrix->omegaDelta *= std::exp(0.5* (rng.uniformRv() - 0.5));
                 }
                 else {
                     optim.updateGaussianProcess();
@@ -205,14 +192,19 @@ void M0Mcmc::burnin(){
                 }
                 sampleCount++;
                 posteriorSamples.clear();
+                #if LOGGING==1
                 std::cout << "Continuing MCMC..." << std::endl;
+                #endif
             }
         }
 
-        if(bayesOptIter > 0){
-            std::cout << "Choosing optimal parameters..." << std::endl;
-            bayesianOptimizedKernels = optim.getMaximumN(3);
-        }
+        std::cout << "Choosing optimal parameters..." << std::endl;
+        std::vector<double> optimParams = optim.getMaximum();
+        tree->treeAlpha = optimParams[0];
+        tree->branchDelta = optimParams[1];
+        codonMatrix->stationaryAlpha = optimParams[2];
+        codonMatrix->kDelta = optimParams[3];
+        codonMatrix->omegaDelta = optimParams[4];
     }
 }
 

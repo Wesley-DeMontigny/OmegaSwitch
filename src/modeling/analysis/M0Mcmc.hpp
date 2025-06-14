@@ -38,7 +38,6 @@ class M0Mcmc{
         M0Model* model;
 
         BayesianOptimizer optim;
-        std::vector<std::vector<double>> bayesianOptimizedKernels;
         bool disableBayesOpt;
 
         std::string analysisLog;

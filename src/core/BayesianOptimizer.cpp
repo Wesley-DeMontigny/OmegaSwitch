@@ -13,7 +13,7 @@
 std::vector<double> pow10Vector(std::vector<double> v){
     std::vector<double> returnVec;
     for(double n : v)
-        returnVec.push_back(std::pow(10.0, n));
+        returnVec.push_back(std::pow(10.0,n));
     return returnVec;
 }
 
@@ -127,7 +127,7 @@ double BayesianOptimizer::marginalLogLikelihood(){
 }
 
 // See Rasmussen and Williams Ch. 5
-std::vector<double> BayesianOptimizer::marginalLogLikelihoodGradient(){
+std::vector<double> BayesianOptimizer::nLLGradient(){
     int numSamples = samples.size();
     std::vector<double> gradients(numParams, 0.0);
 
@@ -178,9 +178,33 @@ std::vector<double> BayesianOptimizer::marginalLogLikelihoodGradient(){
             trace += matProd(i,i);
         }
 
-        gradients[p] = trace * 0.5;
+        gradients[p] = trace * -0.5; // Multiply by -1.0 this for the negative log likelihood
     }
     
+    return gradients;
+}
+
+double BayesianOptimizer::logPrior(){
+    double total = 0.0;
+    for(int i = 0; i < numParams; i++){
+        double priorProbs = log(hyperparams[i]) + 
+                            std::log(std::sqrt(2 * M_PI * priorVariances[i])) +
+                            std::pow(std::log(hyperparams[i]) - priorMeans[i], 2)/(2*priorVariances[i]);
+        total -= priorProbs;
+    }
+
+    return total;
+}
+
+std::vector<double> BayesianOptimizer::nLPGradient(){
+    std::vector<double> gradients(numParams, 0.0);
+
+    for(int i = 0; i < numParams; i++){
+        double grad = 1/hyperparams[i];
+        grad *= 1 + ((std::log(hyperparams[i]) - priorMeans[i])/priorVariances[i]);
+        gradients[i] = grad;
+    }
+
     return gradients;
 }
 
@@ -253,8 +277,8 @@ double BayesianOptimizer::UCB(std::vector<double>& sample, int numSamples){
     }
     double predictive_std = std::sqrt(predictive_variance);
 
-    // Set kappa to 0.5? We are encouraging it to stay in a somewhat reasonable area
-    return predictive_mean + 0.5*predictive_std;
+    // Set exploration parameter to 0.25? We are encouraging exploitive behavior
+    return predictive_mean + 0.25*predictive_std;
 }
 
 std::vector<double> BayesianOptimizer::maximizeAcquisition(){
@@ -325,14 +349,20 @@ void BayesianOptimizer::setBounds(std::vector<double>& diff, std::vector<double>
     lowerBound.clear();
 
     for(int i = 0; i < diff.size(); i++){
-        double abs_diff = std::max(std::abs(diff[i]), 0.75*mean[i]);
+        double abs_diff = std::min(std::abs(diff[i]), 0.75*mean[i]);
         upperBound.push_back(mean[i] + abs_diff);
         lowerBound.push_back(std::max(mean[i] - abs_diff, 1e-3));
+        priorMeans.push_back(mean[i]);
+        priorVariances.push_back(std::max(std::pow((upperBound[i] - mean[i])/2.0, 2.0), 2.0)); // We just want a rough idea about scale
     }
 
     std::cout << "Setting bounds on the MCMC parameter optimization:" << std::endl;
     for(int i = 0; i < upperBound.size(); i++){
         std::cout << "\t" << i << ": " << lowerBound[i] << "-" << upperBound[i] << std::endl;
+    }
+    std::cout << "Initializing log-normal priors on Gaussian process hyperparameters:" << std::endl;
+    for(int i = 0; i < priorMeans.size(); i++){
+        std::cout << "\t" << i << ": Mean=" << priorMeans[i] << ", Variance=" << priorVariances[i] << std::endl;
     }
 }
 
@@ -388,8 +418,8 @@ void BayesianOptimizer::updateGaussianProcess() {
 
     for(int d = 0; d < numParams; d++){
         std::vector<int> availableDraws = randomIndices;
-        double lB = std::max(std::floor(std::log10(lowerBound[d]))-2.0, -2.0);
-        double increment = std::max(std::floor(std::log10(upperBound[d]) - 1.0 - lB), 2.0)/(double)numLHCSamples;
+        double lB = std::floor(std::log10(lowerBound[d])) - 2;
+        double increment = std::floor(std::log10(upperBound[d]) - lB)/(double)numLHCSamples;
         for(int n = 0; n < numLHCSamples; n++){
             int assigningIndex = availableDraws[(int)(rng.uniformRv() * availableDraws.size())];
             auto it = std::find(availableDraws.begin(), availableDraws.end(), assigningIndex);
@@ -402,69 +432,72 @@ void BayesianOptimizer::updateGaussianProcess() {
     for(int i = 0; i < numLHCSamples; i++){
         hyperparams = pow10Vector(lhcSamples[i]);
         updateCholesky();
-        double marginalL = marginalLogLikelihood();
+        double logL = -1.0*marginalLogLikelihood() - logPrior();
         ParamScorePair newVertex;
-        newVertex.params = lhcSamples[i];
-        newVertex.score = marginalL;
+        newVertex.params = pow10Vector(lhcSamples[i]);
+        newVertex.score = logL;
         hyperparamPoints.push_back(newVertex);
     }
 
     ParamScorePair currentValue;
-    for(ParamScorePair psp : hyperparamPoints){
-        if(currentValue < psp)
+    for(ParamScorePair psp : hyperparamPoints){ // Minimize negative log likelihood
+        if(psp < currentValue)
             currentValue = psp;
     }
-    currentValue.params = pow10Vector(currentValue.params);
     hyperparams = currentValue.params;
     updateCholesky();
 
     std::vector<std::vector<double>> history;
     std::vector<std::vector<double>> grads;
-    int history_length = 10;
-    double sufficientIncrease = 1e-4;
+    int history_length = 5;
+    double sufficientDecrease = 1e-4;
     int numIter = 0;
     bool converged = false;
 
     history.push_back(currentValue.params);
-    grads.push_back(marginalLogLikelihoodGradient());
-    double currentLogL = marginalLogLikelihood();
+    grads.push_back(nLLGradient());
+
+    std::vector<double> priorGrad = nLPGradient();
+    for(int i = 0; i < numParams; i++)
+        grads[0][i] += priorGrad[i];
 
     do {
         std::vector<double> q = grads.back();;
 
-        std::vector<double> rhoVec;
-        std::vector<double> alphaVec;
+        if(history.size() >= 2){
+            std::vector<double> rhoVec;
+            std::vector<double> alphaVec;
 
-        for(int i = grads.size()-1; i >= 1; i--){
-            double rhoI = 0.0;
-            for(int j = 0; j < numParams; j++){
-                rhoI += (grads[i][j] - grads[i-1][j]) * (history[i][j] - history[i-1][j]);
+            for(int i = 1; i < grads.size(); i++){
+                double rhoI = 0.0;
+                for(int j = 0; j < numParams; j++){
+                    rhoI += (grads[i][j] - grads[i-1][j]) * (history[i][j] - history[i-1][j]);
+                }
+                rhoI = 1/rhoI;
+                rhoVec.push_back(rhoI);
+
+                double alphaI = 0.0;
+                for(int j = 0; j < numParams; j++){
+                    alphaI += (history[i][j] - history[i-1][j]) * q[j];
+                }
+                alphaI *= rhoI;
+                alphaVec.push_back(alphaI);
+
+                for(int j = 0; j < numParams; j++){
+                    q[j] = q[j] - alphaI * (grads[i][j] - grads[i-1][j]);
+                }
             }
-            rhoI = 1/rhoI;
-            rhoVec.push_back(rhoI);
 
-            double alphaI = 0.0;
-            for(int j = 0; j < numParams; j++){
-                alphaI += (history[i][j] - history[i-1][j]) * q[j];
-            }
-            alphaI *= rhoI;
-            alphaVec.push_back(alphaI);
-
-            for(int j = 0; j < numParams; j++){
-                q[j] = q[j] - alphaI * (grads[i][j] - grads[i-1][j]);
-            }
-        }
-
-        if(history.size() > 2){
             double numerator = 0.0;
             double denominator = 0.0;
             for(int i = 0; i < numParams; i++){
-                double y = (grads[grads.size() - 2][i] - grads[grads.size() - 3][i]);
-                double s = (history[grads.size() - 2][i] - history[grads.size() - 3][i]);
+                double y = (grads[grads.size() - 1][i] - grads[grads.size() - 2][i]);
+                double s = (history[grads.size() - 1][i] - history[grads.size() - 2][i]);
                 numerator += y * s;
                 denominator += y * y;
             }
-            double gamma = numerator/denominator;
+            double gamma = numerator/(denominator + 1e-8);
+            gamma = std::clamp(gamma, 1e-4, 1e2); // For stability
 
             for(int i = 0; i < numParams; i++){
                 q[i] *= gamma;
@@ -472,59 +505,107 @@ void BayesianOptimizer::updateGaussianProcess() {
 
             int k = grads.size() - 1;  // Most recent index
 
-            for (int i = 1; i <= k; i++) {
-                int offset = k - i; // The indexing is weird here because of how I push it
+            for (int i = 0; i < k; i++) {
+                std::vector<double> s(numParams), y(numParams);
+                for (int j = 0; j < numParams; j++) {
+                    s[j] = history[i+1][j] - history[i][j];
+                    y[j] = grads[i+1][j] - grads[i][j];
+                }
+
+                double rho = rhoVec[i];
+                double alpha = alphaVec[i];
 
                 double beta = 0.0;
                 for (int j = 0; j < numParams; j++) {
-                    beta += (grads[i][j] - grads[i-1][j]) * q[j];
+                    beta += y[j] * q[j];
                 }
-                beta *= rhoVec[offset];
+                beta *= rho;
 
                 for (int j = 0; j < numParams; j++) {
-                    q[j] += (history[i][j] - history[i-1][j]) * (alphaVec[offset] - beta);
+                    q[j] += s[j] * (alpha - beta);
                 }
             }
         }
 
-        //q now contains a valid step in the positive direction. Now we do a Line Search to find the step size that will satisfy Armijo's condition
+        #if LOGGING==1
+        std::cout << "Step Vector: " << std::endl;
+        for(int i = 0; i < numParams; i++){
+            std::cout << "\t" << i << ": " << q[i] << std::endl;
+        }
+        #endif
+
+        //q now contains a valid step in the negative direction. Now we do a Line Search to find the step size that will satisfy Armijo's condition
         double epsilon = 1.0;
-        double tempLogL = currentLogL;
+        double tempLogL = currentValue.score;
         std::vector<double> newHyperparams;
+        bool success = true;
         while (true) {
             newHyperparams = currentValue.params;
             for(int i = 0; i < numParams; i++){
-                newHyperparams[i] += epsilon * q[i];
+                newHyperparams[i] -= epsilon * q[i];
             }
             hyperparams = newHyperparams;
             updateCholesky();
-            tempLogL = marginalLogLikelihood();
+            tempLogL = -1.0*marginalLogLikelihood() - logPrior();
 
             double condition = 0.0;
             for(int i = 0; i < numParams; i++){
                 condition += grads.back()[i] * q[i];
             }
 
-            condition *= sufficientIncrease * epsilon;
-            condition += currentLogL;
+            condition *= 1.0 * sufficientDecrease * epsilon;
+            condition += currentValue.score;
 
-            if (tempLogL >= condition) {
+            if (tempLogL <= condition) {
                 break;  // Armijo condition met
             }
             
             epsilon *= 0.5;  // Shrink step size
 
-            if (epsilon < 1e-8) {
-                std::cout << "Warning: Line search failed to find sufficient increase!" << std::endl;
+            if (epsilon < 1e-10) {
+                #if LOGGING == 1
+                std::cout << "Warning: Line search failed to find sufficient decrease!" << std::endl;
+                #endif
+                success = false;
                 break;
             }
         }
+
+        if(success == false){
+            newHyperparams = currentValue.params;
+            for(int i = 0; i < numParams; i++){
+                newHyperparams[i] -= q[i] * 1e-10;
+            }
+            hyperparams = newHyperparams;
+            updateCholesky();
+            tempLogL = -1.0*marginalLogLikelihood() - logPrior();
+            if(tempLogL >= currentValue.score){
+                #if LOGGING == 1
+                std::cout << "Rejecting L-BFGS Step!" << std::endl;
+                #endif
+                newHyperparams = currentValue.params;
+                hyperparams = newHyperparams;
+                updateCholesky();
+                tempLogL = currentValue.score;
+            }
+        }
+
+        #if LOGGING==1
+        std::cout << "Step-taken (" << tempLogL << "): " << std::endl;
+        for(int i = 0; i < numParams; i++){
+            std::cout << "\t" << i << ": " << newHyperparams[i] - currentValue.params[i] << std::endl;
+        }
+        #endif
 
         currentValue.score = tempLogL;
         currentValue.params = newHyperparams;
         
         history.push_back(newHyperparams);
-        grads.push_back(marginalLogLikelihoodGradient());
+        grads.push_back(nLLGradient());
+
+        std::vector<double> priorGrad = nLPGradient();
+        for(int i = 0; i < numParams; i++)
+            grads[grads.size()-1][i] += priorGrad[i];
 
         // Only maintain a certain length of entries
         if(history.size() > history_length){
@@ -541,27 +622,18 @@ void BayesianOptimizer::updateGaussianProcess() {
                 converged = true;
             }
         }
-        #if LOGGING==1
-        if(numIter % 1 == 0){
-            std::cout << "L-BFGS Optimization " << numIter << ": " << tempLogL << std::endl;
-        }
-        #endif
         if(numIter > 10000){
-            break;
             std::cout << "Warning: L-BFGS failed to converge!" << std::endl;
+            break;
         }
         numIter++;
     }
     while(converged == false);
 
-
-    #if LOGGING==1
-    std::cout << "Optimization has converged with parameters:" << std::endl;
+    std::cout << "Optimization has finished in " << numIter << " iterations with parameters:" << std::endl;
     for(int i = 0; i < numParams; i++){
         std::cout << "\t" << i << ": " << std::abs(hyperparams[i]) << std::endl;
     }
-    #endif
-
 }
 
 double BayesianOptimizer::smoothAverageAutocorrelation(const std::vector<std::vector<double>>& r){

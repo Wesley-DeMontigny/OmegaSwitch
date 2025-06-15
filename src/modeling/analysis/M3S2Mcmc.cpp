@@ -22,6 +22,9 @@ M3S2Mcmc::M3S2Mcmc(M3S2Model* m, TreeParameter* t, M3S2Matrix* cm, Settings& s, 
         bayesOptFreq = s.bayesOptFrequency;
         bayesOptIter = s.bayesOpt;
     }
+    else {
+        numBurnIn += s.bayesOpt;
+    }
 
     analysisLog = s.mcmcOutput;
     treeLog = s.treeOutput;
@@ -189,12 +192,12 @@ void M3S2Mcmc::burnin(){
                 std::cout << "Parameters had score " << objective << std::endl;
                 optim.registerSample(currVec, objective);
                 if(sampleCount <= 2){ // For samples 2 and 3 we just shuffle the values a bit
-                    tree->treeAlpha *= std::exp(0.5* (rng.uniformRv() - 0.5));
-                    tree->branchDelta *= std::exp(0.5* (rng.uniformRv() - 0.5));
-                    codonMatrix->stationaryAlpha *= std::exp(0.5* (rng.uniformRv() - 0.5));
-                    codonMatrix->kDelta *= std::exp(0.5* (rng.uniformRv() - 0.5));
-                    codonMatrix->omegaDelta *= std::exp(0.5* (rng.uniformRv() - 0.5));
-                    codonMatrix->rDelta *= std::exp(0.5* (rng.uniformRv() - 0.5));
+                    tree->treeAlpha *= std::exp((rng.uniformRv() - 0.5));
+                    tree->branchDelta *= std::exp((rng.uniformRv() - 0.5));
+                    codonMatrix->stationaryAlpha *= std::exp((rng.uniformRv() - 0.5));
+                    codonMatrix->kDelta *= std::exp((rng.uniformRv() - 0.5));
+                    codonMatrix->omegaDelta *= std::exp((rng.uniformRv() - 0.5));
+                    codonMatrix->rDelta *= std::exp((rng.uniformRv() - 0.5));
                 }
                 else {
                     optim.updateGaussianProcess();

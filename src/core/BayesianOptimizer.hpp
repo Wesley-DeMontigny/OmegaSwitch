@@ -37,7 +37,8 @@ class BayesianOptimizer {
         std::vector<double> hyperparams; // The length scales of the ARD kernel
         std::vector<double> upperBound;
         std::vector<double> lowerBound;
-        std::vector<double> initialSampleScale;  
+        std::vector<double> priorMeans;
+        std::vector<double> priorVariances;
 
         Matrix<double> choleskyFactor;
         Matrix<double> kernelMatrix;
@@ -45,7 +46,9 @@ class BayesianOptimizer {
 
         double kernel(std::vector<double>& a, std::vector<double>& b); // ARD kernel
         double marginalLogLikelihood();
-        std::vector<double> marginalLogLikelihoodGradient();
+        std::vector<double> nLLGradient();
+        double logPrior();
+        std::vector<double> nLPGradient();
         double autocorrelationScore(const std::vector<std::vector<double>>& r, int start, int end);
         double smoothAverageAutocorrelation(const std::vector<std::vector<double>>& r);
         double averageProportionalJumpingDistance(const std::vector<std::vector<double>>& r);

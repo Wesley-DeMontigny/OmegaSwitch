@@ -50,7 +50,7 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
 
         M3S2Model model(settings, &aln, &treeParam, &rateMatrix);
 
-        M3S2Mcmc myMCMC(&model, &treeParam, &rateMatrix, settings);
+        M3S2Mcmc myMCMC(&model, &treeParam, &rateMatrix, settings, disableBayesOpt);
         
         std::cout << "Starting MCMC..." << std::endl;
         myMCMC.burnin();
@@ -65,7 +65,7 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
 
         DPPModel model(settings, &aln, &treeParam, &rateMatrix, &dpp);
 
-        DPPMcmc myMCMC(&model, &treeParam, &rateMatrix, &dpp, settings);
+        DPPMcmc myMCMC(&model, &treeParam, &rateMatrix, &dpp, settings, disableBayesOpt);
 
         std::cout << "Starting MCMC..." << std::endl;
         myMCMC.burnin();

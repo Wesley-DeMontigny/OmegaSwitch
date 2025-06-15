@@ -323,11 +323,19 @@ void DPPModel::regenerateLikelihood(){
         pR += stateSpace;
     }
 
+    #if LOGGING == 1
+    std::cout << "Non-rescaled likelihood: " << lnL << std::endl;
+    #endif
+
     double* rescalePointer = rescaling;
     for(int i = 0, len = numNodes * numChar; i < len; i++){
         lnL += *rescalePointer;
         rescalePointer++;
     }
+
+    #if LOGGING == 1
+    std::cout << "Rescaled likelihood: " << lnL << std::endl;
+    #endif
 
     currentLikelihood = lnL;
 
@@ -340,7 +348,7 @@ void DPPModel::regenerateLikelihood(){
 void DPPModel::regenerateTransitionProbs(int site, int category){
     TreeObject* activeT = tree->getTree();
 
-    std::vector<Node*>&  poSeq = activeT->getPostOrderSeq();
+    std::vector<Node*> poSeq = activeT->getPostOrderSeq();
     std::vector<Category> categories = dpp->getCategories();
 
     double omega1 = categories[category].omega1;
@@ -362,7 +370,7 @@ void DPPModel::regenerateTransitionProbs(int site, int category){
 double DPPModel::testCategory(int site, int category, bool update){
     TreeObject* activeT = tree->getTree();
 
-    std::vector<Node*>&  poSeq = activeT->getPostOrderSeq();
+    std::vector<Node*> poSeq = activeT->getPostOrderSeq();
     std::vector<Category> categories = dpp->getCategories();
 
     if(update) {
@@ -594,7 +602,7 @@ std::tuple<std::string, std::string> DPPModel::reconstructionOut(int i){
     std::vector<Node*> tips = tree->getTree()->getTips();
 
     TreeObject* activeT = tree->getTree();
-    std::vector<Node*>&  preOrderSeq = activeT->getPostOrderSeq();
+    std::vector<Node*> preOrderSeq = activeT->getPostOrderSeq();
     std::reverse(preOrderSeq.begin(), preOrderSeq.end());
     std::vector<int> assignments = dpp->getAssignments();
     std::vector<Category> categories = dpp->getCategories();

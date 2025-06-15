@@ -283,11 +283,19 @@ void M0Model::regenerateLikelihood(){
         pR += stateSpace;
     }
 
+    #if LOGGING == 1
+    std::cout << "Non-rescaled likelihood: " << lnL << std::endl;
+    #endif
+
     double* rescalePointer = rescaling;
     for(int i = 0, len = numNodes * numChar; i < len; i++){
         lnL += *rescalePointer;
         rescalePointer++;
     }
+
+    #if LOGGING == 1
+    std::cout << "Rescaled likelihood: " << lnL << std::endl;
+    #endif
 
     currentLikelihood = lnL;
 

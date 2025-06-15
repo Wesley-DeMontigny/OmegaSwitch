@@ -283,11 +283,19 @@ void M3S2Model::regenerateLikelihood(){
         pR += stateSpace;
     }
 
+    #if LOGGING == 1
+    std::cout << "Non-rescaled likelihood: " << lnL << std::endl;
+    #endif
+
     double* rescalePointer = rescaling;
     for(int i = 0, len = numNodes * numChar; i < len; i++){
         lnL += *rescalePointer;
         rescalePointer++;
     }
+
+    #if LOGGING == 1
+    std::cout << "Rescaled likelihood: " << lnL << std::endl;
+    #endif
 
     currentLikelihood = lnL;
 
@@ -369,7 +377,7 @@ std::tuple<std::string, std::string> M3S2Model::reconstructionOut(int i){
     std::vector<Node*> tips = tree->getTree()->getTips();
 
     TreeObject* activeT = tree->getTree();
-    std::vector<Node*>&  preOrderSeq = activeT->getPostOrderSeq();
+    std::vector<Node*> preOrderSeq = activeT->getPostOrderSeq();
     std::reverse(preOrderSeq.begin(), preOrderSeq.end());
 
     auto dNdSTuple = rateMatrix->dNdS();

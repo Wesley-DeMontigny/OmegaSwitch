@@ -23,6 +23,7 @@ struct Settings {
     int             tuneFrequency;
     int             bayesOpt;
     int             bayesOptFrequency;
+    int             truncation;
     double          kLambda;
     double          rLambda;
     double          omegaLambda;
@@ -34,15 +35,18 @@ struct Settings {
     double          omegaWeight;
     double          dppWeight;
     double          treeWeight;
+    double          proportionsWeight;
     double          stationaryWeight;
     int             numGibbs;
     int             numSimulations;
 
     bool M0;
     bool M3S2;
+    bool SB;
     bool simulateM0;
     bool simulateM3S2;
     bool simulateDPP;
+    bool simulateSB;
     bool sequentialTuningSim;
 
     void            usage();

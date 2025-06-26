@@ -144,22 +144,24 @@ TreeObject::TreeObject(std::string newick, std::vector<std::string> taxaNames){
                 while(tok[tok.size()-1] == ' ')
                     tok.erase(tok.size()-1);
 
+                // There is a weird bug causing spaces elsewhere to not be parsed correctly? I am putting this here to fix that
+                if(tok != ""){
+                    Node* newNode = addNode();
+                    p->addNeighbor(newNode);
+                    newNode->addNeighbor(p);
+                    newNode->setAncestor(p);
+                    newNode->setName(tok);
+                    newNode->setIsTip(true);
+                    setBranchLength(newNode, 0.0);
 
-                Node* newNode = addNode();
-                p->addNeighbor(newNode);
-                newNode->addNeighbor(p);
-                newNode->setAncestor(p);
-                newNode->setName(tok);
-                newNode->setIsTip(true);
-                setBranchLength(newNode, 0.0);
+                    int taxonIndex = getTaxonIndex(tok, taxaNames);
+                    if(taxonIndex == -1)
+                        Msg::error("Token '" + tok + "' is not in taxa names");
+                    newNode->setIndex(taxonIndex);
 
-                int taxonIndex = getTaxonIndex(tok, taxaNames);
-                if(taxonIndex == -1)
-                    Msg::error("Token '" + tok + "' is not in taxa names");
-                newNode->setIndex(taxonIndex);
-
-                p = newNode;
-                numTaxa++;
+                    p = newNode;
+                    numTaxa++;
+                }
             }
             readingBranchLength = false;
         }

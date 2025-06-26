@@ -47,6 +47,8 @@ Alignment::Alignment(int* siteMatrix, int nC, int nT) : numChar(nC), numTaxa(nT)
     for(int i = 0; i < numTaxa; i++){
         for(int j = 0; j < numChar; j++){
             int charType = siteMatrix[j*numTaxa +i] % 61;
+            if(charType < 0 || charType > 61)
+                Msg::error("Invalid character state from simulation!");
             matrix[i][j] = 1ULL << charType;
         }
     }

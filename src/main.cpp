@@ -90,30 +90,41 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
 }
 
 int randomMultinomial(RandomVariable& rng, const std::vector<double>& weights){
-    double choice = rng.uniformRv();
+    int iter = 0;
+    do{
+        double choice = rng.uniformRv();
 
-    double cumulative = 0.0;
-    for(int i = 0; i < weights.size(); i++){
-        cumulative += weights[i];
-        if(choice < cumulative){
-            return i;
+        double cumulative = 0.0;
+        for(int i = 0; i < weights.size(); i++){
+            cumulative += weights[i];
+            if(choice < cumulative){
+                return i;
+            }
         }
+        iter++;
     }
-
+    while(iter < 100);
+    Msg::error("Failed 100 Multinomial draws!");
     return -1;
 }
 
 int randomTransition(RandomVariable& rng, const int ancestralState, const Matrix<double>& transitionProbs){
-    double choice = rng.uniformRv();
+    int iter = 0;
+    do{
+        double choice = rng.uniformRv();
 
-    double cumulative = 0.0;
-    for(int i = 0; i < transitionProbs.dim1(); i++){
-        cumulative += transitionProbs(ancestralState, i);
-        if(choice < cumulative){
-            return i;
+        double cumulative = 0.0;
+        for(int i = 0; i < transitionProbs.dim1(); i++){
+            cumulative += transitionProbs(ancestralState, i);
+            if(choice < cumulative){
+                return i;
+            }
         }
+        iter++;
     }
+    while(iter < 100);
 
+    Msg::error("Failed 100 transition draws!");
     return -1;
 }
 

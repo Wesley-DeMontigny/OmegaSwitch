@@ -10,7 +10,7 @@ SBMatrix::SBMatrix(Settings settings) :
                                    currentQMatrix(61 * settings.truncation, 61 * settings.truncation, 0.0), oldQMatrix(61 * settings.truncation, 61 * settings.truncation, 0.0), 
                                    currentStationary(61, -1), oldStationary(61, -1), kLambda(settings.kLambda), rLambda(settings.rLambda),
                                    omegaLambda(settings.omegaLambda), rDelta(0.5),  stationaryAlpha(30000), kDelta(0.5), omegaDelta(0.5),
-                                   stationaryPriorAlpha(61, 2.0), proportionAlpha(10), truncation(settings.truncation) {
+                                   stationaryPriorAlpha(61, 2.0), proportionAlpha(100), truncation(settings.truncation) {
     std::vector<int> aaMap = {8, 11, 8, 11, 16, 16, 16, 16, 14, 15, 14, 15, 7, 7, 10, 7, 13, 6, 13, 6, 12, 12, 12, 12, 14, 14, 14, 14, 9, 9, 9, 9, 3, 2, 3, 2, 0, 0, 0, 0, 5, 5, 5, 5, 17, 17, 17, 17, 19, 19, 15, 15, 15, 15, 1, 18, 1, 9, 4, 9, 4};  
     std::vector<const char*> codons = {"AAA", "AAC", "AAG", "AAT", "ACA", "ACC", "ACG", "ACT", "AGA", "AGC", "AGG", "AGT", "ATA", "ATC", "ATG", "ATT", "CAA", "CAC", "CAG", "CAT", "CCA", "CCC", "CCG", "CCT", "CGA", "CGC", "CGG", "CGT", "CTA", "CTC", "CTG", "CTT", "GAA", "GAC", "GAG", "GAT", "GCA", "GCC", "GCG", "GCT", "GGA", "GGC", "GGG", "GGT", "GTA", "GTC", "GTG", "GTT", "TAC", "TAT", "TCA", "TCC", "TCG", "TCT", "TGC", "TGG", "TGT", "TTA", "TTC", "TTG", "TTT"};
 
@@ -88,11 +88,9 @@ SBMatrix::SBMatrix(Settings settings) :
 void SBMatrix::rebuildQMatrix(){
     proportions.empty();
     proportions.push_back(currentProportionParams[0]);
-    double total = (1-proportions[0]);
     double sum = proportions[0];
     for(int i = 1; i < truncation-1; i++){
-        double newProp = total * currentProportionParams[i];
-        total *= (1-newProp);
+        double newProp = (1-sum) * currentProportionParams[i];
         proportions.push_back(newProp);
         sum += newProp;
     }
@@ -343,7 +341,7 @@ double SBMatrix::updateProportions(){
     double oldVal = currentProportionParams[i];
 
     double a = proportionAlpha+ 1.0;
-    double b = (proportionAlpha / oldVal) - a + 2.0;
+    double b = (proportionAlpha / (oldVal + 0.1)) - a + 2.0;
     std::cout << a << " " << b << std::endl;
     double newVal = Probability::Beta::rv(&rng, a, b);
 
@@ -354,7 +352,7 @@ double SBMatrix::updateProportions(){
 
     double forward = Probability::Beta::lnPdf(a, b, newVal);
     double newA = proportionAlpha + 1.0;
-    double newB = (proportionAlpha / newVal) - a + 2.0;
+    double newB = (proportionAlpha / (newVal + 0.1)) - a + 2.0;
 
     double backward = Probability::Beta::lnPdf(newA, newB, oldVal);
     

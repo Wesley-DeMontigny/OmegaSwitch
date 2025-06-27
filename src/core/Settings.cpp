@@ -144,6 +144,10 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                 treeWeight = stod(settings[i]);
             else if (currentArg == "-omegaWeight")
                 omegaWeight = stod(settings[i]);
+            else if (currentArg == "-proportionsWeight")
+                proportionsWeight = stod(settings[i]);
+            else if (currentArg == "-stickBreakingTruncation")
+                truncation = stoi(settings[i]);
             else if (currentArg == "-fixedTree")
                 fixedTree = settings[i];
             else if (currentArg == "-numSimulations")
@@ -207,9 +211,11 @@ void Settings::print(){
     std::cout << "Inference Model and Simulation:" << std::endl;
     std::cout << "   * -M0                : " << M0 << std::endl;
     std::cout << "   * -M3S2              : " << M3S2 << std::endl;
+    std::cout << "   * -SB                : " << M3S2 << std::endl;
     std::cout << "   * -simulateM0        : " << simulateM0 << std::endl;
     std::cout << "   * -simulateM3S2      : " << simulateM3S2 << std::endl;
     std::cout << "   * -simulateDPP       : " << simulateDPP << std::endl;
+    std::cout << "   * -simulateSB        : " << simulateSB << std::endl;
     std::cout << "   * -numSimulations    : " << numSimulations << std::endl;
     std::cout << std::endl;
     
@@ -254,11 +260,13 @@ void Settings::usage(void) {
     std::cout << std::endl;
 
     std::cout << "Inference Model and Simulation:" << std::endl;
-    std::cout << "   * -M0                : Do inference under M0 as described by ______." << std::endl;
-    std::cout << "   * -M3S2              : Do inference under M3S2 as described by ______." << std::endl;
+    std::cout << "   * -M0                : Do inference under a normal codon phylogenetic model." << std::endl;
+    std::cout << "   * -M3S2              : Do inference under M3S2 as described by Guindon et al. (2004)." << std::endl;
+    std::cout << "   * -SB                : (Experimental) Do inference under a stick-breaking Markov-modulated model." << std::endl;
     std::cout << "   * -simulateM0        : Directs the program to simulate under M0 and test against the selected inference model." << std::endl;
     std::cout << "   * -simulateM3S2      : Directs the program to simulate under M3S2 and test against the selected inference model." << std::endl;
     std::cout << "   * -simulateDPP       : Directs the program to simulate under the DPP model and test against the selected inference model." << std::endl;
+    std::cout << "   * -simulateSB        : (Experimental) Directs the program to simulate under the stick-breaking Markov-modulated model and test against the selected inference model." << std::endl;
     std::cout << "   * -numSimulations    : The number of simulations to do inference under." << std::endl;
     std::cout << std::endl;
 
@@ -277,8 +285,8 @@ void Settings::usage(void) {
     std::cout << "   * -sampleFreq        : How often to ouput the MCMC state to log files." << std::endl;
     std::cout << "   * -burnInIter        : The number of iterations for the burn-in." << std::endl;
     std::cout << "   * -tuneFreq          : How often to tune the acceptance rate of the MCMC moves during the burn-in." << std::endl;
-    std::cout << "   * -bayesOpt          : The number of iterations to run Bayesian optimization on the MCMC moves after the burn-in." << std::endl;
-    std::cout << "   * -bayesOptFreq      : How often to sample the trace for Bayesian optimization." << std::endl;
+    std::cout << "   * -bayesOpt          : (Experimental) The number of iterations to run Bayesian optimization on the MCMC moves after the burn-in." << std::endl;
+    std::cout << "   * -bayesOptFreq      : (Experimental) How often to sample the trace for Bayesian optimization." << std::endl;
     std::cout << "   * -numGibbs          : How many Gibbs updates to perform on the DPP partitions." << std::endl;
     std::cout << "   * -treeWeight        : How often to propose a move on the tree." << std::endl;
     std::cout << "   * -kWeight           : How often to propose a move on the K parameter." << std::endl;

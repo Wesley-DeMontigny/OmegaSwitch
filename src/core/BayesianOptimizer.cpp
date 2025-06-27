@@ -98,6 +98,8 @@ std::vector<std::vector<double>> BayesianOptimizer::getMaximumN(int N){
 }
 
 double BayesianOptimizer::kernel(std::vector<double>& a, std::vector<double>& b){
+    // This is the ARD Kernel. We want to use something a little less flexible.
+    /*
     double sum = 0.0;
     for(int i = 0; i < numParams; i++){
         double diff = a[i] - b[i];
@@ -106,6 +108,17 @@ double BayesianOptimizer::kernel(std::vector<double>& a, std::vector<double>& b)
     sum /= -2.0;
 
     return sampleVariance * std::exp(sum);
+    */
+
+    // Linear kernel with dimension-specific precision
+    double sum = 0.0;
+    for(int i = 0; i < numParams; i++){
+        sum += (a[i] * b[i])/hyperparams[i];
+    }
+
+    assert(sum > 0);
+
+    return sampleVariance + sum;
 }
 
 double BayesianOptimizer::marginalLogLikelihood(){
@@ -159,8 +172,12 @@ std::vector<double> BayesianOptimizer::nLLGradient(){
         }
     }
 
+    // Gradient of the Kernel with respect to the parameters
     for(int p = 0; p < numParams; p++){
+        // ARD Kernel
+        /*
         Matrix<double> kCopy = kernelMatrix.copy();
+
         double hyperParamCubed = std::pow(hyperparams[p], 3);
 
         for(int i = 0; i < numSamples; i++){
@@ -171,8 +188,16 @@ std::vector<double> BayesianOptimizer::nLLGradient(){
         }
 
         kCopy /= hyperParamCubed;
+        */
 
-        Matrix<double> matProd = difference * kCopy;
+        Matrix<double> kDerivative(kernelMatrix.dim1(), kernelMatrix.dim2(), 0.0);
+        for(int i = 0; i < kDerivative.dim1(); i++){
+            for(int j = 0; j < kDerivative.dim1(); j++){
+                kDerivative(i,j) = -1.0 * (samples[i].params[p] * samples[j].params[p])/std::pow(hyperparams[p], 2);
+            }
+        }
+
+        Matrix<double> matProd = difference * kDerivative;
         double trace = 0.0;
         for(int i = 0; i < numSamples; i++){
             trace += matProd(i,i);
@@ -199,6 +224,7 @@ double BayesianOptimizer::logPrior(){
 std::vector<double> BayesianOptimizer::nLPGradient(){
     std::vector<double> gradients(numParams, 0.0);
 
+    // Gradients for the log-normal prior
     for(int i = 0; i < numParams; i++){
         double grad = 1/hyperparams[i];
         grad *= 1 + ((std::log(hyperparams[i]) - priorMeans[i])/priorVariances[i]);
@@ -393,6 +419,9 @@ void BayesianOptimizer::updateCholesky(){
     Matrix<double> LT(numSamples, numSamples, 0.0);
     int tSuccess = Math::transposeMatrix(choleskyFactor, LT);
     Math::backSubstitutionRow(LT, alpha);
+
+    for(int i = 0; i < numSamples; i++);
+        //std::cout << alpha[i] << std::endl;
 }
 
 void BayesianOptimizer::updateGaussianProcess() {

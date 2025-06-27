@@ -9,11 +9,19 @@
 #include "Matrix.hpp"
 #include "RandomVariable.hpp"
 #include "Probability.hpp"
+#include "Msg.hpp"
 
 std::vector<double> pow10Vector(std::vector<double> v){
     std::vector<double> returnVec;
     for(double n : v)
         returnVec.push_back(std::pow(10.0,n));
+    return returnVec;
+}
+
+std::vector<double> expVector(std::vector<double> v){
+    std::vector<double> returnVec;
+    for(double n : v)
+        returnVec.push_back(std::exp(n));
     return returnVec;
 }
 
@@ -116,7 +124,12 @@ double BayesianOptimizer::kernel(std::vector<double>& a, std::vector<double>& b)
         sum += (a[i] * b[i])/hyperparams[i];
     }
 
-    assert(sum > 0);
+    if(sum < 0){
+        for(int i = 0; i < numParams; i++){
+            std::cout << "Kernel Entries:\t" << a[i] << "\t" << b[i] << "\t" << hyperparams[i] << std::endl;
+        }
+        Msg::error("Kernel entry was not positive!");
+    }
 
     return sampleVariance + sum;
 }
@@ -206,31 +219,6 @@ std::vector<double> BayesianOptimizer::nLLGradient(){
         gradients[p] = trace * -0.5; // Multiply by -1.0 this for the negative log likelihood
     }
     
-    return gradients;
-}
-
-double BayesianOptimizer::logPrior(){
-    double total = 0.0;
-    for(int i = 0; i < numParams; i++){
-        double priorProbs = log(hyperparams[i]) + 
-                            std::log(std::sqrt(2 * M_PI * priorVariances[i])) +
-                            std::pow(std::log(hyperparams[i]) - priorMeans[i], 2)/(2*priorVariances[i]);
-        total -= priorProbs;
-    }
-
-    return total;
-}
-
-std::vector<double> BayesianOptimizer::nLPGradient(){
-    std::vector<double> gradients(numParams, 0.0);
-
-    // Gradients for the log-normal prior
-    for(int i = 0; i < numParams; i++){
-        double grad = 1/hyperparams[i];
-        grad *= 1 + ((std::log(hyperparams[i]) - priorMeans[i])/priorVariances[i]);
-        gradients[i] = grad;
-    }
-
     return gradients;
 }
 
@@ -378,17 +366,11 @@ void BayesianOptimizer::setBounds(std::vector<double>& diff, std::vector<double>
         double abs_diff = std::min(std::abs(diff[i]), 0.75*mean[i]);
         upperBound.push_back(mean[i] + abs_diff);
         lowerBound.push_back(std::max(mean[i] - abs_diff, 1e-3));
-        priorMeans.push_back(mean[i]);
-        priorVariances.push_back(std::max(std::pow((upperBound[i] - mean[i])/2.0, 2.0), 2.0)); // We just want a rough idea about scale
     }
 
     std::cout << "Setting bounds on the MCMC parameter optimization:" << std::endl;
     for(int i = 0; i < upperBound.size(); i++){
         std::cout << "\t" << i << ": " << lowerBound[i] << "-" << upperBound[i] << std::endl;
-    }
-    std::cout << "Initializing log-normal priors on Gaussian process hyperparameters:" << std::endl;
-    for(int i = 0; i < priorMeans.size(); i++){
-        std::cout << "\t" << i << ": Mean=" << priorMeans[i] << ", Variance=" << priorVariances[i] << std::endl;
     }
 }
 
@@ -461,20 +443,26 @@ void BayesianOptimizer::updateGaussianProcess() {
     for(int i = 0; i < numLHCSamples; i++){
         hyperparams = pow10Vector(lhcSamples[i]);
         updateCholesky();
-        double logL = -1.0*marginalLogLikelihood() - logPrior();
+        double logL = -1.0*marginalLogLikelihood();
         ParamScorePair newVertex;
-        newVertex.params = pow10Vector(lhcSamples[i]);
+        newVertex.params = lhcSamples[i];
         newVertex.score = logL;
         hyperparamPoints.push_back(newVertex);
     }
 
     ParamScorePair currentValue;
+    currentValue.score = INFINITY;
     for(ParamScorePair psp : hyperparamPoints){ // Minimize negative log likelihood
         if(psp < currentValue)
             currentValue = psp;
     }
-    hyperparams = currentValue.params;
+    hyperparams = pow10Vector(currentValue.params);
     updateCholesky();
+
+    // Convert to natural log space...
+    for(int i = 0; i < numParams; i++){
+        currentValue.params[i] *= std::log(10);
+    }
 
     std::vector<std::vector<double>> history;
     std::vector<std::vector<double>> grads;
@@ -486,9 +474,9 @@ void BayesianOptimizer::updateGaussianProcess() {
     history.push_back(currentValue.params);
     grads.push_back(nLLGradient());
 
-    std::vector<double> priorGrad = nLPGradient();
+    // Adjust for log space
     for(int i = 0; i < numParams; i++)
-        grads[0][i] += priorGrad[i];
+        grads[0][i] *= std::exp(currentValue.params[i]);
 
     do {
         std::vector<double> q = grads.back();;
@@ -573,9 +561,9 @@ void BayesianOptimizer::updateGaussianProcess() {
             for(int i = 0; i < numParams; i++){
                 newHyperparams[i] -= epsilon * q[i];
             }
-            hyperparams = newHyperparams;
+            hyperparams = expVector(newHyperparams);
             updateCholesky();
-            tempLogL = -1.0*marginalLogLikelihood() - logPrior();
+            tempLogL = -1.0*marginalLogLikelihood();
 
             double condition = 0.0;
             for(int i = 0; i < numParams; i++){
@@ -605,15 +593,15 @@ void BayesianOptimizer::updateGaussianProcess() {
             for(int i = 0; i < numParams; i++){
                 newHyperparams[i] -= q[i] * 1e-10;
             }
-            hyperparams = newHyperparams;
+            hyperparams = expVector(newHyperparams);
             updateCholesky();
-            tempLogL = -1.0*marginalLogLikelihood() - logPrior();
+            tempLogL = -1.0*marginalLogLikelihood();
             if(tempLogL >= currentValue.score){
                 #if LOGGING == 1
                 std::cout << "Rejecting L-BFGS Step!" << std::endl;
                 #endif
                 newHyperparams = currentValue.params;
-                hyperparams = newHyperparams;
+                hyperparams = expVector(newHyperparams);
                 updateCholesky();
                 tempLogL = currentValue.score;
             }
@@ -632,9 +620,8 @@ void BayesianOptimizer::updateGaussianProcess() {
         history.push_back(newHyperparams);
         grads.push_back(nLLGradient());
 
-        std::vector<double> priorGrad = nLPGradient();
         for(int i = 0; i < numParams; i++)
-            grads[grads.size()-1][i] += priorGrad[i];
+            grads[grads.size()-1][i] *= std::exp(currentValue.params[i]);
 
         // Only maintain a certain length of entries
         if(history.size() > history_length){
@@ -661,7 +648,7 @@ void BayesianOptimizer::updateGaussianProcess() {
 
     std::cout << "Optimization has finished in " << numIter << " iterations with parameters:" << std::endl;
     for(int i = 0; i < numParams; i++){
-        std::cout << "\t" << i << ": " << std::abs(hyperparams[i]) << std::endl;
+        std::cout << "\t" << i << ": " << hyperparams[i] << std::endl;
     }
 }
 

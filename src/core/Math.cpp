@@ -34,6 +34,7 @@
 #include <cmath>
 #include <iostream>
 #include <vector>
+#include "Msg.hpp"
 #include "Math.hpp"
 #include "Matrix.hpp"
 
@@ -106,6 +107,12 @@ void Math::choleskyDecomposition(Matrix<double>& spd, Matrix<double>& cf){
 				cf(i, j) = std::sqrt(spd(i, i) - sum);
 			else
 				cf(i, j) = (1.0 / cf(j,j) * (spd(i, j) - sum));
+		}
+	}
+
+	for(int i = 0; i < spd.dim1(); i++){
+		if(cf(i,i) < 0){
+			Msg::error("Cholesky decomposition performed on non SPD matrix.");
 		}
 	}
 }

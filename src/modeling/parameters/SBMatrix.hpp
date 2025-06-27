@@ -30,7 +30,7 @@ class SBMatrix : public Parameter {
         std::vector<double> getRawStationary() {return currentStationary;}
         double getK() {return currentK;}
         std::vector<double> getOmegas() {return currentOmegas;}
-        std::vector<double> getProportions() {return proportions;}
+        std::vector<double> getProportions() {return currentProportionParams;}
         double getR() {return currentR;}
 
         double kDelta;
@@ -81,8 +81,6 @@ class SBMatrix : public Parameter {
         std::vector<double> proportions;
         std::vector<double> currentProportionParams;
         std::vector<double> oldProportionParams;
-        //double currentProportionsPrior = 0;
-        //double oldProportionsPrior = 0;
 
         std::vector<double> currentStationary;
         std::vector<double> oldStationary;

@@ -78,7 +78,7 @@ double SBMcmc::GibbsIteration(double currentLnPosterior){
     }
     else if(randomMove < omegaChoice){
         updater = [this]() { return codonMatrix->updateOmega(); };
-        numUpdates = (truncations/2)*generalUpdates;
+        numUpdates = truncations;
         #if LOGGING==1
         std::cout << "Updating Omega..." << std::endl;
         #endif
@@ -99,7 +99,7 @@ double SBMcmc::GibbsIteration(double currentLnPosterior){
     }
     else if(randomMove < proportionChoice){
         updater = [this]() { return codonMatrix->updateProportions(); };
-        numUpdates = (truncations/2)*generalUpdates;
+        numUpdates = truncations;
         #if LOGGING==1
         std::cout << "Updating Proportions..." << std::endl;
         #endif

@@ -342,7 +342,6 @@ double SBMatrix::updateProportions(){
 
     double a = proportionAlpha+ 1.0;
     double b = (proportionAlpha / oldVal) - a + 2.0;
-    std::cout << a << "," << b << std::endl;
     double newVal = Probability::Beta::rv(&rng, a, b);
 
     currentProportionParams[i] = newVal;

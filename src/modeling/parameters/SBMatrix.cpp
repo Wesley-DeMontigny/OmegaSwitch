@@ -86,7 +86,7 @@ SBMatrix::SBMatrix(Settings settings) :
 }
 
 void SBMatrix::rebuildQMatrix(){
-    proportions.empty();
+    proportions.clear();
     proportions.push_back(currentProportionParams[0]);
     double sum = proportions[0];
     for(int i = 1; i < truncation-1; i++){
@@ -159,7 +159,7 @@ void SBMatrix::reject() {
     currentStationaryPrior = oldStationaryPrior;
     currentProportionParams = oldProportionParams;
 
-    proportions.empty();
+    proportions.clear();
     proportions.push_back(currentProportionParams[0]);
     double total = (1-proportions[0]);
     for(int i = 1; i < truncation-1; i++){

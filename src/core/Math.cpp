@@ -93,13 +93,11 @@ void Math::computeLandU(Matrix<double> &aMat, Matrix<double> &lMat, Matrix<doubl
 
 /* 
 	Cholesky–Banachiewicz algorithm
-   	I am not going to check positive definiteness and just assume that I am being smart with this
 */
 void Math::choleskyDecomposition(Matrix<double>& spd, Matrix<double>& cf){
-
 	for (int i = 0; i < spd.dim1(); i++){
 		for (int j = 0; j <= i; j++){
-			float sum = 0;
+			double sum = 0;
 			for (int k = 0; k < j; k++)
 				sum += cf(i, k) * cf(j, k);
 
@@ -112,7 +110,24 @@ void Math::choleskyDecomposition(Matrix<double>& spd, Matrix<double>& cf){
 
 	for(int i = 0; i < spd.dim1(); i++){
 		if(cf(i,i) < 0){
-			Msg::error("Cholesky decomposition performed on non SPD matrix.");
+			Msg::error("Cholesky decomposition failed! Non-positive entries along the trace!");
+		}
+		else if(std::isnan(cf(i,i))){
+			std::cout << "Cholesky Factor:" << std::endl;
+			for(int j = 0; j < cf.dim1(); j++){
+				for(int k = 0; k < cf.dim2(); k++){
+					std::cout << cf(j,k) << "   ";
+				}
+				std::cout << std::endl;
+			}
+			std::cout << "SPD Matrix:" << std::endl;
+			for(int j = 0; j < spd.dim1(); j++){
+				for(int k = 0; k < spd.dim2(); k++){
+					std::cout << spd(j,k) << "   ";
+				}
+				std::cout << std::endl;
+			}
+			Msg::error("Cholesky decomposition failed! NaN entries along the trace!");
 		}
 	}
 }

@@ -18,13 +18,6 @@ std::vector<double> pow10Vector(std::vector<double> v){
     return returnVec;
 }
 
-std::vector<double> expVector(std::vector<double> v){
-    std::vector<double> returnVec;
-    for(double n : v)
-        returnVec.push_back(std::exp(n));
-    return returnVec;
-}
-
 BayesianOptimizer::BayesianOptimizer(int nP, int s) : numParams(nP), iterationsPerSample(s), hyperparams(nP, 1.0) {}
 
 BayesianOptimizer::~BayesianOptimizer() {}
@@ -106,32 +99,14 @@ std::vector<std::vector<double>> BayesianOptimizer::getMaximumN(int N){
 }
 
 double BayesianOptimizer::kernel(std::vector<double>& a, std::vector<double>& b){
-    // This is the ARD Kernel. We want to use something a little less flexible.
-    /*
     double sum = 0.0;
     for(int i = 0; i < numParams; i++){
         double diff = a[i] - b[i];
-        sum += std::pow(diff, 2) / std::pow(hyperparams[i], 2);
+        sum += std::pow(diff, 2) / (std::max(1e-10, std::pow(hyperparams[i], 2))); // To make sure we don't underflow
     }
     sum /= -2.0;
 
     return sampleVariance * std::exp(sum);
-    */
-
-    // Linear kernel with dimension-specific precision
-    double sum = 0.0;
-    for(int i = 0; i < numParams; i++){
-        sum += (a[i] * b[i])/hyperparams[i];
-    }
-
-    if(sum < 0){
-        for(int i = 0; i < numParams; i++){
-            std::cout << "Kernel Entries:\t" << a[i] << "\t" << b[i] << "\t" << hyperparams[i] << std::endl;
-        }
-        Msg::error("Kernel entry was not positive!");
-    }
-
-    return sampleVariance + sum;
 }
 
 double BayesianOptimizer::marginalLogLikelihood(){
@@ -187,30 +162,20 @@ std::vector<double> BayesianOptimizer::nLLGradient(){
 
     // Gradient of the Kernel with respect to the parameters
     for(int p = 0; p < numParams; p++){
-        // ARD Kernel
-        /*
         Matrix<double> kCopy = kernelMatrix.copy();
 
-        double hyperParamCubed = std::pow(hyperparams[p], 3);
+        double hyperParamCubed = std::pow(hyperparams[p], 3.0);
 
         for(int i = 0; i < numSamples; i++){
             for(int j = 0; j < numSamples; j++){
                 double diff = samples[i].params[p] - samples[j].params[p];
-                kCopy(i,j) *= std::pow(diff, 2);
+                kCopy(i,j) *= std::pow(diff, 2.0);
             }
         }
 
         kCopy /= hyperParamCubed;
-        */
 
-        Matrix<double> kDerivative(kernelMatrix.dim1(), kernelMatrix.dim2(), 0.0);
-        for(int i = 0; i < kDerivative.dim1(); i++){
-            for(int j = 0; j < kDerivative.dim1(); j++){
-                kDerivative(i,j) = -1.0 * (samples[i].params[p] * samples[j].params[p])/std::pow(hyperparams[p], 2);
-            }
-        }
-
-        Matrix<double> matProd = difference * kDerivative;
+        Matrix<double> matProd = difference * kCopy;
         double trace = 0.0;
         for(int i = 0; i < numSamples; i++){
             trace += matProd(i,i);
@@ -222,13 +187,38 @@ std::vector<double> BayesianOptimizer::nLLGradient(){
     return gradients;
 }
 
+double BayesianOptimizer::logPrior(){
+    double total = 0.0;
+    for(int i = 0; i < numParams; i++){
+        double priorProbs = log(hyperparams[i]) + 
+                            std::log(std::sqrt(2.0 * M_PI)) +
+                            std::pow(std::log(hyperparams[i]) - 0, 2.0)/2.0;
+        total -= priorProbs;
+    }
+
+    return total;
+}
+
+std::vector<double> BayesianOptimizer::nLPGradient(){
+    std::vector<double> gradients(numParams, 0.0);
+
+    // Gradients for the log-normal prior
+    for(int i = 0; i < numParams; i++){
+        double grad = 1/hyperparams[i];
+        grad *= 1.0 + ((std::log(hyperparams[i]) - 0.0)); // We are putting a regularizing prior on this so mean of 0 and variance of 1
+        gradients[i] = grad;
+    }
+
+    return gradients;
+}
+
 void BayesianOptimizer::registerSample(std::vector<double> s, double o){
     ParamScorePair sample;
     sample.score = o;
     sample.params = s;
-    samples.push_back(sample); 
+    samples.push_back(sample);
 
-    double sampleMean = 0.0;
+    sampleMean = 0.0;
     for(int i = 0; i < samples.size(); i++){
         sampleMean += samples[i].score;
     }
@@ -239,6 +229,16 @@ void BayesianOptimizer::registerSample(std::vector<double> s, double o){
         sampleVariance += pow(samples[i].score - sampleMean, 2);
     }
     sampleVariance /= samples.size();
+
+    meanSampleComponents.clear();
+    for(int i = 0; i < numParams; i++){
+        meanSampleComponents.push_back(0.0);
+
+        for(int j = 0; j < samples.size(); j++)
+            meanSampleComponents[i] += samples[j].params[i];
+        
+        meanSampleComponents[i] /= samples.size();
+    }
 }
 
 double BayesianOptimizer::expectedImprovement(std::vector<double>& sample, double currentMaxObjective, int numSamples){
@@ -291,7 +291,7 @@ double BayesianOptimizer::UCB(std::vector<double>& sample, int numSamples){
     }
     double predictive_std = std::sqrt(predictive_variance);
 
-    // Set exploration parameter to 0.25? We are encouraging exploitive behavior
+    // Set exploration parameter to 0.25
     return predictive_mean + 0.25*predictive_std;
 }
 
@@ -379,15 +379,23 @@ void BayesianOptimizer::updateCholesky(){
     int numSamples = samples.size();
 
     Matrix<double> K(numSamples, numSamples, 0.0);
+
+    double min = INFINITY;
     for(int i = 0; i < numSamples; i++){
         for(int j = 0; j < numSamples; j++){
-            K(i, j) = kernel(samples[i].params, samples[j].params);
-            if(i == j)
-                K(i, j) += 0.01; // For numerical stability
+            double entry = kernel(samples[i].params, samples[j].params);
+            K(i, j) = entry;
+            if(i == j && entry < min)
+                min = entry;
         }
     }
 
     kernelMatrix = K.copy();
+
+    for(int i = 0; i < numSamples; i++){
+        // The jitter should be on the same scale as the diagonal
+        K(i, i) += 1e-6 * min;
+    }
 
     choleskyFactor = Matrix<double>(numSamples, numSamples, 0.0);
     Math::choleskyDecomposition(K, choleskyFactor);
@@ -401,9 +409,6 @@ void BayesianOptimizer::updateCholesky(){
     Matrix<double> LT(numSamples, numSamples, 0.0);
     int tSuccess = Math::transposeMatrix(choleskyFactor, LT);
     Math::backSubstitutionRow(LT, alpha);
-
-    for(int i = 0; i < numSamples; i++);
-        //std::cout << alpha[i] << std::endl;
 }
 
 void BayesianOptimizer::updateGaussianProcess() {
@@ -429,7 +434,7 @@ void BayesianOptimizer::updateGaussianProcess() {
 
     for(int d = 0; d < numParams; d++){
         std::vector<int> availableDraws = randomIndices;
-        double lB = std::floor(std::log10(lowerBound[d])) - 2;
+        double lB = std::floor(std::log10(lowerBound[d])) - 2.0;
         double increment = std::floor(std::log10(upperBound[d]) - lB)/(double)numLHCSamples;
         for(int n = 0; n < numLHCSamples; n++){
             int assigningIndex = availableDraws[(int)(rng.uniformRv() * availableDraws.size())];
@@ -443,7 +448,7 @@ void BayesianOptimizer::updateGaussianProcess() {
     for(int i = 0; i < numLHCSamples; i++){
         hyperparams = pow10Vector(lhcSamples[i]);
         updateCholesky();
-        double logL = -1.0*marginalLogLikelihood();
+        double logL = -1.0*marginalLogLikelihood() - logPrior();
         ParamScorePair newVertex;
         newVertex.params = lhcSamples[i];
         newVertex.score = logL;
@@ -459,10 +464,7 @@ void BayesianOptimizer::updateGaussianProcess() {
     hyperparams = pow10Vector(currentValue.params);
     updateCholesky();
 
-    // Convert to natural log space...
-    for(int i = 0; i < numParams; i++){
-        currentValue.params[i] *= std::log(10);
-    }
+    currentValue.params = pow10Vector(currentValue.params);
 
     std::vector<std::vector<double>> history;
     std::vector<std::vector<double>> grads;
@@ -474,9 +476,10 @@ void BayesianOptimizer::updateGaussianProcess() {
     history.push_back(currentValue.params);
     grads.push_back(nLLGradient());
 
-    // Adjust for log space
-    for(int i = 0; i < numParams; i++)
-        grads[0][i] *= std::exp(currentValue.params[i]);
+    std::vector<double> priorGrad = nLPGradient();
+    for(int i = 0; i < numParams; i++){
+        grads[0][i] += priorGrad[i];
+    }
 
     do {
         std::vector<double> q = grads.back();;
@@ -561,9 +564,9 @@ void BayesianOptimizer::updateGaussianProcess() {
             for(int i = 0; i < numParams; i++){
                 newHyperparams[i] -= epsilon * q[i];
             }
-            hyperparams = expVector(newHyperparams);
+            hyperparams = newHyperparams;
             updateCholesky();
-            tempLogL = -1.0*marginalLogLikelihood();
+            tempLogL = -1.0*marginalLogLikelihood() - logPrior();
 
             double condition = 0.0;
             for(int i = 0; i < numParams; i++){
@@ -593,15 +596,15 @@ void BayesianOptimizer::updateGaussianProcess() {
             for(int i = 0; i < numParams; i++){
                 newHyperparams[i] -= q[i] * 1e-10;
             }
-            hyperparams = expVector(newHyperparams);
+            hyperparams = newHyperparams;
             updateCholesky();
-            tempLogL = -1.0*marginalLogLikelihood();
+            tempLogL = -1.0*marginalLogLikelihood() - logPrior();
             if(tempLogL >= currentValue.score){
                 #if LOGGING == 1
                 std::cout << "Rejecting L-BFGS Step!" << std::endl;
                 #endif
                 newHyperparams = currentValue.params;
-                hyperparams = expVector(newHyperparams);
+                hyperparams = newHyperparams;
                 updateCholesky();
                 tempLogL = currentValue.score;
             }
@@ -620,8 +623,10 @@ void BayesianOptimizer::updateGaussianProcess() {
         history.push_back(newHyperparams);
         grads.push_back(nLLGradient());
 
-        for(int i = 0; i < numParams; i++)
-            grads[grads.size()-1][i] *= std::exp(currentValue.params[i]);
+        std::vector<double> pG = nLPGradient();
+        for(int i = 0; i < numParams; i++){
+            grads[grads.size()-1][i] += pG[i];
+        }
 
         // Only maintain a certain length of entries
         if(history.size() > history_length){
@@ -662,5 +667,5 @@ double BayesianOptimizer::smoothAverageAutocorrelation(const std::vector<std::ve
         sum += autocorrelationScore(r, i-25, i);
     }
 
-    return sum / (L - 25 + 1);
+    return sum / ((double)(L) - 25.0 + 1.0);
 }

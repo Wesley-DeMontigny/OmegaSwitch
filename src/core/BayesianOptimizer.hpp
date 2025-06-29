@@ -33,6 +33,8 @@ class BayesianOptimizer {
 
         std::vector<ParamScorePair> samples; // The MCMC parameters associated with a particular batch of MCMC iterations
         double sampleVariance;
+        double sampleMean;
+        std::vector<double> meanSampleComponents;
 
         std::vector<double> hyperparams; // The length scales
         std::vector<double> upperBound;
@@ -44,7 +46,9 @@ class BayesianOptimizer {
 
         double kernel(std::vector<double>& a, std::vector<double>& b); // Linear kernel
         double marginalLogLikelihood();
+        double logPrior();
         std::vector<double> nLLGradient();
+        std::vector<double> nLPGradient();
         double autocorrelationScore(const std::vector<std::vector<double>>& r, int start, int end);
         double smoothAverageAutocorrelation(const std::vector<std::vector<double>>& r);
         double averageProportionalJumpingDistance(const std::vector<std::vector<double>>& r);

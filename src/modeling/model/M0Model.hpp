@@ -1,5 +1,5 @@
-#ifndef M0_Model_HPP
-#define M0_Model_HPP
+#ifndef M0_MODEL_HPP
+#define M0_MODEL_HPP
 #include "modeling/parameters/trees/TreeParameter.hpp"
 #include <taskflow/taskflow.hpp>
 #include "core/Alignment.hpp"

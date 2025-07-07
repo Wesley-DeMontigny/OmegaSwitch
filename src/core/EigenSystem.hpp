@@ -27,13 +27,12 @@ struct ComplexRateEigen;
 class EigenSystem {
 
 	public:
-                                EigenSystem(int dim);                                                                                  //!< construct the eigenvalue decomposition
+                                EigenSystem(void) {};                                                                                  //!< construct the eigenvalue decomposition
                                ~EigenSystem(void);                                                                                                       //!< destructor
         double                  getDeterminant(std::vector<double> realEigenValues);                                                                                                    //!< return determinant
         bool                    update(const Matrix<double>& m, RateEigen& eigens, ComplexRateEigen& complexEigens);                                                                                       //!< update the eigensystem for matrix m
 
-    private:
-        int                     n;                                                                                                                                         //!< row and column dimension (square matrix)
+    private:                                                                                                                                    //!< row and column dimension (square matrix)
         void                    allocateComplexEigenvectors(void);                                                                                       //!< allocate space for complex eigenvectors
         void                    balance(Matrix<double>& A, std::vector<double>& scale, int* low, int* high);                                           //!< balances a matrix
         void                    balback(int low, int high, std::vector<double>& scale, Matrix<double>& eivec);                                         //!< reverses the balancing

@@ -142,8 +142,6 @@ std::vector<double> BayesianOptimizer::nLLGradient(){
         kernelInvColumns[i][i] = 1.0;
         Math::forwardSubstitutionRow(choleskyFactor, kernelInvColumns[i]);
 
-
-
         Math::backSubstitutionRow(choleskyFactorTranspose, kernelInvColumns[i]);
     }
 

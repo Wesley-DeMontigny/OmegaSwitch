@@ -354,7 +354,7 @@ std::vector<double> DPPMatrix::getStationary(){
 
     for(int i = 0; i < 2; i++){
         for(double v : currentStationary){
-            returnStationary.push_back(v/2);
+            returnStationary.push_back(v/2.0);
         }
     }
     

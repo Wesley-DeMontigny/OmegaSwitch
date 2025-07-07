@@ -20,6 +20,7 @@ class TransitionProbability {
         void                    accept(void);          
         void                    reject(void);                                                                                   
         void                    setProbs(const int state, const int r, const int node, const double v);
+        void                    setProbs(const int state, const int r, const int node, const int stateSubset, const double v);
         std::vector<Matrix<double>>     generateProbs(Matrix<double> Q, std::vector<double> branches);
         void                    updateQ(Matrix<double> Q, const int index);
         void                    deleteQ(const int index);
@@ -38,6 +39,8 @@ class TransitionProbability {
         std::vector<Matrix<double>*> probs2;
         void                    tiProbsComplexEigens(const double v, Matrix<double> &P, ComplexRateEigen& rE);
         void                    tiProbsEigens(const double v, Matrix<double> &P, RateEigen& rE);
+        void                    tiProbsComplexEigens(const double v, Matrix<double> &P, ComplexRateEigen& rE, const int stateSubset);
+        void                    tiProbsEigens(const double v, Matrix<double> &P, RateEigen& rE, const int stateSubset);
 };
 
 #endif

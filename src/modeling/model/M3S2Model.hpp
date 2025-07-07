@@ -1,5 +1,5 @@
-#ifndef M3S2_Model_HPP
-#define M3S2_Model_HPP
+#ifndef M3S2_MODEL_HPP
+#define M3S2_MODEL_HPP
 #include "modeling/parameters/trees/TreeParameter.hpp"
 #include <taskflow/taskflow.hpp>
 #include "core/Alignment.hpp"

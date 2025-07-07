@@ -8,7 +8,7 @@ TransitionProbability::TransitionProbability(const int nn, const int ss)
 
 	Matrix<double> Q(numStates, numStates, 0.0);
 
-	eigens = new EigenSystem(numStates);
+	eigens = new EigenSystem;
 	
 	allocateQ(1);
 	updateQ(Q, 0);
@@ -65,6 +65,14 @@ void TransitionProbability::setProbs(const int state, const int rate, const int 
 		tiProbsComplexEigens(v, P0, complexRateEigen[rate]);
 }
 
+void TransitionProbability::setProbs(const int state, const int rate, const int node, const int stateSubset, const double v) {
+	Matrix<double> P0 = (*this)(state, rate, node);
+	if (!isComplex[rate])
+		tiProbsEigens(v, P0, rateEigen[rate], stateSubset);
+	else
+		tiProbsComplexEigens(v, P0, complexRateEigen[rate], stateSubset);
+}
+
 /* This function calculates transition probabilities using
    complex eigenvalues and eigenvectors. */
 void TransitionProbability::tiProbsComplexEigens(const double v, Matrix<double>& P, ComplexRateEigen& rE) {
@@ -103,6 +111,50 @@ void TransitionProbability::tiProbsEigens(const double v, Matrix<double> &P, Rat
 			{
 			double sum = 0.0;
 			for(int s=0; s<numStates; s++)
+				sum += (*ptr++) * eigValExp[s];
+			P(i, j) = (sum < 0.0) ? 0.0 : sum;
+			}
+		}
+}
+
+/* This function calculates transition probabilities using
+   complex eigenvalues and eigenvectors. */
+void TransitionProbability::tiProbsComplexEigens(const double v, Matrix<double>& P, ComplexRateEigen& rE, const int stateSubset) {
+
+	std::vector<std::complex<double>> ceigValExp;
+
+	for (int s=0; s<stateSubset; s++)
+		ceigValExp.push_back(exp(rE.ceigenvalue[s] * v));
+
+	const std::complex<double>* ptr = rE.cc_ijk;
+	for (int i=0; i<stateSubset; i++)
+		{
+		for (int j=0; j<stateSubset; j++) 
+			{
+			std::complex<double> sum = std::complex<double>(0.0, 0.0);
+			for(int s=0; s<stateSubset; s++)
+				sum += (*ptr++) * ceigValExp[s];
+			P(i, j) = (sum.real() < 0.0) ? 0.0 : sum.real();
+			}
+		}
+}
+
+/* This function calculates transition probabilities using
+   eigenvalues and eigenvectors. */
+void TransitionProbability::tiProbsEigens(const double v, Matrix<double> &P, RateEigen& rE, const int stateSubset) {
+	
+	std::vector<double> eigValExp;
+
+	for (int s=0; s<stateSubset; s++)
+		eigValExp.push_back(exp(rE.eigenvalue[s] * v));
+
+	double *ptr = rE.c_ijk;
+	for (int i=0; i<stateSubset; i++) 
+		{
+		for (int j=0; j<stateSubset; j++) 
+			{
+			double sum = 0.0;
+			for(int s=0; s<stateSubset; s++)
 				sum += (*ptr++) * eigValExp[s];
 			P(i, j) = (sum < 0.0) ? 0.0 : sum;
 			}

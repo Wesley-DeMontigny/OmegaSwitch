@@ -5,14 +5,6 @@
 #include <vector>
 
 
-
-
-/* The constructor allocates space for the eigensystem, calculates it from
-   the input matrix, and then stores it so that the components can be
-   retrieved when needed. This constructor returns an empty Eigensystem
-   if the input matrix is not square. */
-EigenSystem::EigenSystem(int dim) : n(dim) { }
-
 EigenSystem::~EigenSystem(void) {
 	
 }
@@ -24,6 +16,8 @@ void EigenSystem::balance(Matrix<double> &a, std::vector<double> &scale, int *lo
 
 	//! \todo The code below should be RADIX = numeric_limits<double>::radix;
 	// check why this does not work with vcpp (problem with <limits> or compile settings)
+	int n = a.dim1();
+
 	const double RADIX = 2;
 	double sqrdx = RADIX * RADIX;
 	int m = 0;
@@ -149,6 +143,8 @@ void EigenSystem::balance(Matrix<double> &a, std::vector<double> &scale, int *lo
    the eigenvectors. */
 void EigenSystem::balback(int low, int high, std::vector<double> &scale, Matrix<double> &eivec) {
 
+	int n = eivec.dim1();
+
 	for (int i=low; i<=high; i++)
 		{
 		double s = scale[i];
@@ -181,6 +177,8 @@ void EigenSystem::balback(int low, int high, std::vector<double> &scale, Matrix<
 
 /* Back substitute into complex LU-decomposed matrix. */
 void EigenSystem::complexLUBackSubstitution(Matrix<complexNum> &a, int *indx, std::vector<complexNum> &b) {
+
+	int n = a.dim1();
 
 	int ip, j, ii = -1;
 	
@@ -216,6 +214,8 @@ void EigenSystem::complexLUBackSubstitution(Matrix<complexNum> &a, int *indx, st
 
 /* Calculate the LU-decomposition of the matrix a. The matrix a is replaced. */
 int EigenSystem::complexLUDecompose(Matrix<complexNum> &a, double *vv, int *indx, double *pd) {
+
+	int n = a.dim1();
 
 	double d = 1.0;
 	int imax = 0;
@@ -299,6 +299,8 @@ int EigenSystem::complexLUDecompose(Matrix<complexNum> &a, double *vv, int *indx
 /* This function reduces the matrix A to upper Hessenberg form. */
 void EigenSystem::elmhes(int low, int high, Matrix<double>& a, std::vector<int>& perm) {
 
+	int n = a.dim1();
+
 	for (int m=low+1; m<high; m++)
 		{
 		int i = m;
@@ -351,6 +353,8 @@ void EigenSystem::elmhes(int low, int high, Matrix<double>& a, std::vector<int>&
 /* This function copies the Hessenberg matrix stored in 'a' to 'h'. */
 void EigenSystem::elmtrans(int low, int high, Matrix<double> &a, std::vector<int> &perm, Matrix<double> &h) {
 	
+	int n = a.dim1();
+
 	for (int i=0; i<n; i++)
 		{
 		for (int k=0; k<n; k++) 
@@ -375,20 +379,12 @@ void EigenSystem::elmtrans(int low, int high, Matrix<double> &a, std::vector<int
 		}
 }
 
-/* Return the determinant */
-double EigenSystem::getDeterminant(std::vector<double> realEigenValues) {
-
-	double det = 1.0;
-	for (int i=0; i<n; i++) {
-		det *= realEigenValues[i];
-	}
-	return (det);
-}
-
 /* This function calculates the eigenvalues and eigenvectors of an
    n X n upper Hessenberg matrix (reduction from Hessenberg to real
    Schur form). */
 int EigenSystem::hqr2(int low, int high, Matrix<double> &h, std::vector<double> &wr, std::vector<double> &wi, Matrix<double> &eivec) {
+
+	int n = h.dim1();
 
 	/* store roots isolated by balance, and compute matrix norm */
 	double norm = 0.0;
@@ -882,6 +878,8 @@ int EigenSystem::hqr2(int low, int high, Matrix<double> &h, std::vector<double> 
    if the matrix is singular. */
 int EigenSystem::invertComplexMatrix(Matrix<complexNum> &a, Matrix<complexNum> &aInv) {
 
+	int n = a.dim1();
+
 	/* allocate work space for inversion */
 	double *dwork = new double[n];
 	int *indx = new int[n];
@@ -923,6 +921,8 @@ int EigenSystem::invertComplexMatrix(Matrix<complexNum> &a, Matrix<complexNum> &
    matrix is singular. col and indx are work vectors. */
 int EigenSystem::invertMatrix(Matrix<double> &a, Matrix<double> &aInv) {
 	
+	int n = a.dim1();
+
 	double* col = new double[n];
 	int* indx = new int[n];
 	
@@ -949,6 +949,8 @@ int EigenSystem::invertMatrix(Matrix<double> &a, Matrix<double> &aInv) {
 /* Back substitute into an LU-decomposed matrix. */
 void EigenSystem::luBackSubstitution(Matrix<double>& a, int* indx, double* b) {
 	
+	int n = a.dim1();
+
 	int ip, ii = -1;
 	for (int i=0; i<n; i++)
 		{
@@ -975,6 +977,8 @@ void EigenSystem::luBackSubstitution(Matrix<double>& a, int* indx, double* b) {
 
 /* Calculate the LU-decomposition of the matrix a. The matrix a is replaced. */
 int EigenSystem::luDecompose(Matrix<double>& a, double* vv, int* indx, double* pd) {
+
+	int n = a.dim1();
 
 	double d = 1.0;
 	int imax = 0;
@@ -1044,6 +1048,8 @@ int EigenSystem::luDecompose(Matrix<double>& a, double* vv, int* indx, double* p
 
 bool EigenSystem::update(const Matrix<double> &m, RateEigen& eigens, ComplexRateEigen& complexEigens) {
 	
+	int n = m.dim1();
+
 	Matrix<double> eigenVectors(n, n, 0.0);
 	Matrix<double> inverseEigenVectors(n, n, 0.0);
 	std::vector<double> realEigenValues(n, 0.0);

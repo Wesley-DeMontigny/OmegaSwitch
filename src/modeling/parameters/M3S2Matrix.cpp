@@ -416,7 +416,7 @@ std::vector<double> M3S2Matrix::getStationary(){
 
     for(int i = 0; i < 3; i++){
         for(double v : currentStationary){
-            returnStationary.push_back(v/3);
+            returnStationary.push_back(v/3.0);
         }
     }
     
@@ -461,7 +461,7 @@ std::tuple<double, double, double> M3S2Matrix::dNdS(){
         dS2 += tempMatrix(coord.first + 61, coord.second + 61) * currentStationary[coord.first];
         dS2 += tempMatrix(coord.second + 61, coord.first + 61) * currentStationary[coord.second];
 
-        dS3 += tempMatrix(coord.first + 61, coord.second + 61) * currentStationary[coord.first];
+        dS3 += tempMatrix(coord.first + 122, coord.second + 122) * currentStationary[coord.first];
         dS3 += tempMatrix(coord.second + 122, coord.first + 122) * currentStationary[coord.second];
     }
 

@@ -37,12 +37,14 @@ struct Settings {
     double          treeWeight;
     double          proportionsWeight;
     double          stationaryWeight;
+    double          rjWeight;
     int             numGibbs;
     int             numSimulations;
 
     bool M0;
     bool M3S2;
     bool SB;
+    bool RJ;
     bool simulateM0;
     bool simulateM3S2;
     bool simulateDPP;

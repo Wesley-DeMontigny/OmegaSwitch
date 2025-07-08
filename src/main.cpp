@@ -20,6 +20,9 @@
 #include "modeling/parameters/SBMatrix.hpp"
 #include "modeling/model/SBModel.hpp"
 #include "modeling/analysis/SBMcmc.hpp"
+#include "modeling/parameters/RJMatrix.hpp"
+#include "modeling/model/RJModel.hpp"
+#include "modeling/analysis/RJMcmc.hpp"
 #include "modeling/parameters/trees/Node.hpp"
 #include <algorithm>
 #include <chrono>
@@ -67,6 +70,19 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
         SBModel model(settings, &aln, &treeParam, &rateMatrix);
 
         SBMcmc myMCMC(&model, &treeParam, &rateMatrix, settings, disableBayesOpt);
+        
+        std::cout << "Starting MCMC..." << std::endl;
+        myMCMC.burnin();
+        myMCMC.run();
+    }
+    else if(settings.RJ){
+        std::cout << "Initializing the Reversible Jump model..." << std::endl;
+
+        RJMatrix rateMatrix(settings);
+
+        RJModel model(settings, &aln, &treeParam, &rateMatrix);
+
+        RJMcmc myMCMC(&model, &treeParam, &rateMatrix, settings, disableBayesOpt);
         
         std::cout << "Starting MCMC..." << std::endl;
         myMCMC.burnin();

@@ -182,7 +182,6 @@ void TransitionProbability::allocateQ(int size){
 	complexRateEigen.shrink_to_fit();
 	probs1.shrink_to_fit();
 	probs2.shrink_to_fit();
-
 }
 
 void TransitionProbability::updateQ(Matrix<double> Q, const int index) {

@@ -628,18 +628,16 @@ void RJMatrix::tune(){
     kAcceptCount = 0;
     kCount = 0;
 
-    if(rCount > 0){ // Cover ourselves because this is a real possibility in the RJ model
-        double rRate = (double)rAcceptCount/(double)rCount;
+    double rRate = (double)rAcceptCount/(double)rCount;
 
-        if ( rRate > 0.33 ) {
-            rDelta *= (1.0 + ((rRate-0.33)/0.67));
-        }
-        else {
-            rDelta /= (2.0 - rRate/0.33);
-        }
-        rAcceptCount = 0;
-        rCount = 0;
+    if ( rRate > 0.33 ) {
+        rDelta *= (1.0 + ((rRate-0.33)/0.67));
     }
+    else {
+        rDelta /= (2.0 - rRate/0.33);
+    }
+    rAcceptCount = 0;
+    rCount = 0;
 
     double omegaRate = (double)omegaAcceptCount/(double)omegaCount;
 

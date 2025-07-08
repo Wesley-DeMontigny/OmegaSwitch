@@ -181,7 +181,7 @@ double RJDPPMatrix::updateR() {
     double hastings = 0.0;
     this->dirty();
 
-    moveChoice = 3;
+    moveChoice = 2;
     rCount += 1;
 
     double currentV = currentR;
@@ -415,18 +415,16 @@ void RJDPPMatrix::tune(){
     kAcceptCount = 0;
     kCount = 0;
 
-    if(rCount > 0){ // Cover ourselves because this is a real possibility in the RJ model
-        double rRate = (double)rAcceptCount/(double)rCount;
+    double rRate = (double)rAcceptCount/(double)rCount;
 
-        if ( rRate > 0.33 ) {
-            rDelta *= (1.0 + ((rRate-0.33)/0.67));
-        }
-        else {
-            rDelta /= (2.0 - rRate/0.33);
-        }
-        rAcceptCount = 0;
-        rCount = 0;
+    if ( rRate > 0.33 ) {
+        rDelta *= (1.0 + ((rRate-0.33)/0.67));
     }
+    else {
+        rDelta /= (2.0 - rRate/0.33);
+    }
+    rAcceptCount = 0;
+    rCount = 0;
 
     double stationaryRate = (double)stationaryAcceptCount/(double)stationaryCount;
 

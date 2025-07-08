@@ -1,6 +1,6 @@
-#include "DirichletProcessPrior.hpp"
+#include "RJDirichletProcessPrior.hpp"
 #include "core/RandomVariable.hpp"
-#include "modeling/model/DPPModel.hpp" // Annoying circular dependency... It is what is is for now...
+#include "modeling/model/RJDPPModel.hpp" // Annoying circular dependency... It is what is is for now...
 #include "modeling/model/TransitionProbability.hpp"
 #include "modeling/model/ConditionalLikelihood.hpp"
 #include "core/Probability.hpp"
@@ -12,12 +12,12 @@
 #include <iostream>
 #include <algorithm>
 
-DirichletProcessPrior::DirichletProcessPrior(int size, Settings s) : 
+RJDirichletProcessPrior::RJDirichletProcessPrior(int size, Settings s) : 
                                              alpha(0), omegaLambda(s.omegaLambda),
                                              numMembers(size), currentLnPrior(0.0),
                                              model(nullptr), omegaDelta(0.5), assignments(size, -1),
                                              omegaAcceptCount(0), omegaCount(0), moveChoice(-1),
-                                             numGibbs(s.numGibbs) {
+                                             numGibbs(s.numGibbs), executor(5) {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
@@ -30,17 +30,18 @@ DirichletProcessPrior::DirichletProcessPrior(int size, Settings s) :
         // If new category
         if(total > randomVal){
             double omega1 = Probability::Exponential::rv(&rng, omegaLambda);
-            double omegaI = Probability::Exponential::rv(&rng, omegaLambda);
-            double omega2 = omega1 + omegaI;
-            Category newCat = {omega1,
-                               omega2,
-                               omegaI,
+            double omegaInc1 = Probability::Exponential::rv(&rng, omegaLambda);
+            double omegaInc2 = Probability::Exponential::rv(&rng, omegaLambda);
+            double omega2 = omega1 + omegaInc1;
+            double omega3 = omega2 + omegaInc2;
+            RJCategory newCat = {omega1, omega2, omega3,
+                               omegaInc1, omegaInc2,
                                1, {i}, true};
             currentCategories.push_back(newCat);
             continue;
         }
 
-        for(Category &c : currentCategories){
+        for(RJCategory &c : currentCategories){
             total += c.size/(i+alpha);
 
             //If old category
@@ -65,16 +66,16 @@ DirichletProcessPrior::DirichletProcessPrior(int size, Settings s) :
     oldLnPrior = currentLnPrior;
 }
 
-DirichletProcessPrior::~DirichletProcessPrior() {}
+RJDirichletProcessPrior::~RJDirichletProcessPrior() {}
 
-void DirichletProcessPrior::registerModel(DPPModel* m) { model = m; }
+void RJDirichletProcessPrior::registerModel(RJDPPModel* m) { model = m; }
 
-double DirichletProcessPrior::expectedCategories(double a, int members){
+double RJDirichletProcessPrior::expectedCategories(double a, int members){
     return a * std::log(1 + (members/a));
 }
 
 // From John's code
-double DirichletProcessPrior::calculateAlpha(double expectedCat, int members) {
+double RJDirichletProcessPrior::calculateAlpha(double expectedCat, int members) {
 
     if (expectedCat > members)
         Msg::error("The expected number of tables cannot be larger than the number of patrons (" + std::to_string(members) + "<" + std::to_string(expectedCat) + ")");
@@ -113,35 +114,45 @@ double DirichletProcessPrior::calculateAlpha(double expectedCat, int members) {
     return a;
 }
 
-void DirichletProcessPrior::regeneratePrior(){
+void RJDirichletProcessPrior::regeneratePrior(){
     int numCats = currentCategories.size();
     
     currentLnPrior = std::log(alpha) * numCats;
 
-    for(Category& c : currentCategories) {
+    for(RJCategory& c : currentCategories) {
         currentLnPrior += Math::lnFactorial(c.size - 1);
-        currentLnPrior += Probability::Exponential::lnPdf(omegaLambda, c.omega1);
-        currentLnPrior += Probability::Exponential::lnPdf(omegaLambda, c.omegaIncrement);
+        if(currentActiveOmegas == 3){
+            currentLnPrior += Probability::Exponential::lnPdf(omegaLambda, c.omega1);
+            currentLnPrior += Probability::Exponential::lnPdf(omegaLambda, c.omegaIncrement1);
+            currentLnPrior += Probability::Exponential::lnPdf(omegaLambda, c.omegaIncrement2);  
+        }
+        else if(currentActiveOmegas == 2){
+            currentLnPrior += Probability::Exponential::lnPdf(omegaLambda, c.omega1);
+            currentLnPrior += Probability::Exponential::lnPdf(omegaLambda, c.omegaIncrement1);
+        }
+        else if(currentActiveOmegas == 1){
+            currentLnPrior += Probability::Exponential::lnPdf(omegaLambda, c.omega1);
+        }
     }
 }
 
-void DirichletProcessPrior::removeCategory(int index){
+void RJDirichletProcessPrior::removeCategory(int index){
     if(currentCategories[index].size != 0)
         Msg::error("Attempt to remove DPP category that still had members!");
 
     currentCategories.erase(currentCategories.begin() + index);
 }
 
-void DirichletProcessPrior::addCategory(double omega1, double omegaI){
+void RJDirichletProcessPrior::addCategory(double omega1, double omegaInc1, double omegaInc2){
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
-    Category newCat = {omega1, omega1 + omegaI, omegaI, 0, {}, true};
+    RJCategory newCat = {omega1, omega1 + omegaInc1, omega1 + omegaInc1 + omegaInc2, omegaInc1, omegaInc2, 0, {}, true};
     currentCategories.push_back(newCat);
 }
 
-int DirichletProcessPrior::unassignMember(int member){
+int RJDirichletProcessPrior::unassignMember(int member){
     for(int i = 0; i < currentCategories.size(); i++){
-        Category& c = currentCategories[i];
+        RJCategory& c = currentCategories[i];
         for(int j = 0; j < c.size; j++){
             if(c.members[j] == member){
                 c.size--;
@@ -157,12 +168,12 @@ int DirichletProcessPrior::unassignMember(int member){
     return -2;
 }
 
-void DirichletProcessPrior::assignMember(int member, int category){
+void RJDirichletProcessPrior::assignMember(int member, int category){
     currentCategories[category].size++;
     currentCategories[category].members.push_back(member);
 }
 
-void DirichletProcessPrior::accept() {
+void RJDirichletProcessPrior::accept() {
     if(moveChoice == 0){
         omegaAcceptCount += 1;
     }
@@ -176,16 +187,18 @@ void DirichletProcessPrior::accept() {
 
     oldCategories = currentCategories;
     oldLnPrior = currentLnPrior;
+    oldActiveOmegas = currentActiveOmegas;
 }
 
-void DirichletProcessPrior::reject() {
+void RJDirichletProcessPrior::reject() {
     currentCategories = oldCategories;
     currentLnPrior = oldLnPrior;
+    currentActiveOmegas = oldActiveOmegas;
 
     moveChoice = -1;
 }
 
-double DirichletProcessPrior::updateOmega() {
+double RJDirichletProcessPrior::updateOmega() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
     this->dirty();
@@ -194,12 +207,63 @@ double DirichletProcessPrior::updateOmega() {
     int randomCategory = (int)(rng.uniformRv() * currentCategories.size());
     currentCategories[randomCategory].dirty = true;
 
-    int randomOmega = (int)(rng.uniformRv() * 2);
-
     moveChoice = 0;
     omegaCount += 1;
 
-    if(randomOmega == 0){
+    if(currentActiveOmegas == 3){
+        int randomOmega = (int)(rng.uniformRv() * 3);
+        if(randomOmega == 0){
+            double currentV1 = currentCategories[randomCategory].omega1;
+            double scale1 = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
+            double newV1 = currentV1 * scale1;
+
+            currentCategories[randomCategory].omega1 = newV1;
+            currentCategories[randomCategory].omega2 = currentCategories[randomCategory].omegaIncrement1 + newV1;
+            currentCategories[randomCategory].omega3 = currentCategories[randomCategory].omegaIncrement1 + currentCategories[randomCategory].omegaIncrement2 + newV1;
+            hastings = std::log(scale1);
+        }
+        else if(randomOmega == 1) {
+            double currentV2 = currentCategories[randomCategory].omegaIncrement1;
+            double scale2 = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
+            double newV2 = currentV2 * scale2;
+
+            currentCategories[randomCategory].omegaIncrement1 = newV2;
+            currentCategories[randomCategory].omega2 = currentCategories[randomCategory].omega1 + newV2;
+            currentCategories[randomCategory].omega3 = currentCategories[randomCategory].omega1 + currentCategories[randomCategory].omegaIncrement2 + newV2;
+            hastings = std::log(scale2);
+        }
+        else if(randomOmega == 2) {
+            double currentV3 = currentCategories[randomCategory].omegaIncrement2;
+            double scale3 = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
+            double newV3 = currentV3 * scale3;
+
+            currentCategories[randomCategory].omegaIncrement2 = newV3;
+            currentCategories[randomCategory].omega3 = currentCategories[randomCategory].omega1 + currentCategories[randomCategory].omegaIncrement1 + newV3;
+            hastings = std::log(scale3);
+        }
+    }
+    else if(currentActiveOmegas == 2){
+        int randomOmega = (int)(rng.uniformRv() * 2);
+        if(randomOmega == 0){
+            double currentV1 = currentCategories[randomCategory].omega1;
+            double scale1 = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
+            double newV1 = currentV1 * scale1;
+
+            currentCategories[randomCategory].omega1 = newV1;
+            currentCategories[randomCategory].omega2 = currentCategories[randomCategory].omegaIncrement1 + newV1;
+            hastings = std::log(scale1);
+        }
+        else if(randomOmega == 1) {
+            double currentV2 = currentCategories[randomCategory].omegaIncrement1;
+            double scale2 = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
+            double newV2 = currentV2 * scale2;
+
+            currentCategories[randomCategory].omegaIncrement1 = newV2;
+            currentCategories[randomCategory].omega2 = currentCategories[randomCategory].omega1 + newV2;
+            hastings = std::log(scale2);
+        }
+    }
+    else if(currentActiveOmegas == 1){
         double currentV1 = currentCategories[randomCategory].omega1;
         double scale1 = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
         double newV1 = currentV1 * scale1;
@@ -207,22 +271,91 @@ double DirichletProcessPrior::updateOmega() {
         currentCategories[randomCategory].omega1 = newV1;
         hastings = std::log(scale1);
     }
-    else {
-        double currentV2 = currentCategories[randomCategory].omegaIncrement;
-        double scale2 = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
-        double newV2 = currentV2 * scale2;
-
-        currentCategories[randomCategory].omegaIncrement = newV2;
-        currentCategories[randomCategory].omega2 = currentCategories[randomCategory].omega1 + newV2;
-        hastings = std::log(scale2);
-    }
 
     regeneratePrior();
 
     return hastings;
 }
 
-double DirichletProcessPrior::updateDPP(){
+double RJDirichletProcessPrior::updateActiveOmegas() {
+    RandomVariable& rng = RandomVariable::randomVariableInstance();
+    double alpha = 15.0;
+    double hastings = 0.0;
+    this->dirty();
+
+    if (currentActiveOmegas == 1) { // 1 2 split
+        hastings = std::log(2.0);
+        currentActiveOmegas = 2;
+
+        double u = Probability::Beta::rv(&rng, alpha, alpha);
+        for (int i = 0; i < currentCategories.size(); i++) {
+            double tempO = currentCategories[i].omega1;
+            currentCategories[i].omega1 = tempO * u;
+            currentCategories[i].omegaIncrement1 = tempO * (1.0 - u);
+            currentCategories[i].omega2 = currentCategories[i].omegaIncrement1 + currentCategories[i].omega1;
+            currentCategories[i].dirty = true;
+            hastings += std::log(tempO);
+        }
+
+        hastings -= Probability::Beta::lnPdf(alpha, alpha, u);
+    }
+    else if (currentActiveOmegas == 2) { // 2 1 merge or 2 3 split
+        hastings = std::log(0.5);
+
+        if (rng.uniformRv() > 0.5) { // 2 3 split
+            currentActiveOmegas = 3;
+
+            double u = Probability::Beta::rv(&rng, alpha, alpha);
+            for (int i = 0; i < currentCategories.size(); i++) {
+                double tempO = currentCategories[i].omegaIncrement1;
+                currentCategories[i].omegaIncrement1 = tempO * u;
+                currentCategories[i].omegaIncrement2 = tempO * (1.0 - u);
+                currentCategories[i].omega2 = currentCategories[i].omegaIncrement1 + currentCategories[i].omega1;
+                currentCategories[i].omega2 = currentCategories[i].omegaIncrement2 + currentCategories[i].omega2;
+                currentCategories[i].dirty = true;
+                hastings += std::log(tempO);
+            }
+
+            hastings -= Probability::Beta::lnPdf(alpha, alpha, u);
+        } else { // 2 1 merge
+            currentActiveOmegas = 1;
+            double o1 = currentCategories[0].omega1;
+            double o2 = currentCategories[0].omegaIncrement1;
+            double total = o1 + o2;
+            double u = o1 / total;
+            hastings -= Probability::Beta::lnPdf(alpha, alpha, u); // It is identical for all categories
+
+            for(int i = 0; i < currentCategories.size(); i++){
+                double sum = currentCategories[i].omega1 + currentCategories[i].omegaIncrement1;
+                currentCategories[i].omega1 = sum;
+                currentCategories[i].dirty = true;
+                hastings -= std::log(sum);
+            }
+        }
+    }
+    else if (currentActiveOmegas == 3) { // 3 2 merge
+        currentActiveOmegas = 2;
+        hastings = std::log(0.5);
+
+        double o2 = currentCategories[0].omegaIncrement1;
+        double o3 = currentCategories[0].omegaIncrement2;
+        double total = o2 + o3;
+        double u = o2 / total;
+        hastings -= Probability::Beta::lnPdf(alpha, alpha, u);
+
+        for(int i = 0; i < currentCategories.size(); i++){
+            double sum = currentCategories[i].omegaIncrement1 + currentCategories[i].omegaIncrement2;
+            currentCategories[i].omegaIncrement1 = sum;
+            currentCategories[i].omega2 = currentCategories[i].omegaIncrement1 + currentCategories[i].omega1;
+            currentCategories[i].dirty = true;
+            hastings -= std::log(sum);
+        }
+    }
+
+    return hastings;
+}
+
+double RJDirichletProcessPrior::updateDPP(){
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
     this->dirty();
@@ -255,7 +388,8 @@ double DirichletProcessPrior::updateDPP(){
         }
 
         std::vector<double> omega1Vec;
-        std::vector<double> omegaIVec;
+        std::vector<double> omegaInc1Vec;
+        std::vector<double> omegaInc2Vec;
 
         double alphaSplit = std::log(alpha/numAux);
 
@@ -270,11 +404,13 @@ double DirichletProcessPrior::updateDPP(){
         for(int i = 0; i < numAux; i++){
             conditionalL.push_back(0.0);
             double newOmega1 = Probability::Exponential::rv(&rng, omegaLambda);
-            double newOmegaI = Probability::Exponential::rv(&rng, omegaLambda);
+            double newOmegaInc1 = Probability::Exponential::rv(&rng, omegaLambda);
+            double newOmegaInc2 = Probability::Exponential::rv(&rng, omegaLambda);
 
-            addCategory(newOmega1, newOmegaI);
+            addCategory(newOmega1, newOmegaInc1, newOmegaInc2);
             omega1Vec.push_back(newOmega1);
-            omegaIVec.push_back(newOmegaI);
+            omegaInc1Vec.push_back(newOmegaInc1);
+            omegaInc2Vec.push_back(newOmegaInc2);
 
             taskflow.emplace([this, &conditionalL, i, n, numCats, alphaSplit](){
                 double likelihood = model->testCategory(n, numCats+i, true);
@@ -307,7 +443,7 @@ double DirichletProcessPrior::updateDPP(){
                     assignMember(n, i);
                 }
                 else {
-                    addCategory(omega1Vec[i - numCats], omegaIVec[i - numCats]);
+                    addCategory(omega1Vec[i - numCats], omegaInc1Vec[i - numCats], omegaInc2Vec[i - numCats]);
                     assignMember(n, numCats);
                     model->regenerateTransitionProbs(n, numCats);
                 }
@@ -345,7 +481,7 @@ double DirichletProcessPrior::updateDPP(){
     return INFINITY;
 }
 
-void DirichletProcessPrior::tune() {
+void RJDirichletProcessPrior::tune() {
     double omegaRate = (double)omegaAcceptCount/(double)omegaCount;
 
     if ( omegaRate > 0.33 ) {

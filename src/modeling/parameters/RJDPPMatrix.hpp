@@ -1,5 +1,5 @@
-#ifndef RJ_MATRIX_HPP
-#define RJ_MATRIX_HPP
+#ifndef RJ_DPP_MATRIX_HPP
+#define RJ_DPP_MATRIX_HPP
 #include "core/Matrix.hpp"
 #include "core/Msg.hpp"
 #include "modeling/parameters/Parameter.hpp"
@@ -8,12 +8,12 @@
 
 class Settings;
 
-class RJMatrix : public Parameter {
+class RJDPPMatrix : public Parameter {
     public:
-        RJMatrix(Settings settings);
-        Matrix<double> Q();
+        RJDPPMatrix(Settings settings);
+        Matrix<double> Q(double omega1, double omega2, double omega3);
         std::vector<double> stationary();
-        std::tuple<double, double, double> dNdS();
+        std::tuple<double, double, double> dNdS(double omega1, double omega2, double omega3);
 
         void accept();
         void reject();
@@ -21,22 +21,16 @@ class RJMatrix : public Parameter {
         double lnPrior();
 
         double updateK();
-        double updateOmega();
         double updateR();
         double updateStationary();
-        double updateActiveOmegas();
+        void refreshQBackground(int numClasses); // To be called to incorporate the stationary distribution, K, and R
 
-        std::vector<double> getStationary();
+        std::vector<double> getStationary(int omegaCount);
         std::vector<double> getRawStationary() {return currentStationary;}
         double getK() {return currentK;}
-        double getOmega1() {return currentOmega1;}
-        double getOmega2() {return currentOmega2;}
-        double getOmega3() {return currentOmega3;}
         double getR() {return currentR;}
-        double getActiveOmegas() {return currentActiveOmegas;}
 
         double kDelta;
-        double omegaDelta;
         double rDelta;
         double stationaryAlpha;
 
@@ -44,8 +38,6 @@ class RJMatrix : public Parameter {
         int kAcceptCount = 0;
         int stationaryCount = 0;
         int stationaryAcceptCount = 0;
-        int omegaCount = 0;
-        int omegaAcceptCount = 0;
         int rCount = 0;
         int rAcceptCount = 0;
     private:
@@ -58,12 +50,8 @@ class RJMatrix : public Parameter {
 
         std::vector<int> randomStates;
 
-        int currentActiveOmegas = 3;
-        int oldActiveOmegas = 3;
-
         double kLambda;
         double rLambda;
-        double omegaLambda;
 
         double currentK = 0;
         double oldK = 0;
@@ -74,21 +62,6 @@ class RJMatrix : public Parameter {
         double oldR = 0;
         double currentRPrior = 0;
         double oldRPrior = 0;
-
-        double currentOmega1 = 0;
-        double oldOmega1 = 0;
-        double currentOmega1Prior = 0;
-        double oldOmega1Prior = 0;
-
-        double currentOmega2 = 0;
-        double oldOmega2 = 0;
-        double currentOmega2Prior = 0;
-        double oldOmega2Prior = 0;
-
-        double currentOmega3 = 0;
-        double oldOmega3 = 0;
-        double currentOmega3Prior = 0;
-        double oldOmega3Prior = 0;
 
         std::vector<double> currentStationary;
         std::vector<double> oldStationary;

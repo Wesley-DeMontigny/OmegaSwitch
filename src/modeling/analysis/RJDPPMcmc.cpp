@@ -1,23 +1,25 @@
-#include "RJMcmc.hpp"
+#include "RJDPPMcmc.hpp"
 #include "core/RandomVariable.hpp"
-#include "modeling/model/RJModel.hpp"
+#include "modeling/model/RJDPPModel.hpp"
 #include "modeling/parameters/Parameter.hpp"
-#include "modeling/parameters/RJMatrix.hpp"
+#include "modeling/parameters/RJDPPMatrix.hpp"
+#include "modeling/parameters/RJDirichletProcessPrior.hpp"
 #include "modeling/parameters/trees/TreeParameter.hpp"
 #include "modeling/parameters/trees/TreeObject.hpp"
 #include "core/Settings.hpp"
 #include <cmath>
 #include <iostream>
 #include <fstream>
+#include <chrono>
 
-RJMcmc::RJMcmc(RJModel* m, TreeParameter* t, RJMatrix* cm, Settings& s, bool dBO) : 
-    model(m), codonMatrix(cm), tree(t), generalUpdates(3), stationaryUpdates(5), treeUpdates(0), optim(6, s.bayesOptFrequency), disableBayesOpt(dBO) { 
+RJDPPMcmc::RJDPPMcmc(RJDPPModel* m, TreeParameter* t, RJDPPMatrix* cm, RJDirichletProcessPrior* d, Settings& s, bool dBO) : 
+    model(m), dpp(d), codonMatrix(cm), tree(t), generalUpdates(3), stationaryUpdates(5), treeUpdates(0), optim(5, s.bayesOptFrequency), disableBayesOpt(dBO)  { 
     numIter = s.numIterations;
     numBurnIn = s.burnInIterations;
     printFreq = s.printFrequency;
     tuneFreq = s.tuneFrequency;
     sampleFreq = s.sampleFrequency;
-
+    
     if(!disableBayesOpt){
         bayesOptFreq = s.bayesOptFrequency;
         bayesOptIter = s.bayesOpt;
@@ -28,17 +30,18 @@ RJMcmc::RJMcmc(RJModel* m, TreeParameter* t, RJMatrix* cm, Settings& s, bool dBO
 
     analysisLog = s.mcmcOutput;
     treeLog = s.treeOutput;
+    dppLog = s.dppOutput;
     tipsLog = s.tipsOutput;
     ancestralLog = s.ancestralStatesOutput;
     branchLog = s.branchOutput;
 
     kChoice = s.kWeight;
-    treeChoice = s.treeWeight + kChoice;
-    omegaChoice = s.omegaWeight + treeChoice;
+    omegaChoice = s.omegaWeight + kChoice;
     rChoice = s.rWeight + omegaChoice;
-    stationaryChoice = s.stationaryWeight + rChoice;
-    rjChoice += stationaryChoice + s.rjWeight;
-
+    treeChoice = s.treeWeight + rChoice;
+    stationaryChoice = s.stationaryWeight + treeChoice;
+    rjChoice = s.rjWeight + stationaryChoice;
+    dppChoice = s.dppWeight + rjChoice;
 
     treeUpdates = (int)(tree->getTree()->getBranchLengths().size() * 0.5);
 
@@ -46,86 +49,98 @@ RJMcmc::RJMcmc(RJModel* m, TreeParameter* t, RJMatrix* cm, Settings& s, bool dBO
     model->accept();
 }
 
-double RJMcmc::GibbsIteration(double currentLnPosterior){
+double RJDPPMcmc::GibbsIteration(double currentLnPosterior){
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
-    double randomMove = rng.uniformRv() * rjChoice;
+    double randomMove = rng.uniformRv() * dppChoice;
 
     #if TIME_PROFILE==1
     std::chrono::steady_clock::time_point initTime = std::chrono::steady_clock::now();
     #endif
+    
 
-    std::function<double()> updater;
-    int numUpdates = generalUpdates;
+    if(randomMove < rjChoice){
+        std::function<double()> updater;
+        int numUpdates = generalUpdates;
 
-    if(randomMove < kChoice){
-        updater = [this]() { return codonMatrix->updateK(); };
-        #if LOGGING==1
-        std::cout << "Updating K..." << std::endl;
-        #endif
-    }
-    else if(randomMove < treeChoice){
-        updater = [this]() { return tree->update(); };
-        numUpdates = treeUpdates;
-        #if LOGGING==1
-        std::cout << "Updating Tree..." << std::endl;
-        #endif
-    }
-    else if(randomMove < omegaChoice){
-        updater = [this]() { return codonMatrix->updateOmega(); };
-        numUpdates = codonMatrix->getActiveOmegas()*generalUpdates;
-        #if LOGGING==1
-        std::cout << "Updating Omega..." << std::endl;
-        #endif
-    }
-    else if(randomMove < rChoice){
-        updater = [this]() { return codonMatrix->updateR(); };
-        numUpdates = generalUpdates;
-        #if LOGGING==1
-        std::cout << "Updating R..." << std::endl;
-        #endif
-    }
-    else if(randomMove < stationaryChoice){
-        updater = [this]() { return codonMatrix->updateStationary(); };
-        numUpdates = stationaryUpdates;
-        #if LOGGING==1
-        std::cout << "Updating Stationary..." << std::endl;
-        #endif
-    }
-    else if(randomMove < rjChoice){
-        updater = [this]() { return codonMatrix->updateActiveOmegas(); };
-        numUpdates = generalUpdates;
-        #if LOGGING==1
-        std::cout << "Updating Model..." << std::endl;
-        #endif
-    }
+        if(randomMove < kChoice){
+            updater = [this]() { return codonMatrix->updateK(); };
+            #if LOGGING==1
+            std::cout << "Updating K..." << std::endl;
+            #endif
+        }
+        else if(randomMove < omegaChoice){
+            updater = [this]() { return dpp->updateOmega(); };
+            numUpdates = std::max(dpp->getNumCategories(), generalUpdates) * 2;
+            #if LOGGING==1
+            std::cout << "Updating Omega..." << std::endl;
+            #endif
+        }
+        else if(randomMove < rChoice){
+            updater = [this]() { return codonMatrix->updateR(); };
+            #if LOGGING==1
+            std::cout << "Updating R..." << std::endl;
+            #endif
+        }
+        else if(randomMove < treeChoice){
+            updater = [this]() { return tree->update(); };
+            numUpdates = treeUpdates;
+            #if LOGGING==1
+            std::cout << "Updating Tree..." << std::endl;
+            #endif
+        }
+        else if(randomMove < stationaryChoice){
+            updater = [this]() { return codonMatrix->updateStationary(); };
+            numUpdates = stationaryUpdates;
+            #if LOGGING==1
+            std::cout << "Updating Stationary..." << std::endl;
+            #endif
+        }
+        else if(randomMove < rjChoice){
+            updater = [this]() { return dpp->updateActiveOmegas(); };
+            numUpdates = generalUpdates;
+            #if LOGGING==1
+            std::cout << "Updating Model..." << std::endl;
+            #endif
+        }
 
-    for(int i = 0; i < numUpdates; i++){
-        double lnProposalRatio = updater();
+        for(int i = 0; i < numUpdates; i++){
+            double lnProposalRatio = updater();
+            model->regenerateLikelihood();
+
+            double newLnPosterior = model->lnLikelihood() + model->lnPrior();
+
+            double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
+            double lnR = lnProposalRatio + lnPosteriorRatio;
+
+            #if LOGGING==1
+            std::cout << "Evalulating proposal with acceptance ratio of " << lnR << std::endl;
+            #endif
+
+            if(std::log(rng.uniformRv()) < lnR){
+                #if LOGGING==1
+                std::cout << "Accepted proposal!" << std::endl;
+                #endif
+                model->accept();
+                currentLnPosterior = newLnPosterior;
+            }
+            else{
+                #if LOGGING==1
+                std::cout << "Rejected proposal!" << std::endl;
+                #endif
+                model->reject();
+            }
+        }
+    }
+    else {
+        #if LOGGING==1
+        std::cout << "Updating the RJDPP..." << std::endl;
+        #endif
+        dpp->updateDPP();
+
         model->regenerateLikelihood();
-
-        double newLnPosterior = model->lnLikelihood() + model->lnPrior();
-
-        double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
-        double lnR = lnProposalRatio + lnPosteriorRatio;
-
-        #if LOGGING==1
-        std::cout << "Evalulating proposal with acceptance ratio of " << lnR << std::endl;
-        #endif
-
-        if(std::log(rng.uniformRv()) < lnR){
-            #if LOGGING==1
-            std::cout << "Accepted proposal!" << std::endl;
-            #endif
-            model->accept();
-            currentLnPosterior = newLnPosterior;
-        }
-        else{
-            #if LOGGING==1
-            std::cout << "Rejected proposal!" << std::endl;
-            #endif
-            model->reject();
-        }
+        currentLnPosterior = model->lnLikelihood() + model->lnPrior();
+        model->accept();
     }
 
     #if TIME_PROFILE==1
@@ -136,18 +151,19 @@ double RJMcmc::GibbsIteration(double currentLnPosterior){
     return currentLnPosterior;
 }
 
-void RJMcmc::burnin(){
+void RJDPPMcmc::burnin(){
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
     double currentLnPosterior = model->lnLikelihood() + model->lnPrior();
 
-    std::vector<double> initTuning(6, 0.0);
+    std::vector<double> initTuning(5, 0.0);
     initTuning[0] = tree->treeAlpha;
     initTuning[1] = tree->branchDelta;
     initTuning[2] = codonMatrix->stationaryAlpha;
     initTuning[3] = codonMatrix->kDelta;
-    initTuning[4] = codonMatrix->omegaDelta;
-    initTuning[5] = codonMatrix->rDelta;
+    initTuning[4] = codonMatrix->rDelta;
+    // We are excluding omega. That will be tuned with acceptance rate because it is really weird to handle autocorrelation in a Dirichlet Process distributed parameter
+
 
     for(int n = 1; n <= numBurnIn; n++){
         if(n % printFreq == 0){
@@ -157,8 +173,8 @@ void RJMcmc::burnin(){
                          "\tBranch Rate=" << (double)tree->branchAcceptCount/(double)tree->branchCount <<
                          "\tStationary Rate=" << (double)codonMatrix->stationaryAcceptCount/(double)codonMatrix->stationaryCount <<
                          "\tK Rate=" << (double)codonMatrix->kAcceptCount/(double)codonMatrix->kCount <<
-                         "\tOmega Rate=" << (double)codonMatrix->omegaAcceptCount/(double)codonMatrix->omegaCount <<
-                         "\tR Rate=" << (double)codonMatrix->rAcceptCount/(double)codonMatrix->rCount << std::endl;
+                         "\tR Rate=" << (double)codonMatrix->rAcceptCount/(double)codonMatrix->rCount <<
+                         "\tOmega Rate=" << (double)dpp->omegaAcceptCount/(double)dpp->omegaCount << std::endl;
         }
         if(n % tuneFreq == 0){
             model->tuneMoves();
@@ -168,8 +184,8 @@ void RJMcmc::burnin(){
     }
 
     if(!disableBayesOpt && bayesOptIter > 0){
-        std::vector<double> diffVec = {initTuning[0] - tree->treeAlpha, initTuning[1] - tree->branchDelta, initTuning[2] - codonMatrix->stationaryAlpha, initTuning[3] - codonMatrix->kDelta, initTuning[4] - codonMatrix->omegaDelta, initTuning[5] - codonMatrix->rDelta};
-        std::vector<double> currVec = {tree->treeAlpha, tree->branchDelta, codonMatrix->stationaryAlpha, codonMatrix->kDelta, codonMatrix->omegaDelta, codonMatrix->rDelta};
+        std::vector<double> diffVec = {initTuning[0] - tree->treeAlpha, initTuning[1] - tree->branchDelta, initTuning[2] - codonMatrix->stationaryAlpha, initTuning[3] - codonMatrix->kDelta, initTuning[4] - codonMatrix->rDelta};
+        std::vector<double> currVec = {tree->treeAlpha, tree->branchDelta, codonMatrix->stationaryAlpha, codonMatrix->kDelta, codonMatrix->rDelta};
         optim.setBounds(diffVec, currVec);
 
         #if LOGGING==1
@@ -178,15 +194,14 @@ void RJMcmc::burnin(){
         std::cout << "\t2: " << tree->branchDelta << std::endl;
         std::cout << "\t3: " << codonMatrix->stationaryAlpha << std::endl;
         std::cout << "\t4: " << codonMatrix->kDelta << std::endl;
-        std::cout << "\t5: " << codonMatrix->omegaDelta << std::endl;
-        std::cout << "\t6: " << codonMatrix->rDelta << std::endl;
+        std::cout << "\t5: " << codonMatrix->rDelta << std::endl;
         #endif
 
         int sampleCount = 0;
         std::vector<std::vector<double>> posteriorSamples;
         for(int n = 1; n<= bayesOptIter; n++){
             currentLnPosterior = GibbsIteration(currentLnPosterior);
-            std::vector<double> record = {codonMatrix->getK(), codonMatrix->getOmega1(), codonMatrix->getOmega2(), codonMatrix->getOmega3(), codonMatrix->getR()};
+            std::vector<double> record = {codonMatrix->getK(), codonMatrix->getR()};
             for(double entry : codonMatrix->getRawStationary())
                 record.push_back(entry);
             for(double entry : tree->getTree()->getBranchLengths())
@@ -196,7 +211,7 @@ void RJMcmc::burnin(){
 
             if(n % bayesOptFreq == 0){
                 std::cout << "Performing Bayesian Optimization..." << std::endl;
-                currVec = {tree->treeAlpha, tree->branchDelta, codonMatrix->stationaryAlpha, codonMatrix->kDelta, codonMatrix->omegaDelta, codonMatrix->rDelta};
+                currVec = {tree->treeAlpha, tree->branchDelta, codonMatrix->stationaryAlpha, codonMatrix->kDelta, codonMatrix->rDelta};
                 double objective = optim.objective(posteriorSamples);
                 std::cout << "Parameters had score " << objective << std::endl;
                 optim.registerSample(currVec, objective);
@@ -205,7 +220,6 @@ void RJMcmc::burnin(){
                     tree->branchDelta *= std::exp((rng.uniformRv() - 0.5));
                     codonMatrix->stationaryAlpha *= std::exp((rng.uniformRv() - 0.5));
                     codonMatrix->kDelta *= std::exp((rng.uniformRv() - 0.5));
-                    codonMatrix->omegaDelta *= std::exp((rng.uniformRv() - 0.5));
                     codonMatrix->rDelta *= std::exp((rng.uniformRv() - 0.5));
                 }
                 else {
@@ -215,8 +229,7 @@ void RJMcmc::burnin(){
                     tree->branchDelta = newParams[1];
                     codonMatrix->stationaryAlpha = newParams[2];
                     codonMatrix->kDelta = newParams[3];
-                    codonMatrix->omegaDelta = newParams[4];
-                    codonMatrix->rDelta = newParams[5];
+                    codonMatrix->rDelta = newParams[4];
                 }
                 sampleCount++;
                 posteriorSamples.clear();
@@ -232,12 +245,11 @@ void RJMcmc::burnin(){
         tree->branchDelta = optimParams[1];
         codonMatrix->stationaryAlpha = optimParams[2];
         codonMatrix->kDelta = optimParams[3];
-        codonMatrix->omegaDelta = optimParams[4];
-        codonMatrix->rDelta = optimParams[5];
+        codonMatrix->rDelta = optimParams[4];
     }
 }
 
-void RJMcmc::run(){
+void RJDPPMcmc::run(){
     double currentLnPosterior = model->lnLikelihood() + model->lnPrior();
 
     std::string tabularHeader = model->tabularHeader();
@@ -251,6 +263,12 @@ void RJMcmc::run(){
     fs.open(treeLog, std::ofstream::out);
     fs << model->treeHeader();
     fs.close();
+
+    if(dppLog != ""){
+        fs.open(dppLog, std::ofstream::out);
+        fs << model->dppHeader();
+        fs.close();
+    }
 
     if(tipsLog != ""){
         fs.open(tipsLog, std::ofstream::out);
@@ -284,6 +302,13 @@ void RJMcmc::run(){
             fs << model->treeOut(n);
             fs.close();
             fs.clear();
+
+            if(dppLog != ""){
+                fs.open(dppLog, std::ofstream::app);
+                fs << model->dppOut(n);
+                fs.close();
+                fs.clear();
+            }
 
             if(branchLog != ""){
                 fs.open(branchLog, std::ofstream::app);

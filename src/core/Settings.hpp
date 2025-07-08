@@ -45,6 +45,7 @@ struct Settings {
     bool M3S2;
     bool SB;
     bool RJ;
+    bool RJDPP;
     bool simulateM0;
     bool simulateM3S2;
     bool simulateDPP;

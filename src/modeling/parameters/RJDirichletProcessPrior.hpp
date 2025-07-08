@@ -1,33 +1,36 @@
-#ifndef DIRICHLET_PROCESS_PRIOR_HPP
-#define DIRICHLET_PROCESS_PRIOR_HPP
+#ifndef RJ_DIRICHLET_PROCESS_PRIOR_HPP
+#define RJ_DIRICHLET_PROCESS_PRIOR_HPP
 #include "modeling/parameters/Parameter.hpp"
 #include <taskflow/taskflow.hpp>
 #include <map>
 
-class DPPModel;
+class RJDPPModel;
 class Settings;
 
-struct Category {
+struct RJCategory {
     double omega1;
     double omega2;
-    double omegaIncrement;
+    double omega3;
+    double omegaIncrement1;
+    double omegaIncrement2;
     int size;
     std::vector<int> members;
     bool dirty;
 };
 
-class DirichletProcessPrior : public Parameter {
+class RJDirichletProcessPrior : public Parameter {
     public:
-        DirichletProcessPrior(void)=delete;
-        DirichletProcessPrior(int size, Settings s);
-        ~DirichletProcessPrior(void);
+        RJDirichletProcessPrior(void)=delete;
+        RJDirichletProcessPrior(int size, Settings s);
+        ~RJDirichletProcessPrior(void);
 
-        void registerModel(DPPModel* m);
+        void registerModel(RJDPPModel* m);
         
         double lnPrior() {return currentLnPrior;}
 
         double updateOmega();
         double updateDPP();
+        double updateActiveOmegas();
         
         void tune();
 
@@ -36,8 +39,9 @@ class DirichletProcessPrior : public Parameter {
         
         double getAlpha() {return alpha;}
 
-        std::vector<Category> getCategories() {return currentCategories;}
+        std::vector<RJCategory> getCategories() {return currentCategories;}
         std::vector<int> getAssignments() { return assignments;}
+        double getActiveOmegas() {return currentActiveOmegas;}
 
         int getNumCategories(){return currentCategories.size();}
 
@@ -50,23 +54,26 @@ class DirichletProcessPrior : public Parameter {
         void regeneratePrior();
 
         int getCategorySize(int index);
-        void addCategory(double omega1, double omegaI);
+        void addCategory(double omega1, double omega2, double omega3);
 
         int unassignMember(int member);
         void assignMember(int member, int category);
 
-        DPPModel* model;
+        RJDPPModel* model;
 
         double currentLnPrior;
         double oldLnPrior;
+
+        int currentActiveOmegas = 3;
+        int oldActiveOmegas = 3;
 
         double alpha;
         double omegaLambda;
 
         int numMembers;
         int numGibbs;
-        std::vector<Category> currentCategories;
-        std::vector<Category> oldCategories;
+        std::vector<RJCategory> currentCategories;
+        std::vector<RJCategory> oldCategories;
         std::vector<int> assignments;
 
         int moveChoice;

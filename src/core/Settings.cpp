@@ -9,10 +9,10 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                                               burnInIterations(1000), tuneFrequency(100), rLambda(5.0), gammaLambda(5.0),
                                               kLambda(2.0), omegaLambda(2.0), treeLengthLambda(5.0), expectedCat(1.2),
                                               rWeight(1.0), kWeight(1.0), stationaryWeight(2.0), omegaWeight(1.0), proportionsWeight(1.0),
-                                              dppWeight(2.0), treeWeight(2.0), rjWeight(0.5), numGibbs(25), fixedTree(""), M0(false),
+                                              dppWeight(2.0), treeWeight(2.0), rjWeight(1.0), numGibbs(5), fixedTree(""), M0(false),
                                               M3S2(false), simulateDPP(false), simulateM0(false), simulateM3S2(false),
                                               numSimulations(1), bayesOpt(0), bayesOptFrequency(0), sequentialTuningSim(false),
-                                              SB(false), simulateSB(false), RJ(false), truncation(5) {
+                                              SB(false), simulateSB(false), RJ(false), RJDPP(false), truncation(5) {
 
     std::vector<std::string> settings;
     for (int i=1; i<argc; i++) {
@@ -33,7 +33,7 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
     settings.push_back("-simulationOutput");
     settings.push_back("/workspaces/Varying_Selection_DPP/res/simulation.log");
     settings.push_back("-simulateM3S2");
-    settings.push_back("-RJ");
+    settings.push_back("-RJDPP");
     #endif
     if (settings.size() == 0) {
         usage();
@@ -44,26 +44,32 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
     for (int i=0; i<settings.size(); i++) {
         if(settings[i] == "-M0"){
             M0 = true;
-            if(M3S2 || SB || RJ){
+            if(M3S2 || SB || RJ || RJDPP){
                 Msg::error("Cannot do inference under two models!");
             }
         }
         else if(settings[i] == "-M3S2"){
             M3S2 = true;
-            if(M0 || SB || RJ){
+            if(M0 || SB || RJ || RJDPP){
                 Msg::error("Cannot do inference under two models!");
             }
         }
         else if(settings[i] == "-SB"){
             SB = true;
             Msg::warning("The stick breaking model is experimental! This could go badly!");
-            if(M0 || M3S2 || RJ){
+            if(M0 || M3S2 || RJ || RJDPP){
                 Msg::error("Cannot do inference under two models!");
             }
         }
         else if(settings[i] == "-RJ"){
             RJ = true;
-            if(M0 || M3S2 || SB){
+            if(M0 || M3S2 || SB || RJDPP){
+                Msg::error("Cannot do inference under two models!");
+            }
+        }
+        else if(settings[i] == "-RJDPP"){
+            RJDPP = true;
+            if(M0 || M3S2 || SB || RJ){
                 Msg::error("Cannot do inference under two models!");
             }
         }
@@ -218,7 +224,9 @@ void Settings::print(){
     std::cout << "Inference Model and Simulation:" << std::endl;
     std::cout << "   * -M0                : " << M0 << std::endl;
     std::cout << "   * -M3S2              : " << M3S2 << std::endl;
-    std::cout << "   * -SB                : " << M3S2 << std::endl;
+    std::cout << "   * -SB                : " << SB << std::endl;
+    std::cout << "   * -RJ                : " << RJ << std::endl;
+    std::cout << "   * -RJDPP             : " << RJDPP << std::endl;
     std::cout << "   * -simulateM0        : " << simulateM0 << std::endl;
     std::cout << "   * -simulateM3S2      : " << simulateM3S2 << std::endl;
     std::cout << "   * -simulateDPP       : " << simulateDPP << std::endl;
@@ -247,6 +255,7 @@ void Settings::print(){
     std::cout << "   * -treeWeight        : " << treeWeight << std::endl;
     std::cout << "   * -kWeight           : " << kWeight << std::endl;
     std::cout << "   * -rWeight           : " << rWeight << std::endl;
+    std::cout << "   * -rjWeight          : " << rjWeight << std::endl;
     std::cout << "   * -stationaryWeight  : " << stationaryWeight << std::endl;
     std::cout << "   * -dppWeight         : " << dppWeight << std::endl;
     std::cout << "   * -omegaWeight       : " << omegaWeight << std::endl;
@@ -270,6 +279,8 @@ void Settings::usage(void) {
     std::cout << "   * -M0                : Do inference under a normal codon phylogenetic model." << std::endl;
     std::cout << "   * -M3S2              : Do inference under M3S2 as described by Guindon et al. (2004)." << std::endl;
     std::cout << "   * -SB                : (Experimental) Do inference under a stick-breaking Markov-modulated model." << std::endl;
+    std::cout << "   * -RJ                : (Experimental) Do inference under the reversible jump Markov-modulated model." << std::endl;
+    std::cout << "   * -RJDPP             : (Experimental) Do inference with the reversible-jump DPP model." << std::endl;
     std::cout << "   * -simulateM0        : Directs the program to simulate under M0 and test against the selected inference model." << std::endl;
     std::cout << "   * -simulateM3S2      : Directs the program to simulate under M3S2 and test against the selected inference model." << std::endl;
     std::cout << "   * -simulateDPP       : Directs the program to simulate under the DPP model and test against the selected inference model." << std::endl;
@@ -298,6 +309,7 @@ void Settings::usage(void) {
     std::cout << "   * -treeWeight        : How often to propose a move on the tree." << std::endl;
     std::cout << "   * -kWeight           : How often to propose a move on the K parameter." << std::endl;
     std::cout << "   * -rWeight           : How often to propose a move on the R or Gamma parameter." << std::endl;
+    std::cout << "   * -rWeight           : How often to propose a move on the dimension of the Markov modulated model." << std::endl;
     std::cout << "   * -stationaryWeight  : How often to propose a move on the stationary distribution." << std::endl;
     std::cout << "   * -dppWeight         : How often to propose a move on the DPP partitions." << std::endl;
     std::cout << "   * -omegaWeight       : How often to propose a move on the omega parameters." << std::endl;

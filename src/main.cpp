@@ -23,6 +23,10 @@
 #include "modeling/parameters/RJMatrix.hpp"
 #include "modeling/model/RJModel.hpp"
 #include "modeling/analysis/RJMcmc.hpp"
+#include "modeling/parameters/RJDPPMatrix.hpp"
+#include "modeling/model/RJDPPModel.hpp"
+#include "modeling/analysis/RJDPPMcmc.hpp"
+#include "modeling/parameters/RJDirichletProcessPrior.hpp"
 #include "modeling/parameters/trees/Node.hpp"
 #include <algorithm>
 #include <chrono>
@@ -70,6 +74,21 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
         SBModel model(settings, &aln, &treeParam, &rateMatrix);
 
         SBMcmc myMCMC(&model, &treeParam, &rateMatrix, settings, disableBayesOpt);
+        
+        std::cout << "Starting MCMC..." << std::endl;
+        myMCMC.burnin();
+        myMCMC.run();
+    }
+    else if(settings.RJDPP){
+        std::cout << "Initializing the Reversible Jump DPP model..." << std::endl;
+
+        RJDirichletProcessPrior dpp(aln.getNumChar(), settings);
+
+        RJDPPMatrix rateMatrix(settings);
+
+        RJDPPModel model(settings, &aln, &treeParam, &rateMatrix, &dpp);
+
+        RJDPPMcmc myMCMC(&model, &treeParam, &rateMatrix, &dpp, settings, disableBayesOpt);
         
         std::cout << "Starting MCMC..." << std::endl;
         myMCMC.burnin();

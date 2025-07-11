@@ -276,6 +276,34 @@ Matrix<double> RJDPPMatrix::Q(double omega1, double omega2, double omega3) {
 
     int stateSpace = currentQMatrix.dim1();
 
+    if(stateSpace == 183){
+        for(auto coord : nonsynonymous){
+            currentQMatrix(coord.first, coord.second) *= omega1;
+            currentQMatrix(coord.second, coord.first) *= omega1;
+
+            currentQMatrix(coord.first + 61, coord.second + 61) *= omega2;
+            currentQMatrix(coord.second + 61, coord.first + 61) *= omega2;
+
+            currentQMatrix(coord.first + 122, coord.second + 122) *= omega3;
+            currentQMatrix(coord.second + 122, coord.first + 122) *= omega3;
+        }
+    }
+    else if(stateSpace == 122){
+        for(auto coord : nonsynonymous){
+            currentQMatrix(coord.first, coord.second) *= omega1;
+            currentQMatrix(coord.second, coord.first) *= omega1;
+
+            currentQMatrix(coord.first + 61, coord.second + 61) *= omega2;
+            currentQMatrix(coord.second + 61, coord.first + 61) *= omega2;
+        }
+    }
+    else {
+        for(auto coord : nonsynonymous){
+            currentQMatrix(coord.first, coord.second) *= omega1;
+            currentQMatrix(coord.second, coord.first) *= omega1;
+        }
+    }
+
     double scaler= 0.0;
     for(int i = 0; i < stateSpace; i++){
         double total = 0.0;

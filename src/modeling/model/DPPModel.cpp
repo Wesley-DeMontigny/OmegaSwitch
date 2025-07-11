@@ -551,7 +551,7 @@ std::string DPPModel::treeOut(int i){
 std::string DPPModel::dppHeader(){
     std::string returnString = "Iteration\tPosterior\tCategoryCount";
     for(int i = 0; i < numChar; i++)
-        returnString += "\tOmega1[" + std::to_string(i) + "]" + "\tOmega2[" + std::to_string(i) + "]";
+        returnString += "\tOmega1[" + std::to_string(i) + "]" + "\tOmegaIncrement[" + std::to_string(i) + "]";
     return returnString + "\n";
 }
 
@@ -561,7 +561,7 @@ std::string DPPModel::dppOut(int i){
     returnString += std::to_string(categories.size());
     std::vector<int> assignments = dpp->getAssignments();
     for(int c : assignments){
-        returnString += "\t" + std::to_string(categories[c].omega1) + "\t" + std::to_string(categories[c].omega2);
+        returnString += "\t" + std::to_string(categories[c].omega1) + "\t" + std::to_string(categories[c].omegaIncrement);
     }
 
 

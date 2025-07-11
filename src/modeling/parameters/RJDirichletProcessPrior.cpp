@@ -17,7 +17,7 @@ RJDirichletProcessPrior::RJDirichletProcessPrior(int size, Settings s) :
                                              numMembers(size), currentLnPrior(0.0),
                                              model(nullptr), omegaDelta(0.5), assignments(size, -1),
                                              omegaAcceptCount(0), omegaCount(0), moveChoice(-1),
-                                             numGibbs(s.numGibbs), executor(5) {
+                                             numGibbs(s.numGibbs) {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
@@ -360,7 +360,7 @@ double RJDirichletProcessPrior::updateDPP(){
 
     this->dirty();
 
-    int numAux = 10;
+    int numAux = 5;
 
     for(int iter = 0; iter < numGibbs; iter++) {
         #if TIME_PROFILE==1
@@ -475,6 +475,13 @@ double RJDirichletProcessPrior::updateDPP(){
                 Msg::error("Duplicate Assignments!");
             else
             assignments[m] = i;
+        }
+    }
+
+    for(int i = 0; i < numMembers; i++){
+        if(assignments[i] == -1){
+            std::cout << i << " was not assigned to any category." << std::endl;
+            Msg::error("Failed to assign!");
         }
     }
 

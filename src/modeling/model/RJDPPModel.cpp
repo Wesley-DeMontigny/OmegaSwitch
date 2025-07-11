@@ -401,7 +401,7 @@ double RJDPPModel::testCategory(int site, int category, bool update){
         if(update){
             if(n != activeT->getRoot()){
                 double v = activeT->getBranchLength(n);
-                transProb->setProbs(activeTP[nIndex], category, nIndex, v);
+                transProb->setProbs(activeTP[nIndex], category, nIndex, numClasses * 61, v);
             }
         }
 
@@ -515,7 +515,7 @@ double RJDPPModel::testCategory(int site, int category, bool update){
         lnL += *rescaleBufferPointer;
         rescaleBufferPointer++;
     }
-
+    
     delete [] siteBuffer;
 
     delete [] rescaleBuffer;
@@ -562,7 +562,7 @@ std::string RJDPPModel::treeOut(int i){
 std::string RJDPPModel::dppHeader(){
     std::string returnString = "Iteration\tPosterior\tCategoryCount";
     for(int i = 0; i < numChar; i++)
-        returnString += "\tOmega1[" + std::to_string(i) + "]" + "\tOmega2[" + std::to_string(i) + "]";
+        returnString += "\tOmega1[" + std::to_string(i) + "]" + "\tOmegaIncrement1[" + std::to_string(i) + "]\tOmegaIncrement2[" + std::to_string(i) + "]";
     return returnString + "\n";
 }
 
@@ -572,9 +572,8 @@ std::string RJDPPModel::dppOut(int i){
     returnString += std::to_string(categories.size());
     std::vector<int> assignments = dpp->getAssignments();
     for(int c : assignments){
-        returnString += "\t" + std::to_string(categories[c].omega1) + "\t" + std::to_string(categories[c].omega2);
+        returnString += "\t" + std::to_string(categories[c].omega1) + "\t" + std::to_string(categories[c].omegaIncrement1) + "\t" + std::to_string(categories[c].omegaIncrement2);
     }
-
 
     return returnString + "\n";
 }

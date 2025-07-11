@@ -227,7 +227,7 @@ double DirichletProcessPrior::updateDPP(){
 
     this->dirty();
 
-    int numAux = 10;
+    int numAux = 5;
 
     for(int iter = 0; iter < numGibbs; iter++) {
         #if TIME_PROFILE==1
@@ -339,6 +339,12 @@ double DirichletProcessPrior::updateDPP(){
                 Msg::error("Duplicate Assignments!");
             else
             assignments[m] = i;
+        }
+    }
+
+    for(int i = 0; i < numMembers; i++){
+        if(assignments[i] == -1){
+            Msg::error("Failed to assign!");
         }
     }
 

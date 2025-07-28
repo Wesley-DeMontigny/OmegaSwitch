@@ -3,6 +3,7 @@
 #include "core/Matrix.hpp"
 #include "core/Msg.hpp"
 #include "modeling/parameters/Parameter.hpp"
+#include "core/Probability.hpp"
 #include <set>
 #include <vector>
 
@@ -29,6 +30,8 @@ class RJDPPMatrix : public Parameter {
         std::vector<double> getRawStationary() {return currentStationary;}
         double getK() {return currentK;}
         double getR() {return currentR;}
+        void setR(double r){currentR = r; currentRPrior = Probability::Exponential::lnPdf(rLambda, r);}
+        double getRLambda() {return rLambda;}
 
         double kDelta;
         double rDelta;

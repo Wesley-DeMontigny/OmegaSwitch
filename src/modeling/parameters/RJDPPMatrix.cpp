@@ -151,7 +151,10 @@ void RJDPPMatrix::reject() {
 }
 
 double RJDPPMatrix::lnPrior() {
-    double prior = currentKPrior + currentStationaryPrior + currentRPrior;
+    int stateSpace = currentQMatrix.dim1();
+    double prior = currentKPrior + currentStationaryPrior;
+    if(stateSpace != 61)
+        prior += currentRPrior;
     return prior;
 }
 

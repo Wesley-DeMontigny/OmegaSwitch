@@ -82,9 +82,9 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
     else if(settings.RJDPP){
         std::cout << "Initializing the Reversible Jump DPP model..." << std::endl;
 
-        RJDirichletProcessPrior dpp(aln.getNumChar(), settings);
-
         RJDPPMatrix rateMatrix(settings);
+
+        RJDirichletProcessPrior dpp(&rateMatrix, aln.getNumChar(), settings);
 
         RJDPPModel model(settings, &aln, &treeParam, &rateMatrix, &dpp);
 

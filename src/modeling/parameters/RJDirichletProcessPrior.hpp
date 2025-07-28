@@ -6,6 +6,7 @@
 
 class RJDPPModel;
 class Settings;
+class RJDPPMatrix;
 
 struct RJCategory {
     double omega1;
@@ -21,7 +22,7 @@ struct RJCategory {
 class RJDirichletProcessPrior : public Parameter {
     public:
         RJDirichletProcessPrior(void)=delete;
-        RJDirichletProcessPrior(int size, Settings s);
+        RJDirichletProcessPrior(RJDPPMatrix* matrix, int size, Settings s);
         ~RJDirichletProcessPrior(void);
 
         void registerModel(RJDPPModel* m);
@@ -60,6 +61,7 @@ class RJDirichletProcessPrior : public Parameter {
         void assignMember(int member, int category);
 
         RJDPPModel* model;
+        RJDPPMatrix* rateMatrix;
 
         double currentLnPrior;
         double oldLnPrior;

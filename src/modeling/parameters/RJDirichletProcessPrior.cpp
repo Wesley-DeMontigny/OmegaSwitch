@@ -1,6 +1,7 @@
 #include "RJDirichletProcessPrior.hpp"
 #include "core/RandomVariable.hpp"
 #include "modeling/model/RJDPPModel.hpp" // Annoying circular dependency... It is what is is for now...
+#include "modeling/parameters/RJDPPMatrix.hpp"
 #include "modeling/model/TransitionProbability.hpp"
 #include "modeling/model/ConditionalLikelihood.hpp"
 #include "core/Probability.hpp"
@@ -12,12 +13,12 @@
 #include <iostream>
 #include <algorithm>
 
-RJDirichletProcessPrior::RJDirichletProcessPrior(int size, Settings s) : 
+RJDirichletProcessPrior::RJDirichletProcessPrior(RJDPPMatrix* matrix, int size, Settings s) : 
                                              alpha(0), omegaLambda(s.omegaLambda),
                                              numMembers(size), currentLnPrior(0.0),
                                              model(nullptr), omegaDelta(0.5), assignments(size, -1),
                                              omegaAcceptCount(0), omegaCount(0), moveChoice(-1),
-                                             numGibbs(s.numGibbs) {
+                                             numGibbs(s.numGibbs), rateMatrix(matrix) {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
@@ -297,7 +298,12 @@ double RJDirichletProcessPrior::updateActiveOmegas() {
             hastings += std::log(tempO);
         }
 
-        hastings -= Probability::Beta::lnPdf(alpha, alpha, u);
+        hastings += Probability::Beta::lnPdf(alpha, alpha, u);
+        
+        double newR = Probability::Exponential::rv(&rng, rateMatrix->getRLambda());
+        hastings += Probability::Exponential::lnPdf(rateMatrix->getRLambda(), newR);
+
+        rateMatrix->setR(newR);
     }
     else if (currentActiveOmegas == 2) { // 2 1 merge or 2 3 split
         hastings = std::log(0.5);
@@ -316,7 +322,7 @@ double RJDirichletProcessPrior::updateActiveOmegas() {
                 hastings += std::log(tempO);
             }
 
-            hastings -= Probability::Beta::lnPdf(alpha, alpha, u);
+            hastings += Probability::Beta::lnPdf(alpha, alpha, u);
         } else { // 2 1 merge
             currentActiveOmegas = 1;
             double o1 = currentCategories[0].omega1;

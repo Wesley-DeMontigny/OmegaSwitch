@@ -204,13 +204,13 @@ void RJMatrix::reject() {
 }
 
 double RJMatrix::lnPrior() {
-    double prior = currentKPrior + currentStationaryPrior + currentRPrior;
+    double prior = currentKPrior + currentStationaryPrior;
 
     if(currentActiveOmegas == 3){
-        prior += currentOmega1Prior + currentOmega2Prior + currentOmega3Prior;
+        prior += currentOmega1Prior + currentOmega2Prior + currentOmega3Prior + currentRPrior;
     }
     else if(currentActiveOmegas == 2){
-        prior += currentOmega1Prior + currentOmega2Prior;
+        prior += currentOmega1Prior + currentOmega2Prior + currentRPrior;
     }
     else if(currentActiveOmegas == 1){
         prior += currentOmega1Prior;
@@ -356,9 +356,14 @@ double RJMatrix::updateActiveOmegas() {
         double u = Probability::Beta::rv(&rng, alpha, alpha);
         currentOmega1 = tempO * u;
         currentOmega2 = tempO * (1.0 - u);
+        currentOmega1Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega1);
+        currentOmega2Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega2);
+
+        currentR = Probability::Exponential::rv(&rng, rLambda);
+        currentRPrior = Probability::Exponential::lnPdf(rLambda, currentR);
 
         hastings += std::log(tempO);
-        hastings -= Probability::Beta::lnPdf(alpha, alpha, u);
+        hastings += Probability::Beta::lnPdf(alpha, alpha, u) + currentRPrior;
     }
     else if (currentActiveOmegas == 2) { // 2 1 merge or 2 3 split
         hastings = std::log(0.5);
@@ -370,9 +375,11 @@ double RJMatrix::updateActiveOmegas() {
             double u = Probability::Beta::rv(&rng, alpha, alpha);
             currentOmega2 = tempO * u;
             currentOmega3 = tempO * (1.0 - u);
+            currentOmega2Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega2);
+            currentOmega3Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega3);
 
             hastings += std::log(tempO);
-            hastings -= Probability::Beta::lnPdf(alpha, alpha, u);
+            hastings += Probability::Beta::lnPdf(alpha, alpha, u);
         } else { // 2 1 merge
             currentActiveOmegas = 1;
             double o1 = currentOmega1;
@@ -380,10 +387,11 @@ double RJMatrix::updateActiveOmegas() {
             double total = o1 + o2;
             double u = o1 / total;
 
-            hastings -= std::log(total);
-            hastings -= Probability::Beta::lnPdf(alpha, alpha, u);
-
             currentOmega1 = total;
+            currentOmega1Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega1);
+
+            hastings -= std::log(total);
+            hastings -= Probability::Beta::lnPdf(alpha, alpha, u) + Probability::Exponential::lnPdf(rLambda, currentR);
         }
     }
     else if (currentActiveOmegas == 3) { // 3 2 merge
@@ -395,10 +403,11 @@ double RJMatrix::updateActiveOmegas() {
         double total = o2 + o3;
         double u = o2 / total;
 
+        currentOmega2 = total;
+        currentOmega2Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega2);
+
         hastings -= std::log(total);
         hastings -= Probability::Beta::lnPdf(alpha, alpha, u);
-
-        currentOmega2 = total;
     }
 
     rebuildQMatrix();

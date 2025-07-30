@@ -9,7 +9,7 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                                               burnInIterations(1000), tuneFrequency(100), rLambda(5.0), gammaLambda(5.0),
                                               kLambda(2.0), omegaLambda(2.0), treeLengthLambda(5.0), expectedCat(1.2),
                                               rWeight(1.0), kWeight(1.0), stationaryWeight(2.0), omegaWeight(1.0), proportionsWeight(1.0),
-                                              dppWeight(2.0), treeWeight(2.0), rjWeight(1.0), numGibbs(5), fixedTree(""), M0(false),
+                                              dppWeight(2.0), treeWeight(2.0), rjWeight(1.0), numGibbs(10), fixedTree(""), M0(false),
                                               M3S2(false), simulateDPP(false), simulateM0(false), simulateM3S2(false),
                                               numSimulations(1), bayesOpt(0), bayesOptFrequency(0), sequentialTuningSim(false),
                                               SB(false), simulateSB(false), RJ(false), RJDPP(false), truncation(5) {
@@ -32,70 +32,97 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
     settings.push_back("/workspaces/Varying_Selection_DPP/res/branches.log");
     settings.push_back("-simulationOutput");
     settings.push_back("/workspaces/Varying_Selection_DPP/res/simulation.log");
-    settings.push_back("-simulateM3S2");
+    settings.push_back("-simulateRJDPP");
     settings.push_back("-RJDPP");
+    burnInIterations = 0;
     #endif
     if (settings.size() == 0) {
         usage();
         Msg::error("Expected command line arguments");
     }
 
+    bool simulating = false;
+    bool modelSelected = false;
+
     std::string currentArg = "";
     for (int i=0; i<settings.size(); i++) {
         if(settings[i] == "-M0"){
             M0 = true;
-            if(M3S2 || SB || RJ || RJDPP){
+            if(modelSelected){
                 Msg::error("Cannot do inference under two models!");
             }
+            modelSelected = true;
         }
         else if(settings[i] == "-M3S2"){
             M3S2 = true;
-            if(M0 || SB || RJ || RJDPP){
+            if(modelSelected){
                 Msg::error("Cannot do inference under two models!");
             }
+            modelSelected = true;
         }
         else if(settings[i] == "-SB"){
             SB = true;
             Msg::warning("The stick breaking model is experimental! This could go badly!");
-            if(M0 || M3S2 || RJ || RJDPP){
+            if(modelSelected){
                 Msg::error("Cannot do inference under two models!");
             }
+            modelSelected = true;
         }
         else if(settings[i] == "-RJ"){
             RJ = true;
-            if(M0 || M3S2 || SB || RJDPP){
+            if(modelSelected){
                 Msg::error("Cannot do inference under two models!");
             }
+            modelSelected = true;
         }
         else if(settings[i] == "-RJDPP"){
             RJDPP = true;
-            if(M0 || M3S2 || SB || RJ){
+            if(modelSelected){
                 Msg::error("Cannot do inference under two models!");
             }
+            modelSelected = true;
         }
         else if(settings[i] == "-simulateM0"){
             simulateM0 = true;
-            if(simulateM3S2 || simulateDPP || simulateSB){
+            if(simulating){
                 Msg::error("Cannot simulate under multiple models!");
             }
+            simulating = true;
         }
         else if(settings[i] == "-simulateM3S2"){
             simulateM3S2 = true;
-            if(simulateM0 || simulateDPP || simulateSB){
+            if(simulating){
                 Msg::error("Cannot simulate under multiple models!");
             }
+            simulating = true;
         }
         else if(settings[i] == "-simulateDPP"){
             simulateDPP = true;
-            if(simulateM3S2 || simulateM0 || simulateSB){
+            if(simulating){
                 Msg::error("Cannot simulate under multiple models!");
             }
+            simulating = true;
+        }
+        else if(settings[i] == "-simulateRJ"){
+            simulateRJ = true;
+            if(simulating){
+                Msg::error("Cannot simulate under multiple models!");
+            }
+            simulating = true;
+        }
+        else if(settings[i] == "-simulateRJDPP"){
+            simulateRJDPP = true;
+            if(simulating){
+                Msg::error("Cannot simulate under multiple models!");
+            }
+            simulating = true;
         }
         else if(settings[i] == "-simulateSB"){
             simulateSB = true;
-            if(simulateM3S2 || simulateM0 || simulateDPP){
+            if(simulating){
                 Msg::error("Cannot simulate under multiple models!");
             }
+            simulating = true;
         }
         else if(settings[i] == "-sequentialTuningSim"){
             sequentialTuningSim = true;
@@ -175,8 +202,6 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
         }
     }
 
-    bool simulating = (simulateDPP == true || simulateM0 == true || simulateM3S2 == true || simulateSB == true);
-
     if((nexusInput == "" || treeOutput == "" || mcmcOutput == "") && !simulating){
         usage();
         Msg::error("For non-simulation analyses, nexusInput, treeOut, mcmcOut are required arguments.");
@@ -230,6 +255,8 @@ void Settings::print(){
     std::cout << "   * -simulateM0        : " << simulateM0 << std::endl;
     std::cout << "   * -simulateM3S2      : " << simulateM3S2 << std::endl;
     std::cout << "   * -simulateDPP       : " << simulateDPP << std::endl;
+    std::cout << "   * -simulateRJ        : " << simulateRJ << std::endl;
+    std::cout << "   * -simulateRJDPP     : " << simulateRJDPP << std::endl;
     std::cout << "   * -simulateSB        : " << simulateSB << std::endl;
     std::cout << "   * -numSimulations    : " << numSimulations << std::endl;
     std::cout << std::endl;
@@ -276,6 +303,7 @@ void Settings::usage(void) {
     std::cout << std::endl;
 
     std::cout << "Inference Model and Simulation:" << std::endl;
+    std::cout << "   * NOTE: By default, this software will run the DPP model." << std::endl;
     std::cout << "   * -M0                : Do inference under a normal codon phylogenetic model." << std::endl;
     std::cout << "   * -M3S2              : Do inference under M3S2 as described by Guindon et al. (2004)." << std::endl;
     std::cout << "   * -SB                : (Experimental) Do inference under a stick-breaking Markov-modulated model." << std::endl;
@@ -284,6 +312,8 @@ void Settings::usage(void) {
     std::cout << "   * -simulateM0        : Directs the program to simulate under M0 and test against the selected inference model." << std::endl;
     std::cout << "   * -simulateM3S2      : Directs the program to simulate under M3S2 and test against the selected inference model." << std::endl;
     std::cout << "   * -simulateDPP       : Directs the program to simulate under the DPP model and test against the selected inference model." << std::endl;
+    std::cout << "   * -simulateRJ        : Directs the program to simulate under the RJ model and test against the selected inference model." << std::endl;
+    std::cout << "   * -simulateRJDPP     : Directs the program to simulate under the RJ-DPP model and test against the selected inference model." << std::endl;
     std::cout << "   * -simulateSB        : (Experimental) Directs the program to simulate under the stick-breaking Markov-modulated model and test against the selected inference model." << std::endl;
     std::cout << "   * -numSimulations    : The number of simulations to do inference under." << std::endl;
     std::cout << std::endl;

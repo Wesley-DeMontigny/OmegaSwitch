@@ -311,7 +311,7 @@ void M3S2Model::tuneMoves(){
 }
 
 std::string M3S2Model::tabularHeader(){
-    std::string returnString = "Iteration\tPosterior\tLikelihood\tPrior\tK\tOmega1\tOmegaIncrement1\tOmegaIncrement2\tR[1]\tR[2]\tGamma";
+    std::string returnString = "Iteration\tPosterior\tLikelihood\tPrior\tK\tOmega\tOmegaIncrement1\tOmegaIncrement2\tR[1]\tR[2]\tGamma";
     for(int i = 0; i < 61; i++){
         returnString += "\tPi[" + std::to_string(i) + "]";
     }

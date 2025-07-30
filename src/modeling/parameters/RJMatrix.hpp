@@ -34,6 +34,7 @@ class RJMatrix : public Parameter {
         double getOmega3() {return currentOmega3;}
         double getR() {return currentR;}
         double getActiveOmegas() {return currentActiveOmegas;}
+        void setActiveOmegas(int o) {currentActiveOmegas = o; rebuildQMatrix();}
 
         double kDelta;
         double omegaDelta;

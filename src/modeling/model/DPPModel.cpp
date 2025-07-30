@@ -551,7 +551,7 @@ std::string DPPModel::treeOut(int i){
 std::string DPPModel::dppHeader(){
     std::string returnString = "Iteration\tPosterior\tCategoryCount";
     for(int i = 0; i < numChar; i++)
-        returnString += "\tOmega1[" + std::to_string(i) + "]" + "\tOmegaIncrement[" + std::to_string(i) + "]";
+        returnString += "\tOmega[" + std::to_string(i) + "]" + "\tOmegaIncrement[" + std::to_string(i) + "]";
     return returnString + "\n";
 }
 

@@ -329,7 +329,7 @@ void RJModel::tuneMoves(){
 }
 
 std::string RJModel::tabularHeader(){
-    std::string returnString = "Iteration\tPosterior\tLikelihood\tPrior\tOmega Count\tK\tOmega[1]\tOmega[2]\tOmega[3]\tR";
+    std::string returnString = "Iteration\tPosterior\tLikelihood\tPrior\tOmegaCount\tK\tOmega\tOmegaIncrement1\tOmegaIncrement2\tR";
     for(int i = 0; i < 61; i++){
         returnString += "\tPi[" + std::to_string(i) + "]";
     }

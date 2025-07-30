@@ -170,7 +170,7 @@ int main(int argc, char* argv[]) {
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
-    if(settings.simulateDPP == false && settings.simulateM0 == false && settings.simulateM3S2 == false && settings.simulateSB == false){
+    if(settings.simulateDPP == false && settings.simulateM0 == false && settings.simulateM3S2 == false && settings.simulateSB == false && settings.simulateRJ == false && settings.simulateRJDPP == false){
         Alignment aln(settings.nexusInput);
         TreeParameter treeParam(&aln, settings.fixedTree, settings.treeLengthLambda);
         inference(settings, aln, treeParam, false);
@@ -194,6 +194,10 @@ int main(int argc, char* argv[]) {
             modelClass = "M3S2";
         else if(settings.simulateSB)
             modelClass = "SB";
+        else if(settings.simulateRJ)
+            modelClass = "RJ";
+        else if(settings.simulateRJDPP)
+            modelClass = "RJDPP";
 
         std::cout << "Doing a simulation analysis of " << modelClass << " with " << settings.numSimulations << " simulations of " << numTaxa << " taxa trees with " << numSites << " sites." << std::endl;
         for(int i = 0; i < settings.numSimulations; i++){
@@ -230,7 +234,6 @@ int main(int argc, char* argv[]) {
                 DirichletProcessPrior dpp(numSites, settings);
                 std::vector<double> stationary = rateMatrix.getStationary();
                 std::vector<double> rawStationary = rateMatrix.getRawStationary();
-
                 std::vector<Category> categories = dpp.getCategories();
                 std::vector<int> assignments = dpp.getAssignments();
                 transProb.allocateQ(categories.size());
@@ -294,6 +297,93 @@ int main(int argc, char* argv[]) {
                 }
                 fs << std::endl;
                 fs << rateMatrix.getK() << "\t" << rateMatrix.getR() << "\t" << categories.size();
+                for(int element = 0; element < 61; element++){
+                    fs << "\t" << stationary[element];
+                }
+                fs << "\t" << tree.getNewick();
+                for(int taxon = 0; taxon < numTaxa; taxon++){
+                    for(int site = 0; site < numSites; site++){
+                        fs << "\t" << truedNdS[site*numTaxa + taxon];
+                    }
+                }
+                fs.close();
+            }
+            else if(settings.simulateRJDPP){
+                TransitionProbability transProb(numNodes, 183);
+                RJDPPMatrix rateMatrix(settings);
+                int activeOmegas = (int)(rng.uniformRv() * 3.0) + 1;
+                RJDirichletProcessPrior dpp(&rateMatrix, numSites, settings);
+                rateMatrix.refreshQBackground(activeOmegas);
+                std::vector<double> stationary = rateMatrix.getStationary(activeOmegas);
+                std::vector<double> rawStationary = rateMatrix.getRawStationary();
+                std::vector<RJCategory> categories = dpp.getCategories();
+                std::vector<int> assignments = dpp.getAssignments();
+                transProb.allocateQ(categories.size());
+                std::vector<double> dNdS1;
+                std::vector<double> dNdS2;
+                std::vector<double> dNdS3;
+                for(int cat = 0; cat < categories.size(); cat++){
+                    transProb.updateQ(rateMatrix.Q(categories[cat].omega1, categories[cat].omega2, categories[cat].omega3), cat);
+                    auto dNdS = rateMatrix.dNdS(categories[cat].omega1, categories[cat].omega2, categories[cat].omega3);
+                    dNdS1.push_back(std::get<0>(dNdS));
+                    dNdS2.push_back(std::get<1>(dNdS));
+                    dNdS3.push_back(std::get<2>(dNdS));
+                }
+
+                for(Node* n : preOrderSeq){
+                    if(n != root){
+                        for(int cat = 0; cat < categories.size(); cat++){
+                            transProb.setProbs(0, cat, n->getIndex(), activeOmegas*61, tree.getBranchLength(n));
+                        }
+                    }
+                }
+
+                for(int c = 0; c < numSites; c++){
+                    int cat = assignments[c];
+                    for(Node* n : preOrderSeq){
+                        int nIndex = n->getIndex();
+                        if(n == root){
+                            sites[c*numNodes + nIndex] = randomMultinomial(rng, stationary);
+                        }
+                        int ancestralState = sites[c*numNodes + nIndex];
+                        if(n->getIsTip() == false){
+                            for(Node* d : n->getNeighbors()){
+                                if(d != n->getAncestor()){
+                                    int dIndex = d->getIndex();
+                                    Matrix<double> P = transProb(0, cat, dIndex);
+                                    sites[c*numNodes + dIndex] = randomTransition(rng, ancestralState, P);
+                                }
+                            }
+                        }
+                        else{
+                            if(sites[c*numNodes + nIndex] < 61){
+                                truedNdS[c*numTaxa + nIndex] = dNdS1[cat];
+                            }
+                            else if(sites[c*numNodes + nIndex] < 122){
+                                truedNdS[c*numTaxa + nIndex] = dNdS2[cat];
+                            }
+                            else {
+                                truedNdS[c*numTaxa + nIndex] = dNdS3[cat];
+                            }
+                            tipSites[c*numTaxa + nIndex] = sites[c*numNodes + nIndex];
+                        }
+                    }
+                }
+                std::cout << "Writing true parameters to file..." << std::endl;
+                std::ofstream fs;
+                fs.open(settings.simulationOutput + std::to_string(i), std::ofstream::out);
+                fs << "OmegaCount\tK\tR\tCategoryCount";
+                for(int element = 0; element < 61; element++){
+                    fs << "\tStationary[" << element << "]";
+                }
+                fs << "\tTree";
+                for(int taxon = 0; taxon < numTaxa; taxon++){
+                    for(int site = 0; site < numSites; site++){
+                        fs << "\tTaxon_" << taxon + 1 << "[" << site << "]";
+                    }
+                }
+                fs << std::endl;
+                fs << activeOmegas << "\t" << rateMatrix.getK() << "\t" << rateMatrix.getR() << "\t" << categories.size();
                 for(int element = 0; element < 61; element++){
                     fs << "\t" << stationary[element];
                 }
@@ -413,7 +503,7 @@ int main(int argc, char* argv[]) {
                 std::cout << "Writing true parameters to file..." << std::endl;
                 std::ofstream fs;
                 fs.open(settings.simulationOutput + std::to_string(i), std::ofstream::out);
-                fs << "K\tOmega[1]\tOmega[2]\tOmega[3]\tGamma\tR[1]\tR[2]";
+                fs << "K\tOmega\tOmegaIncrement1\tOmegaIncrement2\tGamma\tR[1]\tR[2]";
                 for(int element = 0; element < 61; element++){
                     fs << "\tStationary[" << element << "]";
                 }
@@ -428,6 +518,80 @@ int main(int argc, char* argv[]) {
                    << "\t" << rateMatrix.getOmega2() << "\t" << rateMatrix.getOmega3()
                    << "\t" << rateMatrix.getGamma() << "\t" << rateMatrix.getR1()
                    << "\t" << rateMatrix.getR2();
+                for(int element = 0; element < 61; element++){
+                    fs << "\t" << rawStationary[element];
+                }
+                fs << "\t" << tree.getNewick();
+                for(int taxon = 0; taxon < numTaxa; taxon++){
+                    for(int site = 0; site < numSites; site++){
+                        fs << "\t" << truedNdS[site*numTaxa + taxon];
+                    }
+                }
+                fs.close();
+            }
+            else if(settings.simulateRJ){
+                TransitionProbability transProb(numNodes, 183);
+                RJMatrix rateMatrix(settings);
+                int activeOmegas = (int)(rng.uniformRv() * 3.0) + 1;
+                rateMatrix.setActiveOmegas(activeOmegas);
+                std::vector<double> stationary = rateMatrix.getStationary();
+                std::vector<double> rawStationary = rateMatrix.getRawStationary();
+                transProb.updateQ(rateMatrix.Q(), 0);
+                auto dNdS = rateMatrix.dNdS();
+
+                for(Node* n : preOrderSeq){
+                    if(n != root){
+                        transProb.setProbs(0, 0, n->getIndex(), activeOmegas*61, tree.getBranchLength(n));
+                    }
+                }
+
+                for(int c = 0; c < numSites; c++){
+                    for(Node* n : preOrderSeq){
+                        int nIndex = n->getIndex();
+                        if(n == root){
+                            sites[c*numNodes + nIndex] = randomMultinomial(rng, stationary);
+                        }
+                        int ancestralState = sites[c*numNodes + nIndex];
+                        if(n->getIsTip() == false){
+                            for(Node* d : n->getNeighbors()){
+                                if(d != n->getAncestor()){
+                                    int dIndex = d->getIndex();
+                                    Matrix<double> P = transProb(0, 0, dIndex);
+                                    sites[c*numNodes + dIndex] = randomTransition(rng, ancestralState, P);
+                                }
+                            }
+                        }
+                        else{
+                            if(sites[c*numNodes + nIndex] < 61){
+                                truedNdS[c*numTaxa + nIndex] = std::get<0>(dNdS);
+                            }
+                            else if(sites[c*numNodes + nIndex] < 122){
+                                truedNdS[c*numTaxa + nIndex] = std::get<1>(dNdS);
+                            }
+                            else {
+                                truedNdS[c*numTaxa + nIndex] = std::get<2>(dNdS);
+                            }
+                            tipSites[c*numTaxa + nIndex] = sites[c*numNodes + nIndex];
+                        }
+                    }
+                }
+                std::cout << "Writing true parameters to file..." << std::endl;
+                std::ofstream fs;
+                fs.open(settings.simulationOutput + std::to_string(i), std::ofstream::out);
+                fs << "OmegaCount\tK\tOmega\tOmegaIncrement1\tOmegaIncrement2\tR";
+                for(int element = 0; element < 61; element++){
+                    fs << "\tStationary[" << element << "]";
+                }
+                fs << "\tTree";
+                for(int taxon = 0; taxon < numTaxa; taxon++){
+                    for(int site = 0; site < numSites; site++){
+                        fs << "\tTaxon_" << taxon + 1 << "[" << site << "]";
+                    }
+                }
+                fs << std::endl;
+                fs << activeOmegas << "\t" << rateMatrix.getK() << "\t" << rateMatrix.getOmega1() 
+                   << "\t" << rateMatrix.getOmega2() << "\t" << rateMatrix.getOmega3()
+                   << "\t" << rateMatrix.getR();
                 for(int element = 0; element < 61; element++){
                     fs << "\t" << rawStationary[element];
                 }

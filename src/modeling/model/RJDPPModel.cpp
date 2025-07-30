@@ -530,7 +530,7 @@ void RJDPPModel::tuneMoves(){
 }
 
 std::string RJDPPModel::tabularHeader(){
-    std::string returnString = "Iteration\tPosterior\tLikelihood\tPrior\tOmega Count\tK\tR";
+    std::string returnString = "Iteration\tPosterior\tLikelihood\tPrior\tOmegaCount\tK\tR";
     for(int i = 0; i < 61; i++){
         returnString += "\tPi[" + std::to_string(i) + "]";
     }
@@ -562,7 +562,7 @@ std::string RJDPPModel::treeOut(int i){
 std::string RJDPPModel::dppHeader(){
     std::string returnString = "Iteration\tPosterior\tCategoryCount";
     for(int i = 0; i < numChar; i++)
-        returnString += "\tOmega1[" + std::to_string(i) + "]" + "\tOmegaIncrement1[" + std::to_string(i) + "]\tOmegaIncrement2[" + std::to_string(i) + "]";
+        returnString += "\tOmega[" + std::to_string(i) + "]" + "\tOmegaIncrement1[" + std::to_string(i) + "]\tOmegaIncrement2[" + std::to_string(i) + "]";
     return returnString + "\n";
 }
 

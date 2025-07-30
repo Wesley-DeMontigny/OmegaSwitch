@@ -50,6 +50,8 @@ struct Settings {
     bool simulateM3S2;
     bool simulateDPP;
     bool simulateSB;
+    bool simulateRJDPP;
+    bool simulateRJ;
     bool sequentialTuningSim;
 
     void            usage();

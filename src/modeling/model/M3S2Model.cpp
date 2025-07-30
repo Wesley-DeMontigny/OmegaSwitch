@@ -390,7 +390,7 @@ std::tuple<std::string, std::string> M3S2Model::reconstructionOut(int i){
 
     std::fill(reconstructeddNdS, reconstructeddNdS + numNodes*numChar, 0.0);
 
-    int numJointDraws = 10;
+    int numJointDraws = 1;
 
     for(int d = 0; d < numJointDraws; d++){
 

@@ -621,7 +621,7 @@ std::tuple<std::string, std::string> DPPModel::reconstructionOut(int i){
 
     std::fill(reconstructeddNdS, reconstructeddNdS + numNodes*numChar, 0.0);
 
-    int numJointDraws = 10;
+    int numJointDraws = 1;
 
     for(int d = 0; d < numJointDraws; d++){
 

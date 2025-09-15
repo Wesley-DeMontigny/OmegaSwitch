@@ -11,8 +11,8 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
                                               rWeight(1.0), kWeight(1.0), stationaryWeight(2.0), omegaWeight(1.0), proportionsWeight(1.0),
                                               dppWeight(2.0), treeWeight(2.0), rjWeight(1.0), numGibbs(10), fixedTree(""), M0(false),
                                               M3S2(false), simulateDPP(false), simulateM0(false), simulateM3S2(false),
-                                              numSimulations(1), bayesOpt(0), bayesOptFrequency(0), sequentialTuningSim(false),
-                                              SB(false), simulateSB(false), RJ(false), RJDPP(false), truncation(5) {
+                                              numSimulations(0), bayesOpt(0), bayesOptFrequency(0), sequentialTuningSim(false),
+                                              SB(false), simulateSB(false), simulateRJDPP(false), RJ(false), RJDPP(false), truncation(5) {
 
     std::vector<std::string> settings;
     for (int i=1; i<argc; i++) {

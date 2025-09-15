@@ -288,14 +288,12 @@ void DPPModel::regenerateLikelihood(){
                                 max = *pNN;
                             pNN++;
                         }
-                        if(max < 1e-10){
-                            pNN -= stateSpace;
-                            for(int i = 0; i < stateSpace; i++){
-                                *pNN /= max;
-                                pNN++;
-                            }
-                            *rescalePointer = std::log(max);
+                        pNN -= stateSpace;
+                        for(int i = 0; i < stateSpace; i++){
+                            *pNN /= max;
+                            pNN++;
                         }
+                        *rescalePointer = std::log(max);
                         rescalePointer++;
                     }
                 }
@@ -479,14 +477,12 @@ double DPPModel::testCategory(int site, int category, bool update){
                     max = *pNN;
                 pNN++;
             }
-            if(max < 1e-10){
-                pNN -= stateSpace;
-                for(int i = 0; i < stateSpace; i++){
-                    *pNN /= max;
-                    pNN++;
-                }
-                *rescalePointer = std::log(max);
+            pNN -= stateSpace;
+            for(int i = 0; i < stateSpace; i++){
+                *pNN /= max;
+                pNN++;
             }
+            *rescalePointer = std::log(max);
         }
     }
 

@@ -266,14 +266,12 @@ void RJModel::regenerateLikelihood(){
                                 max = *pNN;
                             pNN++;
                         }
-                        if(max < 1e-10){
-                            pNN -= numClasses * 61;
-                            for(int i = 0; i < numClasses * 61; i++){
-                                *pNN /= max;
-                                pNN++;
-                            }
-                            *rescalePointer = std::log(max);
+                        pNN -= numClasses * 61;
+                        for(int i = 0; i < numClasses * 61; i++){
+                            *pNN /= max;
+                            pNN++;
                         }
+                        *rescalePointer = std::log(max);
                         rescalePointer++;
                     }
                 }

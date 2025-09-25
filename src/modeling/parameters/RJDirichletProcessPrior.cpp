@@ -195,6 +195,7 @@ void RJDirichletProcessPrior::reject() {
     currentCategories = oldCategories;
     currentLnPrior = oldLnPrior;
     currentActiveOmegas = oldActiveOmegas;
+    rateMatrix->refreshQBackground(currentActiveOmegas);
 
     moveChoice = -1;
 }
@@ -447,14 +448,26 @@ double RJDirichletProcessPrior::updateDPP(){
             if(total > categoryDraw){
                 if(i < numCats) { //It already exists
                     assignMember(n, i);
+                    assigned = true;
                 }
                 else {
                     addCategory(omega1Vec[i - numCats], omegaInc1Vec[i - numCats], omegaInc2Vec[i - numCats]);
                     assignMember(n, numCats);
                     model->regenerateTransitionProbs(n, numCats);
+                    assigned = true;
                 }
                 break;
             }
+        }
+
+        if(assigned == false){
+            std::cout << n << " was not assigned to any category.\n";
+            std::cout << "Log Likelihoods: \n";
+            for(double& a : conditionalL){
+                std::cout << a << "\n";
+            }
+            std::cout << std::flush;
+            Msg::error("Failed to assign!");
         }
 
         int bufferDiff = model->getTransitionProbability()->getNumMatrices() - currentCategories.size();
@@ -481,13 +494,6 @@ double RJDirichletProcessPrior::updateDPP(){
                 Msg::error("Duplicate Assignments!");
             else
             assignments[m] = i;
-        }
-    }
-
-    for(int i = 0; i < numMembers; i++){
-        if(assignments[i] == -1){
-            std::cout << i << " was not assigned to any category." << std::endl;
-            Msg::error("Failed to assign!");
         }
     }
 

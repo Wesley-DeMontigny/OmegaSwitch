@@ -450,6 +450,7 @@ double RJDPPModel::testCategory(int site, int category, bool update){
                         for (; j < numClasses * 61; ++j) {
                             sum += P(i, j) * pD[j];
                         }
+
                         #elif defined(__ARM_NEON__)
                         int j = 0;
                         

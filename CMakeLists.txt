@@ -18,7 +18,8 @@ target_link_libraries(main PRIVATE ncl_static)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -O3")
 
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer -g -O1")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=leak -fno-omit-frame-pointer -g")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer -g")
 #add_compile_definitions(TIME_PROFILE=1)
-#add_compile_definitions(TEST_RUN=1)
+add_compile_definitions(TEST_RUN=1)
 #add_compile_definitions(LOGGING=1)

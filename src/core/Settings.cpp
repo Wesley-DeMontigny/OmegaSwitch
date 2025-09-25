@@ -7,12 +7,12 @@
 Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dppOutput(""), mcmcOutput(""), tipsOutput(""),
                                               branchOutput(""), numIterations(10000), printFrequency(10), sampleFrequency(25),
                                               burnInIterations(1000), tuneFrequency(100), rLambda(5.0), gammaLambda(5.0),
-                                              kLambda(2.0), omegaLambda(2.0), treeLengthLambda(5.0), expectedCat(1.2),
+                                              kLambda(2.0), omegaLambda(2.0), treeLengthLambda(5.0), expectedCat(1.001),
                                               rWeight(1.0), kWeight(1.0), stationaryWeight(2.0), omegaWeight(1.0), proportionsWeight(1.0),
                                               dppWeight(2.0), treeWeight(2.0), rjWeight(1.0), numGibbs(10), fixedTree(""), M0(false),
                                               M3S2(false), simulateDPP(false), simulateM0(false), simulateM3S2(false),
                                               numSimulations(0), bayesOpt(0), bayesOptFrequency(0), sequentialTuningSim(false),
-                                              SB(false), simulateSB(false), simulateRJDPP(false), RJ(false), RJDPP(false), truncation(5) {
+                                              SB(false), simulateSB(false), simulateRJDPP(false), simulateRJ(false), RJ(false), RJDPP(false), truncation(5) {
 
     std::vector<std::string> settings;
     for (int i=1; i<argc; i++) {
@@ -30,11 +30,9 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
     settings.push_back("/workspaces/Varying_Selection_DPP/res/tips.log");
     settings.push_back("-branchOut");
     settings.push_back("/workspaces/Varying_Selection_DPP/res/branches.log");
-    settings.push_back("-simulationOutput");
-    settings.push_back("/workspaces/Varying_Selection_DPP/res/simulation.log");
-    settings.push_back("-simulateRJDPP");
     settings.push_back("-RJDPP");
-    burnInIterations = 0;
+    settings.push_back("-nexus");
+    settings.push_back("/workspaces/Varying_Selection_DPP/publication_analyses/globin_analysis/globins.nex");
     #endif
     if (settings.size() == 0) {
         usage();

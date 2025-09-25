@@ -78,7 +78,7 @@ double RJMcmc::GibbsIteration(double currentLnPosterior){
         std::cout << "Updating Omega..." << std::endl;
         #endif
     }
-    else if(randomMove < rChoice){
+    else if(randomMove < rChoice && codonMatrix->getActiveOmegas() > 1){
         updater = [this]() { return codonMatrix->updateR(); };
         numUpdates = generalUpdates;
         #if LOGGING==1

@@ -76,7 +76,7 @@ double RJDPPMcmc::GibbsIteration(double currentLnPosterior){
             std::cout << "Updating Omega..." << std::endl;
             #endif
         }
-        else if(randomMove < rChoice){
+        else if(randomMove < rChoice && dpp->getActiveOmegas() > 1){
             updater = [this]() { return codonMatrix->updateR(); };
             #if LOGGING==1
             std::cout << "Updating R..." << std::endl;

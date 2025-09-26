@@ -621,8 +621,8 @@ std::tuple<std::string, std::string> RJDPPModel::reconstructionOut(int i){
     for(RJCategory c : categories){
         auto dNdSTuple = rateMatrix->dNdS(c.omega1, c.omega2, c.omega3);
         dNdS1.push_back(std::get<0>(dNdSTuple));
-        dNdS2.push_back(std::get<0>(dNdSTuple));
-        dNdS3.push_back(std::get<0>(dNdSTuple));
+        dNdS2.push_back(std::get<1>(dNdSTuple));
+        dNdS3.push_back(std::get<2>(dNdSTuple));
     }
 
     int numClasses = dpp->getActiveOmegas();

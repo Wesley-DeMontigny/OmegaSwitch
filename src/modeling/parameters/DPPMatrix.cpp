@@ -362,37 +362,43 @@ std::vector<double> DPPMatrix::getStationary(){
 }
 
 void DPPMatrix::tune(){
-    double kRate = (double)kAcceptCount/(double)kCount;
+    if(kCount > 0){
+        double kRate = (double)kAcceptCount/(double)kCount;
 
-    if ( kRate > 0.33 ) {
-        kDelta *= (1.0 + ((kRate-0.33)/0.67));
-    }
-    else {
-        kDelta /= (2.0 - kRate/0.33);
-    }
-    kAcceptCount = 0;
-    kCount = 0;
-
-    double rRate = (double)rAcceptCount/(double)rCount;
-
-    if ( rRate > 0.33 ) {
-        rDelta *= (1.0 + ((rRate-0.33)/0.67));
-    }
-    else {
-        rDelta /= (2.0 - rRate/0.33);
-    }
-    rAcceptCount = 0;
-    rCount = 0;
-
-    double stationaryRate = (double)stationaryAcceptCount/(double)stationaryCount;
-
-    if ( stationaryRate > 0.33 ) {
-        stationaryAlpha /= (1.0 + ((stationaryRate-0.33)/0.67));
-    }
-    else {
-        stationaryAlpha *= (2.0 - stationaryRate/0.33);
+        if ( kRate > 0.33 ) {
+            kDelta *= (1.0 + ((kRate-0.33)/0.67));
+        }
+        else {
+            kDelta /= (2.0 - kRate/0.33);
+        }
+        kAcceptCount = 0;
+        kCount = 0;
     }
 
-    stationaryAcceptCount = 0;
-    stationaryCount = 0;
+    if(rCount > 0){
+        double rRate = (double)rAcceptCount/(double)rCount;
+
+        if ( rRate > 0.33 ) {
+            rDelta *= (1.0 + ((rRate-0.33)/0.67));
+        }
+        else {
+            rDelta /= (2.0 - rRate/0.33);
+        }
+        rAcceptCount = 0;
+        rCount = 0;
+    }
+
+    if(stationaryCount > 0){
+        double stationaryRate = (double)stationaryAcceptCount/(double)stationaryCount;
+
+        if ( stationaryRate > 0.33 ) {
+            stationaryAlpha /= (1.0 + ((stationaryRate-0.33)/0.67));
+        }
+        else {
+            stationaryAlpha *= (2.0 - stationaryRate/0.33);
+        }
+
+        stationaryAcceptCount = 0;
+        stationaryCount = 0;
+    }
 }

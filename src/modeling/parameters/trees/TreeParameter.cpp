@@ -279,27 +279,31 @@ double TreeParameter::update() {
 }
 
 void TreeParameter::tune() {
-    double rate1 = (double)branchAcceptCount/(double)branchCount;
+    if(branchCount > 0){
+        double rate1 = (double)branchAcceptCount/(double)branchCount;
 
-    if ( rate1 > 0.33 ) {
-        branchDelta *= (1.0 + ((rate1-0.33)/0.67));
+        if ( rate1 > 0.33 ) {
+            branchDelta *= (1.0 + ((rate1-0.33)/0.67));
+        }
+        else {
+            branchDelta /= (2.0 - rate1/0.33);
+        }
+        branchAcceptCount = 0;
+        branchCount = 0;
     }
-    else {
-        branchDelta /= (2.0 - rate1/0.33);
-    }
-    branchAcceptCount = 0;
-    branchCount = 0;
 
-    double rate2 = (double)treeAcceptCount/(double)treeCount;
+    if(treeCount > 0){
+        double rate2 = (double)treeAcceptCount/(double)treeCount;
 
-    if ( rate2 > 0.33 ) {
-        treeAlpha /= (1.0 + ((rate2-0.33)/0.67));
+        if ( rate2 > 0.33 ) {
+            treeAlpha /= (1.0 + ((rate2-0.33)/0.67));
+        }
+        else {
+            treeAlpha *= (2.0 - rate2/0.33);
+        }
+        treeAcceptCount = 0;
+        treeCount = 0;
     }
-    else {
-        treeAlpha *= (2.0 - rate2/0.33);
-    }
-    treeAcceptCount = 0;
-    treeCount = 0;
 }
 
 double TreeParameter::lnPrior() {

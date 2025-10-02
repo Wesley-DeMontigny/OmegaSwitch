@@ -6,8 +6,8 @@
 
 Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dppOutput(""), mcmcOutput(""), tipsOutput(""),
                                               branchOutput(""), numIterations(10000), printFrequency(10), sampleFrequency(25),
-                                              burnInIterations(1000), tuneFrequency(100), rLambda(5.0), gammaLambda(5.0),
-                                              kLambda(2.0), omegaLambda(2.0), treeLengthLambda(5.0), expectedCat(1.001),
+                                              burnInIterations(1000), tuneFrequency(100), rLambda(10.0), gammaLambda(10.0),
+                                              kLambda(10.0), omegaLambda(10.0), treeLengthLambda(5.0), expectedCat(1.2),
                                               rWeight(1.0), kWeight(1.0), stationaryWeight(2.0), omegaWeight(1.0), proportionsWeight(1.0),
                                               dppWeight(2.0), treeWeight(2.0), rjWeight(1.0), numGibbs(10), fixedTree(""), M0(false),
                                               M3S2(false), simulateDPP(false), simulateM0(false), simulateM3S2(false),
@@ -30,9 +30,12 @@ Settings::Settings(int argc,  char* argv[]) : nexusInput(""), treeOutput(""), dp
     settings.push_back("/workspaces/Varying_Selection_DPP/res/tips.log");
     settings.push_back("-branchOut");
     settings.push_back("/workspaces/Varying_Selection_DPP/res/branches.log");
-    settings.push_back("-RJDPP");
-    settings.push_back("-nexus");
-    settings.push_back("/workspaces/Varying_Selection_DPP/publication_analyses/globin_analysis/globins.nex");
+    settings.push_back("-RJ");
+    settings.push_back("-numSimulations");
+    settings.push_back("1");
+    settings.push_back("-simulateM0");
+    settings.push_back("-simulationOutput");
+    settings.push_back("/workspaces/Varying_Selection_DPP/res/sim.log");
     #endif
     if (settings.size() == 0) {
         usage();

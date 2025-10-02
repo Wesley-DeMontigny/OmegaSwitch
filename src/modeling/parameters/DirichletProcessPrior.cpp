@@ -358,15 +358,16 @@ double DirichletProcessPrior::updateDPP(){
 }
 
 void DirichletProcessPrior::tune() {
-    double omegaRate = (double)omegaAcceptCount/(double)omegaCount;
+    if(omegaCount > 0){
+        double omegaRate = (double)omegaAcceptCount/(double)omegaCount;
 
-    if ( omegaRate > 0.33 ) {
-        omegaDelta *= (1.0 + ((omegaRate-0.33)/0.67));
+        if ( omegaRate > 0.33 ) {
+            omegaDelta *= (1.0 + ((omegaRate-0.33)/0.67));
+        }
+        else {
+            omegaDelta /= (2.0 - omegaRate/0.33);
+        }
+        omegaAcceptCount = 0;
+        omegaCount = 0;
     }
-    else {
-        omegaDelta /= (2.0 - omegaRate/0.33);
-    }
-    
-    omegaAcceptCount = 0;
-    omegaCount = 0;
 }

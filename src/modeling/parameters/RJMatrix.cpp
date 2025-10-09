@@ -7,7 +7,7 @@
 #include <algorithm>
 
 RJMatrix::RJMatrix(Settings settings) : 
-                                   currentQMatrix(183, 183, 0.0), oldQMatrix(183, 183, 0.0), currentStationary(61, -1), oldStationary(61, -1), 
+                                   currentQMatrix(305, 305, 0.0), oldQMatrix(305, 305, 0.0), currentStationary(61, -1), oldStationary(61, -1), 
                                    kLambda(settings.kLambda), rLambda(settings.rLambda), omegaLambda(settings.omegaLambda), rDelta(0.5),  
                                    stationaryAlpha(30000), kDelta(0.5), omegaDelta(0.5), stationaryPriorAlpha(61, 2.0) {
     std::vector<int> aaMap = {8, 11, 8, 11, 16, 16, 16, 16, 14, 15, 14, 15, 7, 7, 10, 7, 13, 6, 13, 6, 12, 12, 12, 12, 14, 14, 14, 14, 9, 9, 9, 9, 3, 2, 3, 2, 0, 0, 0, 0, 5, 5, 5, 5, 17, 17, 17, 17, 19, 19, 15, 15, 15, 15, 1, 18, 1, 9, 4, 9, 4};  
@@ -65,6 +65,16 @@ RJMatrix::RJMatrix(Settings settings) :
     currentOmega3Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega3);
     oldOmega3Prior = currentOmega3Prior;
 
+    currentOmega4 = Probability::Exponential::rv(&rng, omegaLambda);
+    oldOmega4 = currentOmega4;
+    currentOmega4Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega4);
+    oldOmega4Prior = currentOmega4Prior;
+
+    currentOmega5 = Probability::Exponential::rv(&rng, omegaLambda);
+    oldOmega5 = currentOmega5;
+    currentOmega5Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega5);
+    oldOmega5Prior = currentOmega5Prior;
+
     currentR = Probability::Exponential::rv(&rng, rLambda);
     oldR = currentR;
     currentRPrior = Probability::Exponential::lnPdf(rLambda, currentR);
@@ -86,7 +96,67 @@ RJMatrix::RJMatrix(Settings settings) :
 }
 
 void RJMatrix::rebuildQMatrix(){
-    if(currentActiveOmegas == 3){
+    
+    if(currentActiveOmegas == 5){
+        currentQMatrix = Matrix<double>(305, 305, 0.0);
+        for(auto coord : valid){
+            for(int i = 0; i < 5; i++){
+                currentQMatrix(coord.first + (i*61), coord.second + (i*61)) = currentStationary[coord.second];
+                currentQMatrix(coord.second + (i*61), coord.first + (i*61)) = currentStationary[coord.first];
+            }
+        }
+        for(auto coord : nonsynonymous){
+            currentQMatrix(coord.first, coord.second) *= currentOmega1;
+            currentQMatrix(coord.second, coord.first) *= currentOmega1;
+
+            currentQMatrix(coord.first + 61, coord.second + 61) *= currentOmega1 + currentOmega2;
+            currentQMatrix(coord.second + 61, coord.first + 61) *= currentOmega1 + currentOmega2;
+
+            currentQMatrix(coord.first + 122, coord.second + 122) *= currentOmega1 + currentOmega2 + currentOmega3;
+            currentQMatrix(coord.second + 122, coord.first + 122) *= currentOmega1 + currentOmega2 + currentOmega3;
+
+            currentQMatrix(coord.first + 183, coord.second + 183) *= currentOmega1 + currentOmega2 + currentOmega3 + currentOmega4;
+            currentQMatrix(coord.second + 183, coord.first + 183) *= currentOmega1 + currentOmega2 + currentOmega3 + currentOmega4;
+
+            currentQMatrix(coord.first + 244, coord.second + 244) *= currentOmega1 + currentOmega2 + currentOmega3 + currentOmega4 + currentOmega5;
+            currentQMatrix(coord.second + 244, coord.first + 244) *= currentOmega1 + currentOmega2 + currentOmega3 + currentOmega4 + currentOmega5;            
+        }
+        for(auto coord : transition){
+            for(int i = 0; i < 5; i++){
+                currentQMatrix(coord.first + (i*61), coord.second + (i*61)) *= currentK;
+                currentQMatrix(coord.second + (i*61), coord.first + (i*61)) *= currentK;
+            }
+        }
+    }
+    else if(currentActiveOmegas == 4){
+        currentQMatrix = Matrix<double>(244, 244, 0.0);
+        for(auto coord : valid){
+            for(int i = 0; i < 4; i++){
+                currentQMatrix(coord.first + (i*61), coord.second + (i*61)) = currentStationary[coord.second];
+                currentQMatrix(coord.second + (i*61), coord.first + (i*61)) = currentStationary[coord.first];
+            }
+        }
+        for(auto coord : nonsynonymous){
+            currentQMatrix(coord.first, coord.second) *= currentOmega1;
+            currentQMatrix(coord.second, coord.first) *= currentOmega1;
+
+            currentQMatrix(coord.first + 61, coord.second + 61) *= currentOmega1 + currentOmega2;
+            currentQMatrix(coord.second + 61, coord.first + 61) *= currentOmega1 + currentOmega2;
+
+            currentQMatrix(coord.first + 122, coord.second + 122) *= currentOmega1 + currentOmega2 + currentOmega3;
+            currentQMatrix(coord.second + 122, coord.first + 122) *= currentOmega1 + currentOmega2 + currentOmega3;
+
+            currentQMatrix(coord.first + 183, coord.second + 183) *= currentOmega1 + currentOmega2 + currentOmega3 + currentOmega4;
+            currentQMatrix(coord.second + 183, coord.first + 183) *= currentOmega1 + currentOmega2 + currentOmega3 + currentOmega4;           
+        }
+        for(auto coord : transition){
+            for(int i = 0; i < 4; i++){
+                currentQMatrix(coord.first + (i*61), coord.second + (i*61)) *= currentK;
+                currentQMatrix(coord.second + (i*61), coord.first + (i*61)) *= currentK;
+            }
+        }
+    }
+    else if(currentActiveOmegas == 3){
         currentQMatrix = Matrix<double>(183, 183, 0.0);
         for(auto coord : valid){
             for(int i = 0; i < 3; i++){
@@ -102,7 +172,7 @@ void RJMatrix::rebuildQMatrix(){
             currentQMatrix(coord.second + 61, coord.first + 61) *= currentOmega1 + currentOmega2;
 
             currentQMatrix(coord.first + 122, coord.second + 122) *= currentOmega1 + currentOmega2 + currentOmega3;
-            currentQMatrix(coord.second + 122, coord.first + 122) *= currentOmega1 + currentOmega2 + currentOmega3;
+            currentQMatrix(coord.second + 122, coord.first + 122) *= currentOmega1 + currentOmega2 + currentOmega3;          
         }
         for(auto coord : transition){
             for(int i = 0; i < 3; i++){
@@ -159,6 +229,10 @@ void RJMatrix::accept() {
     oldOmega2Prior = currentOmega2Prior;
     oldOmega3 = currentOmega3;
     oldOmega3Prior = currentOmega3Prior;
+    oldOmega4 = currentOmega4;
+    oldOmega4Prior = currentOmega4Prior;
+    oldOmega5 = currentOmega5;
+    oldOmega5Prior = currentOmega5Prior;
     oldR = currentR;
     oldRPrior = currentRPrior;
     oldStationary = currentStationary;
@@ -192,6 +266,10 @@ void RJMatrix::reject() {
     currentOmega2Prior = oldOmega2Prior;
     currentOmega3 = oldOmega3;
     currentOmega3Prior = oldOmega3Prior;
+    currentOmega4 = oldOmega4;
+    currentOmega4Prior = oldOmega4Prior;
+    currentOmega5 = oldOmega5;
+    currentOmega5Prior = oldOmega5Prior;
     currentR = oldR;
     currentRPrior = oldRPrior;
     currentStationary = oldStationary;
@@ -206,7 +284,13 @@ void RJMatrix::reject() {
 double RJMatrix::lnPrior() {
     double prior = currentKPrior + currentStationaryPrior;
 
-    if(currentActiveOmegas == 3){
+    if(currentActiveOmegas == 5){
+        prior += currentOmega1Prior + currentOmega2Prior + currentOmega3Prior + currentOmega4Prior + currentOmega5Prior + currentRPrior;
+    }
+    else if(currentActiveOmegas == 4){
+        prior += currentOmega1Prior + currentOmega2Prior + currentOmega3Prior + currentOmega4Prior + currentRPrior;
+    }
+    else if(currentActiveOmegas == 3){
         prior += currentOmega1Prior + currentOmega2Prior + currentOmega3Prior + currentRPrior;
     }
     else if(currentActiveOmegas == 2){
@@ -252,8 +336,8 @@ double RJMatrix::updateOmega() {
 
     double randomOmega = rng.uniformRv();
 
-    if(currentActiveOmegas == 3){
-        if(randomOmega < 0.33){
+    if(currentActiveOmegas == 5){
+        if(randomOmega < 0.2){
         double currentV = currentOmega1;
         double scale = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
         double newV = currentOmega1 * scale;
@@ -262,6 +346,100 @@ double RJMatrix::updateOmega() {
         hastings = std::log(scale);
 
         currentOmega1Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega1);
+        }
+        else if(randomOmega < 0.4){
+            double currentV = currentOmega2;
+            double scale = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
+            double newV = currentOmega2 * scale;
+
+            currentOmega2 = newV;
+            hastings = std::log(scale);
+
+            currentOmega2Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega2);
+        }
+        else if(randomOmega < 0.6){
+            double currentV = currentOmega3;
+            double scale = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
+            double newV = currentOmega3 * scale;
+
+            currentOmega3 = newV;
+            hastings = std::log(scale);
+
+            currentOmega3Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega3);
+        }
+        else if(randomOmega < 0.8){
+            double currentV = currentOmega4;
+            double scale = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
+            double newV = currentOmega4 * scale;
+
+            currentOmega4 = newV;
+            hastings = std::log(scale);
+
+            currentOmega4Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega4);
+        }
+        else{
+            double currentV = currentOmega5;
+            double scale = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
+            double newV = currentOmega5 * scale;
+
+            currentOmega5 = newV;
+            hastings = std::log(scale);
+
+            currentOmega5Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega5);
+        }
+    }
+    else if(currentActiveOmegas == 4){
+        if(randomOmega < 0.25){
+            double currentV = currentOmega1;
+            double scale = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
+            double newV = currentOmega1 * scale;
+
+            currentOmega1 = newV;
+            hastings = std::log(scale);
+
+            currentOmega1Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega1);
+        }
+        else if(randomOmega < 0.50){
+            double currentV = currentOmega2;
+            double scale = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
+            double newV = currentOmega2 * scale;
+
+            currentOmega2 = newV;
+            hastings = std::log(scale);
+
+            currentOmega2Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega2);
+        }
+        else if(randomOmega < 0.75){
+            double currentV = currentOmega3;
+            double scale = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
+            double newV = currentOmega3 * scale;
+
+            currentOmega3 = newV;
+            hastings = std::log(scale);
+
+            currentOmega3Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega3);
+        }
+        else{
+            double currentV = currentOmega4;
+            double scale = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
+            double newV = currentOmega4 * scale;
+
+            currentOmega4 = newV;
+            hastings = std::log(scale);
+
+            currentOmega4Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega4);
+        }
+    }
+    else if(currentActiveOmegas == 3){
+        if(randomOmega < 0.33){
+            double currentV = currentOmega1;
+            double scale = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
+            double newV = currentOmega1 * scale;
+
+            currentOmega1 = newV;
+            hastings = std::log(scale);
+
+            currentOmega1Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega1);
         }
         else if(randomOmega < 0.66){
             double currentV = currentOmega2;
@@ -394,17 +572,75 @@ double RJMatrix::updateActiveOmegas() {
             hastings -= Probability::Beta::lnPdf(alpha, alpha, u) + Probability::Exponential::lnPdf(rLambda, currentR);
         }
     }
-    else if (currentActiveOmegas == 3) { // 3 2 merge
-        currentActiveOmegas = 2;
+    else if (currentActiveOmegas == 3) { // 3 2 merge or 3 4 split
         hastings = std::log(0.5);
 
-        double o2 = currentOmega2;
-        double o3 = currentOmega3;
-        double total = o2 + o3;
-        double u = o2 / total;
+        if (rng.uniformRv() > 0.5) { // 3 4 split
+            currentActiveOmegas = 4;
 
-        currentOmega2 = total;
-        currentOmega2Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega2);
+            double tempO = currentOmega3;
+            double u = Probability::Beta::rv(&rng, alpha, alpha);
+            currentOmega3 = tempO * u;
+            currentOmega4 = tempO * (1.0 - u);
+            currentOmega3Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega3);
+            currentOmega4Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega4);
+
+            hastings += std::log(tempO);
+            hastings += Probability::Beta::lnPdf(alpha, alpha, u);
+        } else { // 3 2 merge
+            currentActiveOmegas = 2;
+            double o2 = currentOmega2;
+            double o3 = currentOmega3;
+            double total = o2 + o3;
+            double u = o2 / total;
+
+            currentOmega2 = total;
+            currentOmega2Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega2);
+
+            hastings -= std::log(total);
+            hastings -= Probability::Beta::lnPdf(alpha, alpha, u);
+        }
+    }
+    else if (currentActiveOmegas == 4) { // 4 3 merge or 4 5 split
+        hastings = std::log(0.5);
+
+        if (rng.uniformRv() > 0.5) { // 4 5 split
+            currentActiveOmegas = 5;
+
+            double tempO = currentOmega4;
+            double u = Probability::Beta::rv(&rng, alpha, alpha);
+            currentOmega4 = tempO * u;
+            currentOmega5 = tempO * (1.0 - u);
+            currentOmega4Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega4);
+            currentOmega5Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega5);
+
+            hastings += std::log(tempO);
+            hastings += Probability::Beta::lnPdf(alpha, alpha, u);
+        } else { // 4 3 merge
+            currentActiveOmegas = 3;
+            double o3 = currentOmega3;
+            double o4 = currentOmega4;
+            double total = o3 + o4;
+            double u = o3 / total;
+
+            currentOmega3 = total;
+            currentOmega3Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega3);
+
+            hastings -= std::log(total);
+            hastings -= Probability::Beta::lnPdf(alpha, alpha, u);
+        }
+    }
+    else { // 5 4 merge
+        currentActiveOmegas = 4;
+        hastings = std::log(0.5);
+
+        double o4 = currentOmega4;
+        double o5 = currentOmega5;
+        double total = o4 + o5;
+        double u = o4 / total;
+
+        currentOmega4 = total;
+        currentOmega4Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega4);
 
         hastings -= std::log(total);
         hastings -= Probability::Beta::lnPdf(alpha, alpha, u);
@@ -515,29 +751,54 @@ Matrix<double> RJMatrix::Q() {
         for (int j = 0; j < stateSpace; j++)
             returnMatrix(i, j) *= scaler;
     
-    if(currentActiveOmegas == 3){
+    if(currentActiveOmegas == 5){
         for(int i = 0; i < 61; i++){
-            returnMatrix(i, i + 61) = currentR;
-            returnMatrix(i + 61, i) = currentR;
-            returnMatrix(i, i + 122) = currentR;
-            returnMatrix(i + 122, i) = currentR;
-            returnMatrix(i + 61, i + 122) = currentR;
-            returnMatrix(i + 122, i + 61) = currentR;
-
-            returnMatrix(i, i) -= 2.0*currentR;
-            returnMatrix(i + 61, i + 61) -= 2.0*currentR;
-            returnMatrix(i + 122, i + 122) -= 2.0*currentR;
+            int offsets[5] = {0, 61, 122, 183, 244};
+            for(int a = 0; a < 5; a++){
+                for(int b = a + 1; b < 5; b++){
+                    returnMatrix(i + offsets[a], i + offsets[b]) = currentR;
+                    returnMatrix(i + offsets[b], i + offsets[a]) = currentR;
+                    returnMatrix(i + offsets[a], i + offsets[a]) -= currentR;
+                    returnMatrix(i + offsets[b], i + offsets[b]) -= currentR;
+                }
+            }
+        }
+    }
+    else if(currentActiveOmegas == 4){
+        for(int i = 0; i < 61; i++){
+            int offsets[4] = {0, 61, 122, 183};
+            for(int a = 0; a < 4; a++){
+                for(int b = a + 1; b < 4; b++){
+                    returnMatrix(i + offsets[a], i + offsets[b]) = currentR;
+                    returnMatrix(i + offsets[b], i + offsets[a]) = currentR;
+                    returnMatrix(i + offsets[a], i + offsets[a]) -= currentR;
+                    returnMatrix(i + offsets[b], i + offsets[b]) -= currentR;
+                }
+            }
+        }
+    }
+    else if(currentActiveOmegas == 3){
+        for(int i = 0; i < 61; i++){
+            int offsets[3] = {0, 61, 122};
+            for(int a = 0; a < 3; a++){
+                for(int b = a + 1; b < 3; b++){
+                    returnMatrix(i + offsets[a], i + offsets[b]) = currentR;
+                    returnMatrix(i + offsets[b], i + offsets[a]) = currentR;
+                    returnMatrix(i + offsets[a], i + offsets[a]) -= currentR;
+                    returnMatrix(i + offsets[b], i + offsets[b]) -= currentR;
+                }
+            }
         }
     }
     else if(currentActiveOmegas == 2){
         for(int i = 0; i < 61; i++){
             returnMatrix(i, i + 61) = currentR;
             returnMatrix(i + 61, i) = currentR;
-
             returnMatrix(i, i) -= currentR;
             returnMatrix(i + 61, i + 61) -= currentR;
-        } 
+        }
     }
+
 
     return returnMatrix;
 }
@@ -545,34 +806,20 @@ Matrix<double> RJMatrix::Q() {
 std::vector<double> RJMatrix::getStationary(){
     std::vector<double> returnStationary;
 
-    if(currentActiveOmegas == 3){
-        for(int i = 0; i < 3; i++){
-            for(double v : currentStationary){
-                returnStationary.push_back(v/3.0);
-            }
-        }
-    }
-    else if(currentActiveOmegas == 2){
-        for(int i = 0; i < 2; i++){
-            for(double v : currentStationary){
-                returnStationary.push_back(v/2.0);
-            }
-        }
-    }
-    else if(currentActiveOmegas == 1){
+    for(int i = 0; i < currentActiveOmegas; i++){
         for(double v : currentStationary){
-            returnStationary.push_back(v);
+            returnStationary.push_back(v/(double)(currentActiveOmegas));
         }
     }
     
     return returnStationary;
 }
 
-std::tuple<double, double, double> RJMatrix::dNdS(){
-    Matrix<double> tempMatrix(183, 183, 0.0);
+std::tuple<double, double, double, double, double> RJMatrix::dNdS(){
+    Matrix<double> tempMatrix(305, 305, 0.0);
 
     for(auto coord : valid){
-        for(int i = 0; i < 3; i++){
+        for(int i = 0; i < 5; i++){
             tempMatrix(coord.first + (i*61), coord.second + (i*61)) = 1.0;
             tempMatrix(coord.second + (i*61), coord.first + (i*61)) = 1.0;
         }
@@ -586,9 +833,15 @@ std::tuple<double, double, double> RJMatrix::dNdS(){
 
         tempMatrix(coord.first + 122, coord.second + 122) *= currentOmega1 + currentOmega2 + currentOmega3;
         tempMatrix(coord.second + 122, coord.first + 122) *= currentOmega1 + currentOmega2 + currentOmega3;
+
+        tempMatrix(coord.first + 183, coord.second + 183) *= currentOmega1 + currentOmega2 + currentOmega3 + currentOmega4;
+        tempMatrix(coord.second + 183, coord.first + 183) *= currentOmega1 + currentOmega2 + currentOmega3 + currentOmega4;
+
+        tempMatrix(coord.first + 244, coord.second + 244) *= currentOmega1 + currentOmega2 + currentOmega3 + currentOmega4 + currentOmega5;
+        tempMatrix(coord.second + 244, coord.first + 244) *= currentOmega1 + currentOmega2 + currentOmega3 + currentOmega4 + currentOmega5;
     }
     for(auto coord : transition){
-        for(int i = 0; i < 3; i++){
+        for(int i = 0; i < 5; i++){
             tempMatrix(coord.first + (i*61), coord.second + (i*61)) *= currentK;
             tempMatrix(coord.second + (i*61), coord.first + (i*61)) *= currentK;
         }
@@ -597,6 +850,8 @@ std::tuple<double, double, double> RJMatrix::dNdS(){
     double dN1 = 0.0;
     double dN2 = 0.0;
     double dN3 = 0.0;
+    double dN4 = 0.0;
+    double dN5 = 0.0;
     for(auto coord : nonsynonymous){
         dN1 += tempMatrix(coord.first, coord.second) * currentStationary[coord.first];
         dN1 += tempMatrix(coord.second, coord.first) * currentStationary[coord.second];
@@ -606,11 +861,19 @@ std::tuple<double, double, double> RJMatrix::dNdS(){
 
         dN3 += tempMatrix(coord.first + 122, coord.second + 122) * currentStationary[coord.first];
         dN3 += tempMatrix(coord.second + 122, coord.first + 122) * currentStationary[coord.second];
+
+        dN4 += tempMatrix(coord.first + 183, coord.second + 183) * currentStationary[coord.first];
+        dN4 += tempMatrix(coord.second + 183, coord.first + 183) * currentStationary[coord.second];
+
+        dN5 += tempMatrix(coord.first + 244, coord.second + 244) * currentStationary[coord.first];
+        dN5 += tempMatrix(coord.second + 244, coord.first + 244) * currentStationary[coord.second];
     }
 
     double dS1 = 0.0;
     double dS2 = 0.0;
     double dS3 = 0.0;
+    double dS4 = 0.0;
+    double dS5 = 0.0;
     for(auto coord : synonymous){
         dS1 += tempMatrix(coord.first, coord.second) * currentStationary[coord.first];
         dS1 += tempMatrix(coord.second, coord.first) * currentStationary[coord.second];
@@ -620,9 +883,15 @@ std::tuple<double, double, double> RJMatrix::dNdS(){
 
         dS3 += tempMatrix(coord.first + 122, coord.second + 122) * currentStationary[coord.first];
         dS3 += tempMatrix(coord.second + 122, coord.first + 122) * currentStationary[coord.second];
+    
+        dS4 += tempMatrix(coord.first + 183, coord.second + 183) * currentStationary[coord.first];
+        dS4 += tempMatrix(coord.second + 183, coord.first + 183) * currentStationary[coord.second];
+
+        dS5 += tempMatrix(coord.first + 244, coord.second + 244) * currentStationary[coord.first];
+        dS5 += tempMatrix(coord.second + 244, coord.first + 244) * currentStationary[coord.second];
     }
 
-    return std::make_tuple(dN1/dS1, dN2/dS2, dN3/dS3);
+    return std::make_tuple(dN1/dS1, dN2/dS2, dN3/dS3, dN4/dS4, dN5/dS5);
 }
 
 void RJMatrix::tune(){

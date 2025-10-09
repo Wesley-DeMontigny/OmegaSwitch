@@ -13,7 +13,7 @@ class RJMatrix : public Parameter {
         RJMatrix(Settings settings);
         Matrix<double> Q();
         std::vector<double> stationary();
-        std::tuple<double, double, double> dNdS();
+        std::tuple<double, double, double, double, double> dNdS();
 
         void accept();
         void reject();
@@ -32,6 +32,8 @@ class RJMatrix : public Parameter {
         double getOmega1() {return currentOmega1;}
         double getOmega2() {return currentOmega2;}
         double getOmega3() {return currentOmega3;}
+        double getOmega4() {return currentOmega4;}
+        double getOmega5() {return currentOmega5;}
         double getR() {return currentR;}
         double getActiveOmegas() {return currentActiveOmegas;}
         void setActiveOmegas(int o) {currentActiveOmegas = o; rebuildQMatrix();}
@@ -59,8 +61,8 @@ class RJMatrix : public Parameter {
 
         std::vector<int> randomStates;
 
-        int currentActiveOmegas = 3;
-        int oldActiveOmegas = 3;
+        int currentActiveOmegas = 5;
+        int oldActiveOmegas = 5;
 
         double kLambda;
         double rLambda;
@@ -90,6 +92,16 @@ class RJMatrix : public Parameter {
         double oldOmega3 = 0;
         double currentOmega3Prior = 0;
         double oldOmega3Prior = 0;
+
+        double currentOmega4 = 0;
+        double oldOmega4 = 0;
+        double currentOmega4Prior = 0;
+        double oldOmega4Prior = 0;
+
+        double currentOmega5 = 0;
+        double oldOmega5 = 0;
+        double currentOmega5Prior = 0;
+        double oldOmega5Prior = 0;
 
         std::vector<double> currentStationary;
         std::vector<double> oldStationary;

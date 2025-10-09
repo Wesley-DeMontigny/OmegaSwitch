@@ -306,6 +306,7 @@ int main(int argc, char* argv[]) {
                         fs << "\t" << truedNdS[site*numTaxa + taxon];
                     }
                 }
+                fs << std::endl;
                 fs.close();
             }
             else if(settings.simulateRJDPP){
@@ -393,6 +394,7 @@ int main(int argc, char* argv[]) {
                         fs << "\t" << truedNdS[site*numTaxa + taxon];
                     }
                 }
+                fs << std::endl;
                 fs.close();
             }
             else if(settings.simulateM0){
@@ -454,6 +456,7 @@ int main(int argc, char* argv[]) {
                         fs << "\t" << truedNdS[site*numTaxa + taxon];
                     }
                 }
+                fs << std::endl;
                 fs.close();
             }
             else if(settings.simulateM3S2){
@@ -527,12 +530,13 @@ int main(int argc, char* argv[]) {
                         fs << "\t" << truedNdS[site*numTaxa + taxon];
                     }
                 }
+                fs << std::endl;
                 fs.close();
             }
             else if(settings.simulateRJ){
-                TransitionProbability transProb(numNodes, 183);
+                TransitionProbability transProb(numNodes, 305);
                 RJMatrix rateMatrix(settings);
-                int activeOmegas = (int)(rng.uniformRv() * 3.0) + 1;
+                int activeOmegas = (int)(rng.uniformRv() * 5.0) + 1;
                 rateMatrix.setActiveOmegas(activeOmegas);
                 std::vector<double> stationary = rateMatrix.getStationary();
                 std::vector<double> rawStationary = rateMatrix.getRawStationary();
@@ -568,8 +572,14 @@ int main(int argc, char* argv[]) {
                             else if(sites[c*numNodes + nIndex] < 122){
                                 truedNdS[c*numTaxa + nIndex] = std::get<1>(dNdS);
                             }
-                            else {
+                            else if(sites[c*numNodes + nIndex] < 183){
                                 truedNdS[c*numTaxa + nIndex] = std::get<2>(dNdS);
+                            }
+                            else if(sites[c*numNodes + nIndex] < 244){
+                                truedNdS[c*numTaxa + nIndex] = std::get<3>(dNdS);
+                            }
+                            else {
+                                truedNdS[c*numTaxa + nIndex] = std::get<4>(dNdS);
                             }
                             tipSites[c*numTaxa + nIndex] = sites[c*numNodes + nIndex];
                         }
@@ -601,6 +611,7 @@ int main(int argc, char* argv[]) {
                         fs << "\t" << truedNdS[site*numTaxa + taxon];
                     }
                 }
+                fs << std::endl;
                 fs.close();
             }
             else if(settings.simulateSB){
@@ -675,6 +686,7 @@ int main(int argc, char* argv[]) {
                         fs << "\t" << truedNdS[site*numTaxa + taxon];
                     }
                 }
+                fs << std::endl;
                 fs.close();
             }
 

@@ -31,7 +31,7 @@ RJModel::RJModel(Settings s, Alignment* a, TreeParameter* t, RJMatrix* m) :
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
     TreeObject* activeT = tree->getTree();
-    stateSpace = 183;
+    stateSpace = 305;
     numChar = aln->getNumChar();
 
     if(aln->getNumTaxa() != activeT->getNumTaxa())
@@ -119,21 +119,6 @@ void RJModel::regenerateLikelihood(){
     const std::vector<Node*> poSeq = activeT->getPostOrderSeq();
 
     int numClasses = rateMatrix->getActiveOmegas();
-    /*
-    // Adjust conditional likelihoods at tips to agree with class number (we can probably make this much more efficient by only updating when dirty)
-    double rescaledVal = 1.0/(double)(numClasses);
-    for(Node* n : activeT->getTips()){
-        int nIndex = n->getIndex();
-        double* pN = (*postOrder)(nIndex, activeCL[nIndex], 0);
-        for(int c  = 0; c < numChar; c++){
-            for(int i = 0; i < 183; i++){
-                if(*pN != 0)
-                    *pN = rescaledVal;
-                pN++;
-            }
-        }
-    }
-    */
 
     #if TIME_PROFILE==1
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
@@ -327,7 +312,7 @@ void RJModel::tuneMoves(){
 }
 
 std::string RJModel::tabularHeader(){
-    std::string returnString = "Iteration\tPosterior\tLikelihood\tPrior\tOmegaCount\tK\tOmega\tOmegaIncrement1\tOmegaIncrement2\tR";
+    std::string returnString = "Iteration\tPosterior\tLikelihood\tPrior\tOmegaCount\tK\tOmega\tOmegaIncrement1\tOmegaIncrement2\tOmegaIncrement3\tOmegaIncrement4\tR";
     for(int i = 0; i < 61; i++){
         returnString += "\tPi[" + std::to_string(i) + "]";
     }
@@ -341,6 +326,7 @@ std::string RJModel::tabularOut(int i){
                                std::to_string(rateMatrix->getActiveOmegas()) + "\t" +
                                std::to_string(rateMatrix->getK()) + "\t" + std::to_string(rateMatrix->getOmega1()) + "\t" +
                                std::to_string(rateMatrix->getOmega2()) + "\t" + std::to_string(rateMatrix->getOmega3()) + "\t" +
+                               std::to_string(rateMatrix->getOmega4()) + "\t" + std::to_string(rateMatrix->getOmega5()) + "\t" +
                                std::to_string(rateMatrix->getR());
     std::vector<double> stationary = rateMatrix->getRawStationary();
     for(double i : stationary){
@@ -400,6 +386,8 @@ std::tuple<std::string, std::string> RJModel::reconstructionOut(int i){
     double dNdS1 = std::get<0>(dNdSTuple);
     double dNdS2 = std::get<1>(dNdSTuple);
     double dNdS3 = std::get<2>(dNdSTuple);
+    double dNdS4 = std::get<3>(dNdSTuple);
+    double dNdS5 = std::get<4>(dNdSTuple);
 
     int numClasses = rateMatrix->getActiveOmegas();
 
@@ -418,7 +406,7 @@ std::tuple<std::string, std::string> RJModel::reconstructionOut(int i){
         std::unordered_map<int, tf::Task> taskMap;
 
         Node* root = activeT->getRoot();
-        taskMap.insert(std::make_pair(root->getIndex(), phyloTaskflow.emplace([this, root, &rng, reconstructedStates, reconstructeddNdS, dNdS1, dNdS2, dNdS3, numClasses](){
+        taskMap.insert(std::make_pair(root->getIndex(), phyloTaskflow.emplace([this, root, &rng, reconstructedStates, reconstructeddNdS, dNdS1, dNdS2, dNdS3, dNdS4, dNdS5, numClasses](){
             int rIndex = root->getIndex();
             double* pR = (*postOrder)(rIndex, activeCL[rIndex], 0);
             int* reconstructedP = reconstructedStates + rIndex*numChar;
@@ -445,8 +433,14 @@ std::tuple<std::string, std::string> RJModel::reconstructionOut(int i){
                         else if(i < 122){
                             *dNdSP += dNdS2;
                         }
-                        else{
+                        else if(i < 183){
                             *dNdSP += dNdS3;
+                        }
+                        else if(i < 244){
+                            *dNdSP += dNdS4;
+                        }
+                        else{
+                            *dNdSP += dNdS5;
                         }
                         success = true;
                         break;
@@ -464,7 +458,7 @@ std::tuple<std::string, std::string> RJModel::reconstructionOut(int i){
 
         for(Node* n : preOrderSeq){
             if(n != activeT->getRoot()){
-                taskMap.insert(std::make_pair(n->getIndex(), phyloTaskflow.emplace([this, n, &rng, reconstructedStates, reconstructeddNdS, dNdS1, dNdS2, dNdS3, numClasses](){
+                taskMap.insert(std::make_pair(n->getIndex(), phyloTaskflow.emplace([this, n, &rng, reconstructedStates, reconstructeddNdS, dNdS1, dNdS2, dNdS3, dNdS4, dNdS5, numClasses](){
                     int nIndex = n->getIndex();
                     double* pN = (*postOrder)(nIndex, activeCL[nIndex], 0);
 
@@ -497,8 +491,14 @@ std::tuple<std::string, std::string> RJModel::reconstructionOut(int i){
                                 else if(i < 122){
                                     *dNdSP += dNdS2;
                                 }
-                                else{
+                                else if(i < 183){
                                     *dNdSP += dNdS3;
+                                }
+                                else if(i < 244){
+                                    *dNdSP += dNdS4;
+                                }
+                                else{
+                                    *dNdSP += dNdS5;
                                 }
                                 success = true;
                                 break;

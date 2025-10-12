@@ -66,8 +66,8 @@ class RJDirichletProcessPrior : public Parameter {
         double currentLnPrior;
         double oldLnPrior;
 
-        int currentActiveOmegas = 3;
-        int oldActiveOmegas = 3;
+        int currentActiveOmegas = 1;
+        int oldActiveOmegas = 1;
 
         double alpha;
         double omegaLambda;

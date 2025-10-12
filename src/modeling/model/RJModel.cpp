@@ -235,7 +235,7 @@ void RJModel::regenerateLikelihood(){
                                     (*pN) *= sum;
                                     pN++;
                                 }
-                                pN+=(3-numClasses)*61;
+                                pN+=(5-numClasses)*61; // Shift unused classes
                                 pD+=stateSpace;
                             }
                         }

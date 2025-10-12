@@ -522,12 +522,12 @@ double RJMatrix::updateR() {
 
 double RJMatrix::updateActiveOmegas() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
-    double alpha = 15.0;
+    double alpha = 5.0;
     double hastings = 0.0;
     this->dirty();
 
     if (currentActiveOmegas == 1) { // 1 2 split
-        hastings = std::log(2.0);
+        hastings = std::log(0.5);
         currentActiveOmegas = 2;
 
         double tempO = currentOmega1;
@@ -540,12 +540,10 @@ double RJMatrix::updateActiveOmegas() {
         currentR = Probability::Exponential::rv(&rng, rLambda);
         currentRPrior = Probability::Exponential::lnPdf(rLambda, currentR);
 
-        hastings += std::log(tempO);
-        hastings += Probability::Beta::lnPdf(alpha, alpha, u) + currentRPrior;
+        hastings -= std::log(tempO);
+        hastings -= Probability::Beta::lnPdf(alpha, alpha, u) + currentRPrior;
     }
     else if (currentActiveOmegas == 2) { // 2 1 merge or 2 3 split
-        hastings = std::log(0.5);
-
         if (rng.uniformRv() > 0.5) { // 2 3 split
             currentActiveOmegas = 3;
 
@@ -556,9 +554,10 @@ double RJMatrix::updateActiveOmegas() {
             currentOmega2Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega2);
             currentOmega3Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega3);
 
-            hastings += std::log(tempO);
-            hastings += Probability::Beta::lnPdf(alpha, alpha, u);
-        } else { // 2 1 merge
+            hastings -= std::log(tempO);
+            hastings -= Probability::Beta::lnPdf(alpha, alpha, u);
+        } 
+        else { // 2 1 merge
             currentActiveOmegas = 1;
             double o1 = currentOmega1;
             double o2 = currentOmega2;
@@ -568,13 +567,12 @@ double RJMatrix::updateActiveOmegas() {
             currentOmega1 = total;
             currentOmega1Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega1);
 
-            hastings -= std::log(total);
-            hastings -= Probability::Beta::lnPdf(alpha, alpha, u) + Probability::Exponential::lnPdf(rLambda, currentR);
+            hastings = std::log(2.0);
+            hastings += std::log(total);
+            hastings += Probability::Beta::lnPdf(alpha, alpha, u) + Probability::Exponential::lnPdf(rLambda, currentR);
         }
     }
     else if (currentActiveOmegas == 3) { // 3 2 merge or 3 4 split
-        hastings = std::log(0.5);
-
         if (rng.uniformRv() > 0.5) { // 3 4 split
             currentActiveOmegas = 4;
 
@@ -585,9 +583,10 @@ double RJMatrix::updateActiveOmegas() {
             currentOmega3Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega3);
             currentOmega4Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega4);
 
-            hastings += std::log(tempO);
-            hastings += Probability::Beta::lnPdf(alpha, alpha, u);
-        } else { // 3 2 merge
+            hastings -= std::log(tempO);
+            hastings -= Probability::Beta::lnPdf(alpha, alpha, u);
+        }
+        else { // 3 2 merge
             currentActiveOmegas = 2;
             double o2 = currentOmega2;
             double o3 = currentOmega3;
@@ -597,13 +596,11 @@ double RJMatrix::updateActiveOmegas() {
             currentOmega2 = total;
             currentOmega2Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega2);
 
-            hastings -= std::log(total);
-            hastings -= Probability::Beta::lnPdf(alpha, alpha, u);
+            hastings += std::log(total);
+            hastings += Probability::Beta::lnPdf(alpha, alpha, u);
         }
     }
     else if (currentActiveOmegas == 4) { // 4 3 merge or 4 5 split
-        hastings = std::log(0.5);
-
         if (rng.uniformRv() > 0.5) { // 4 5 split
             currentActiveOmegas = 5;
 
@@ -614,9 +611,11 @@ double RJMatrix::updateActiveOmegas() {
             currentOmega4Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega4);
             currentOmega5Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega5);
 
-            hastings += std::log(tempO);
-            hastings += Probability::Beta::lnPdf(alpha, alpha, u);
-        } else { // 4 3 merge
+            hastings = std::log(2.0);
+            hastings -= std::log(tempO);
+            hastings -= Probability::Beta::lnPdf(alpha, alpha, u);
+        } 
+        else { // 4 3 merge
             currentActiveOmegas = 3;
             double o3 = currentOmega3;
             double o4 = currentOmega4;
@@ -626,13 +625,12 @@ double RJMatrix::updateActiveOmegas() {
             currentOmega3 = total;
             currentOmega3Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega3);
 
-            hastings -= std::log(total);
-            hastings -= Probability::Beta::lnPdf(alpha, alpha, u);
+            hastings += std::log(total);
+            hastings += Probability::Beta::lnPdf(alpha, alpha, u);
         }
     }
     else { // 5 4 merge
         currentActiveOmegas = 4;
-        hastings = std::log(0.5);
 
         double o4 = currentOmega4;
         double o5 = currentOmega5;
@@ -642,8 +640,9 @@ double RJMatrix::updateActiveOmegas() {
         currentOmega4 = total;
         currentOmega4Prior = Probability::Exponential::lnPdf(omegaLambda, currentOmega4);
 
-        hastings -= std::log(total);
-        hastings -= Probability::Beta::lnPdf(alpha, alpha, u);
+        hastings = std::log(0.5);
+        hastings += std::log(total);
+        hastings += Probability::Beta::lnPdf(alpha, alpha, u);
     }
 
     rebuildQMatrix();
@@ -758,9 +757,8 @@ Matrix<double> RJMatrix::Q() {
                 for(int b = a + 1; b < 5; b++){
                     returnMatrix(i + offsets[a], i + offsets[b]) = currentR;
                     returnMatrix(i + offsets[b], i + offsets[a]) = currentR;
-                    returnMatrix(i + offsets[a], i + offsets[a]) -= currentR;
-                    returnMatrix(i + offsets[b], i + offsets[b]) -= currentR;
                 }
+                returnMatrix(i + offsets[a], i + offsets[a]) -= 4.0*currentR;
             }
         }
     }
@@ -771,9 +769,8 @@ Matrix<double> RJMatrix::Q() {
                 for(int b = a + 1; b < 4; b++){
                     returnMatrix(i + offsets[a], i + offsets[b]) = currentR;
                     returnMatrix(i + offsets[b], i + offsets[a]) = currentR;
-                    returnMatrix(i + offsets[a], i + offsets[a]) -= currentR;
-                    returnMatrix(i + offsets[b], i + offsets[b]) -= currentR;
                 }
+                returnMatrix(i + offsets[a], i + offsets[a]) -= 3.0*currentR;
             }
         }
     }
@@ -784,9 +781,8 @@ Matrix<double> RJMatrix::Q() {
                 for(int b = a + 1; b < 3; b++){
                     returnMatrix(i + offsets[a], i + offsets[b]) = currentR;
                     returnMatrix(i + offsets[b], i + offsets[a]) = currentR;
-                    returnMatrix(i + offsets[a], i + offsets[a]) -= currentR;
-                    returnMatrix(i + offsets[b], i + offsets[b]) -= currentR;
                 }
+                returnMatrix(i + offsets[a], i + offsets[a]) -= 2.0*currentR;
             }
         }
     }
@@ -799,16 +795,17 @@ Matrix<double> RJMatrix::Q() {
         }
     }
 
-
     return returnMatrix;
 }
 
 std::vector<double> RJMatrix::getStationary(){
     std::vector<double> returnStationary;
 
+    double factor = 1.0/(double)(currentActiveOmegas);
+
     for(int i = 0; i < currentActiveOmegas; i++){
         for(double v : currentStationary){
-            returnStationary.push_back(v/(double)(currentActiveOmegas));
+            returnStationary.push_back(v * factor);
         }
     }
     

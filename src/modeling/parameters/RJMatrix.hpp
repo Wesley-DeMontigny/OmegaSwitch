@@ -61,8 +61,8 @@ class RJMatrix : public Parameter {
 
         std::vector<int> randomStates;
 
-        int currentActiveOmegas = 5;
-        int oldActiveOmegas = 5;
+        int currentActiveOmegas = 1;
+        int oldActiveOmegas = 1;
 
         double kLambda;
         double rLambda;

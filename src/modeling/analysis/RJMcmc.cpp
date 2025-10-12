@@ -39,7 +39,6 @@ RJMcmc::RJMcmc(RJModel* m, TreeParameter* t, RJMatrix* cm, Settings& s, bool dBO
     stationaryChoice = s.stationaryWeight + rChoice;
     rjChoice += stationaryChoice + s.rjWeight;
 
-
     treeUpdates = (int)(tree->getTree()->getBranchLengths().size() * 0.5);
 
     model->regenerateLikelihood();

@@ -588,7 +588,7 @@ int main(int argc, char* argv[]) {
                 std::cout << "Writing true parameters to file..." << std::endl;
                 std::ofstream fs;
                 fs.open(settings.simulationOutput + std::to_string(i), std::ofstream::out);
-                fs << "OmegaCount\tK\tOmega\tOmegaIncrement1\tOmegaIncrement2\tR";
+                fs << "OmegaCount\tK\tOmega\tOmegaIncrement1\tOmegaIncrement2\tOmegaIncrement3\tOmegaIncrement4\tR";
                 for(int element = 0; element < 61; element++){
                     fs << "\tStationary[" << element << "]";
                 }
@@ -600,8 +600,8 @@ int main(int argc, char* argv[]) {
                 }
                 fs << std::endl;
                 fs << activeOmegas << "\t" << rateMatrix.getK() << "\t" << rateMatrix.getOmega1() 
-                   << "\t" << rateMatrix.getOmega2() << "\t" << rateMatrix.getOmega3()
-                   << "\t" << rateMatrix.getR();
+                   << "\t" << rateMatrix.getOmega2() << "\t" << rateMatrix.getOmega3() << "\t" 
+                   << rateMatrix.getOmega4() << "\t" << rateMatrix.getOmega5() << "\t" << rateMatrix.getR();
                 for(int element = 0; element < 61; element++){
                     fs << "\t" << rawStationary[element];
                 }

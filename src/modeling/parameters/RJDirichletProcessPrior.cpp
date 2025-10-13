@@ -289,17 +289,16 @@ double RJDirichletProcessPrior::updateActiveOmegas() {
         hastings = std::log(0.5);
         currentActiveOmegas = 2;
 
-        double u = Probability::Beta::rv(&rng, alpha, alpha);
         for (int i = 0; i < currentCategories.size(); i++) {
+            double u = Probability::Beta::rv(&rng, alpha, alpha);
             double tempO = currentCategories[i].omega1;
             currentCategories[i].omega1 = tempO * u;
             currentCategories[i].omegaIncrement1 = tempO * (1.0 - u);
             currentCategories[i].omega2 = currentCategories[i].omegaIncrement1 + currentCategories[i].omega1;
             currentCategories[i].dirty = true;
             hastings -= std::log(tempO);
+            hastings -= Probability::Beta::lnPdf(alpha, alpha, u);
         }
-
-        hastings -= Probability::Beta::lnPdf(alpha, alpha, u);
         
         double newR = Probability::Exponential::rv(&rng, rateMatrix->getRLambda());
         hastings -= Probability::Exponential::lnPdf(rateMatrix->getRLambda(), newR);
@@ -312,8 +311,8 @@ double RJDirichletProcessPrior::updateActiveOmegas() {
         if (rng.uniformRv() > 0.5) { // 2 3 split
             currentActiveOmegas = 3;
 
-            double u = Probability::Beta::rv(&rng, alpha, alpha);
             for (int i = 0; i < currentCategories.size(); i++) {
+                double u = Probability::Beta::rv(&rng, alpha, alpha);
                 double tempO = currentCategories[i].omegaIncrement1;
                 currentCategories[i].omegaIncrement1 = tempO * u;
                 currentCategories[i].omegaIncrement2 = tempO * (1.0 - u);
@@ -321,19 +320,17 @@ double RJDirichletProcessPrior::updateActiveOmegas() {
                 currentCategories[i].omega2 = currentCategories[i].omegaIncrement2 + currentCategories[i].omega2;
                 currentCategories[i].dirty = true;
                 hastings -= std::log(tempO);
+                hastings -= Probability::Beta::lnPdf(alpha, alpha, u);
             }
-
-            hastings -= Probability::Beta::lnPdf(alpha, alpha, u);
         } else { // 2 1 merge
             currentActiveOmegas = 1;
             double o1 = currentCategories[0].omega1;
             double o2 = currentCategories[0].omegaIncrement1;
             double total = o1 + o2;
             double u = o1 / total;
-            
-            hastings += Probability::Beta::lnPdf(alpha, alpha, u); // It is identical for all categories
 
             for(int i = 0; i < currentCategories.size(); i++){
+                hastings += Probability::Beta::lnPdf(alpha, alpha, u);
                 double sum = currentCategories[i].omega1 + currentCategories[i].omegaIncrement1;
                 currentCategories[i].omega1 = sum;
                 currentCategories[i].dirty = true;
@@ -349,9 +346,9 @@ double RJDirichletProcessPrior::updateActiveOmegas() {
         double o3 = currentCategories[0].omegaIncrement2;
         double total = o2 + o3;
         double u = o2 / total;
-        hastings -= Probability::Beta::lnPdf(alpha, alpha, u);
 
         for(int i = 0; i < currentCategories.size(); i++){
+            hastings -= Probability::Beta::lnPdf(alpha, alpha, u);
             double sum = currentCategories[i].omegaIncrement1 + currentCategories[i].omegaIncrement2;
             currentCategories[i].omegaIncrement1 = sum;
             currentCategories[i].omega2 = currentCategories[i].omegaIncrement1 + currentCategories[i].omega1;

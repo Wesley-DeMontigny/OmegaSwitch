@@ -292,11 +292,13 @@ double RJDirichletProcessPrior::updateActiveOmegas() {
         for (int i = 0; i < currentCategories.size(); i++) {
             double u = Probability::Beta::rv(&rng, alpha, alpha);
             double tempO = currentCategories[i].omega1;
+
             currentCategories[i].omega1 = tempO * u;
             currentCategories[i].omegaIncrement1 = tempO * (1.0 - u);
             currentCategories[i].omega2 = currentCategories[i].omegaIncrement1 + currentCategories[i].omega1;
             currentCategories[i].dirty = true;
-            hastings -= std::log(tempO);
+
+            hastings += std::log(tempO);
             hastings -= Probability::Beta::lnPdf(alpha, alpha, u);
         }
         
@@ -314,45 +316,50 @@ double RJDirichletProcessPrior::updateActiveOmegas() {
             for (int i = 0; i < currentCategories.size(); i++) {
                 double u = Probability::Beta::rv(&rng, alpha, alpha);
                 double tempO = currentCategories[i].omegaIncrement1;
+
                 currentCategories[i].omegaIncrement1 = tempO * u;
                 currentCategories[i].omegaIncrement2 = tempO * (1.0 - u);
                 currentCategories[i].omega2 = currentCategories[i].omegaIncrement1 + currentCategories[i].omega1;
                 currentCategories[i].omega2 = currentCategories[i].omegaIncrement2 + currentCategories[i].omega2;
                 currentCategories[i].dirty = true;
-                hastings -= std::log(tempO);
+
+                hastings += std::log(tempO);
                 hastings -= Probability::Beta::lnPdf(alpha, alpha, u);
             }
         } else { // 2 1 merge
             currentActiveOmegas = 1;
-            double o1 = currentCategories[0].omega1;
-            double o2 = currentCategories[0].omegaIncrement1;
-            double total = o1 + o2;
-            double u = o1 / total;
-
             for(int i = 0; i < currentCategories.size(); i++){
-                hastings += Probability::Beta::lnPdf(alpha, alpha, u);
+                double o1 = currentCategories[i].omega1;
+                double o2 = currentCategories[i].omegaIncrement1;
+                double total = o1 + o2;
+                double u = o1 / total;
+
                 double sum = currentCategories[i].omega1 + currentCategories[i].omegaIncrement1;
                 currentCategories[i].omega1 = sum;
                 currentCategories[i].dirty = true;
-                hastings += std::log(sum);
+
+                hastings += Probability::Beta::lnPdf(alpha, alpha, u);
+                hastings -= std::log(sum);
             }
+
+            hastings += Probability::Exponential::lnPdf(rateMatrix->getRLambda(), rateMatrix->getR());
         }
     }
     else if (currentActiveOmegas == 3) { // 3 2 merge
         currentActiveOmegas = 2;
         hastings = std::log(0.5);
-
-        double o2 = currentCategories[0].omegaIncrement1;
-        double o3 = currentCategories[0].omegaIncrement2;
-        double total = o2 + o3;
-        double u = o2 / total;
-
         for(int i = 0; i < currentCategories.size(); i++){
-            hastings -= Probability::Beta::lnPdf(alpha, alpha, u);
+            double o2 = currentCategories[i].omegaIncrement1;
+            double o3 = currentCategories[i].omegaIncrement2;
+            double total = o2 + o3;
+            double u = o2 / total;
+
             double sum = currentCategories[i].omegaIncrement1 + currentCategories[i].omegaIncrement2;
             currentCategories[i].omegaIncrement1 = sum;
             currentCategories[i].omega2 = currentCategories[i].omegaIncrement1 + currentCategories[i].omega1;
             currentCategories[i].dirty = true;
+
+            hastings += Probability::Beta::lnPdf(alpha, alpha, u);
             hastings -= std::log(sum);
         }
     }

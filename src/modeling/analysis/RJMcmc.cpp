@@ -2,7 +2,7 @@
 #include "core/RandomVariable.hpp"
 #include "modeling/model/RJModel.hpp"
 #include "modeling/parameters/Parameter.hpp"
-#include "modeling/parameters/RJMatrix.hpp"
+#include "modeling/parameters/rate_matrices/RJMatrix.hpp"
 #include "modeling/parameters/trees/TreeParameter.hpp"
 #include "modeling/parameters/trees/TreeObject.hpp"
 #include "core/Settings.hpp"

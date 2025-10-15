@@ -2,7 +2,7 @@
 #include "core/RandomVariable.hpp"
 #include "modeling/model/RJDPPModel.hpp"
 #include "modeling/parameters/Parameter.hpp"
-#include "modeling/parameters/RJDPPMatrix.hpp"
+#include "modeling/parameters/rate_matrices/RJDPPMatrix.hpp"
 #include "modeling/parameters/RJDirichletProcessPrior.hpp"
 #include "modeling/parameters/trees/TreeParameter.hpp"
 #include "modeling/parameters/trees/TreeObject.hpp"

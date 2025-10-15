@@ -1,7 +1,7 @@
 #include "RJDirichletProcessPrior.hpp"
 #include "core/RandomVariable.hpp"
-#include "modeling/model/RJDPPModel.hpp" // Annoying circular dependency... It is what is is for now...
-#include "modeling/parameters/RJDPPMatrix.hpp"
+#include "modeling/model/RJDPPModel.hpp"
+#include "modeling/parameters/rate_matrices/RJDPPMatrix.hpp"
 #include "modeling/model/TransitionProbability.hpp"
 #include "modeling/model/ConditionalLikelihood.hpp"
 #include "core/Probability.hpp"

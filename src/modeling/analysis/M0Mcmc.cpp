@@ -2,7 +2,7 @@
 #include "core/RandomVariable.hpp"
 #include "modeling/model/M0Model.hpp"
 #include "modeling/parameters/Parameter.hpp"
-#include "modeling/parameters/M0Matrix.hpp"
+#include "modeling/parameters/rate_matrices/M0Matrix.hpp"
 #include "modeling/parameters/trees/TreeParameter.hpp"
 #include "modeling/parameters/trees/TreeObject.hpp"
 #include "core/Settings.hpp"

@@ -126,8 +126,8 @@ int main(int argc, char* argv[]) {
         inference(settings, aln, treeParam, false);
     }
     else{
-        int numSites = 150;
-        int numTaxa = 30;
+        int numSites = 100;
+        int numTaxa = 50;
         std::string mcmcOutput = settings.mcmcOutput;
         std::string tipsOutput = settings.tipsOutput;
         std::string dppOutput = settings.dppOutput;
@@ -196,7 +196,7 @@ int main(int argc, char* argv[]) {
                             for(Node* d : n->getNeighbors()){
                                 if(d != n->getAncestor()){
                                     int dIndex = d->getIndex();
-                                    Matrix<double> P = transProb(0, 0, dIndex);
+                                    const Matrix<double>& P = transProb(0, 0, dIndex);
                                     sites[c*numNodes + dIndex] = randomTransition(rng, ancestralState, P);
                                 }
                             }
@@ -237,7 +237,21 @@ int main(int argc, char* argv[]) {
             else if(settings.simulateRJ){
                 TransitionProbability transProb(numNodes, 305);
                 RJMatrix rateMatrix(settings);
-                int activeOmegas = (int)(rng.uniformRv() * 5.0) + 1;
+                double omegaDraw = rng.uniformRv();
+                int activeOmegas = 1;
+                if(omegaDraw > 0.95){
+                    activeOmegas = 5;
+                }
+                else if(omegaDraw > 0.8){
+                    activeOmegas = 4;
+                }
+                else if(omegaDraw > 0.6){
+                    activeOmegas = 3;
+                }
+                else if(omegaDraw > 0.35){
+                    activeOmegas = 2;
+                }
+
                 rateMatrix.setActiveOmegas(activeOmegas);
                 std::vector<double> stationary = rateMatrix.getStationary();
                 std::vector<double> rawStationary = rateMatrix.getRawStationary();
@@ -261,7 +275,7 @@ int main(int argc, char* argv[]) {
                             for(Node* d : n->getNeighbors()){
                                 if(d != n->getAncestor()){
                                     int dIndex = d->getIndex();
-                                    Matrix<double> P = transProb(0, 0, dIndex);
+                                    const Matrix<double>& P = transProb(0, 0, dIndex);
                                     sites[c*numNodes + dIndex] = randomTransition(rng, ancestralState, P);
                                 }
                             }
@@ -318,7 +332,15 @@ int main(int argc, char* argv[]) {
             else if(settings.simulateRJDPP){
                 TransitionProbability transProb(numNodes, 183);
                 RJDPPMatrix rateMatrix(settings);
-                int activeOmegas = (int)(rng.uniformRv() * 3.0) + 1;
+                double omegaDraw = rng.uniformRv();
+                int activeOmegas = 1;
+                if(omegaDraw > 0.8){
+                    activeOmegas = 3;
+                }
+                else if(omegaDraw > 0.5){
+                    activeOmegas = 2;
+                }
+
                 RJDirichletProcessPrior dpp(&rateMatrix, numSites, settings);
                 rateMatrix.refreshQBackground(activeOmegas);
                 std::vector<double> stationary = rateMatrix.getStationary(activeOmegas);
@@ -357,7 +379,7 @@ int main(int argc, char* argv[]) {
                             for(Node* d : n->getNeighbors()){
                                 if(d != n->getAncestor()){
                                     int dIndex = d->getIndex();
-                                    Matrix<double> P = transProb(0, cat, dIndex);
+                                    const Matrix<double>& P = transProb(0, cat, dIndex);
                                     sites[c*numNodes + dIndex] = randomTransition(rng, ancestralState, P);
                                 }
                             }

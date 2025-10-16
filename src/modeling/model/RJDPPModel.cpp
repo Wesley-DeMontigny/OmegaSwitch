@@ -121,7 +121,20 @@ void RJDPPModel::reject() {
 }
 
 double RJDPPModel::lnPrior(){
-    return dpp->lnPrior() + tree->lnPrior() + rateMatrix->lnPrior();
+    double prior = dpp->lnPrior() + tree->lnPrior() + rateMatrix->lnPrior();
+    int activeOmegas = dpp->getActiveOmegas();
+
+    if(activeOmegas == 1){
+        prior += std::log(0.5);
+    }
+    else if(activeOmegas == 2){
+        prior += std::log(0.3);
+    }
+    else{
+        prior += std::log(0.2);
+    }
+
+    return prior;
 }
 
 void RJDPPModel::regenerateLikelihood(){
@@ -216,6 +229,16 @@ void RJDPPModel::regenerateLikelihood(){
         end = std::min(end, numChar-1);
 
         phyloTaskflow.emplace([this, &poSeq, numCats, &assignments, numClasses, start, end](){
+
+            // Avoid defining these within the tight inner loop and just treat them as working space
+            #ifdef __AVX2__
+            double tmp[4];
+            #elif defined(__ARM_NEON__)
+            float64x2_t pj;
+            float64x2_t vj;
+            float64x2_t prod;
+            #endif
+
             int currentChunkSize = end - start + 1;
             for(Node* n : poSeq){
                 int nIndex = n->getIndex();
@@ -245,7 +268,6 @@ void RJDPPModel::regenerateLikelihood(){
                                         sumVec = _mm256_fmadd_pd(pj, vj, sumVec); // += P(i,j) * pD(j)
                                     }
 
-                                    double tmp[4];
                                     _mm256_storeu_pd(tmp, sumVec); //Access all of the things we were doing simultaneous operations on and sum them
                                     sum = tmp[0] + tmp[1] + tmp[2] + tmp[3];
 
@@ -258,9 +280,9 @@ void RJDPPModel::regenerateLikelihood(){
                                     
                                     // For the M series chips
                                     for (; j <= numClasses * 61 - 2; j += 2) {
-                                        float64x2_t pj = vld1q_f64(&P(i, j)); 
-                                        float64x2_t vj = vld1q_f64(&pD[j]);
-                                        float64x2_t prod = vmulq_f64(pj, vj);
+                                        pj = vld1q_f64(&P(i, j)); 
+                                        vj = vld1q_f64(&pD[j]);
+                                        prod = vmulq_f64(pj, vj);
 
                                         sum += vgetq_lane_f64(prod, 0) + vgetq_lane_f64(prod, 1);
                                     }

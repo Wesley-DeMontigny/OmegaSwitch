@@ -1046,6 +1046,11 @@ int EigenSystem::luDecompose(Matrix<double>& a, double* vv, int* indx, double* p
 	return(0);
 }
 
+/**
+ * @brief Takes in a rate matrix and an eigen and complex eigen struct and fills in either the eigen
+ * or complexEigen object depending on whether or not the eigens are complex or not. It returns a bool
+ * indicating whether or not the object is complex.
+ */
 bool EigenSystem::update(const Matrix<double> &m, RateEigen& eigens, ComplexRateEigen& complexEigens) {
 	
 	int n = m.dim1();

@@ -3,13 +3,21 @@
 #include <complex>
 #include <vector>
 
+
+
+/**
+ * @brief Struct used to contain all of the values needed to do rate matrix exponentiation
+ * via eigen decomposition when the eigenvalues are all real. This also contains all information
+ * needed to revert to the old values if there is an update and a rejection during MCMC
+ */
 struct RateEigen {
-    double* c_ijk;
-    double* eigenvalue;
-    double* oldC_ijk;
+    double* c_ijk;  // This is a pre-computed tensor to avoid computing V D V^-1 every time. Cijk = Vik (V^-1)kj
+    double* eigenvalue; // The real eigenvalues obtained by EigenSystem
+    double* oldC_ijk; // Old values to reset the current ones if there was a rejection
     double* oldEigenvalue;
     int numStates;
 
+    // Constructor
     RateEigen(int nS) : numStates(nS) {
         c_ijk = new double[numStates * numStates * numStates];
         eigenvalue = new double[numStates];
@@ -22,6 +30,7 @@ struct RateEigen {
         std::fill(oldEigenvalue, oldEigenvalue + numStates, 0.0);
     }
 
+    // Copy constructor
     RateEigen(const RateEigen& other) {
         numStates = other.numStates;
         c_ijk = new double[numStates * numStates * numStates];
@@ -35,6 +44,7 @@ struct RateEigen {
         std::copy(other.oldEigenvalue, other.oldEigenvalue + numStates, oldEigenvalue);
     }
 
+    // Assignment operator
     RateEigen& operator=(const RateEigen& other) {
         if (this != &other) {
             delete [] c_ijk;
@@ -57,20 +67,26 @@ struct RateEigen {
     }
 
     ~RateEigen() {
-    delete [] c_ijk;
-    delete [] eigenvalue;
-    delete [] oldEigenvalue;
-    delete [] oldC_ijk;
+        delete [] c_ijk;
+        delete [] eigenvalue;
+        delete [] oldEigenvalue;
+        delete [] oldC_ijk;
     }
 };
 
+/**
+ * @brief Struct used to contain all of the values needed to do rate matrix exponentiation
+ * via eigen decomposition when the eigenvalues are complex. This also contains all information
+ * needed to revert to the old values if there is an update and a rejection during MCMC
+ */
 struct ComplexRateEigen {
-    std::complex<double>* cc_ijk;
-    std::complex<double>* ceigenvalue;
-    std::complex<double>* oldCC_ijk;
+    std::complex<double>* cc_ijk; // This is a pre-computed tensor to avoid computing V D V^-1 every time. Cijk = Vik (V^-1)kj
+    std::complex<double>* ceigenvalue; // The complex eigenvalues obtained by EigenSystem
+    std::complex<double>* oldCC_ijk; // Old values to reset the current ones if there was a rejection
     std::complex<double>* oldCeigenvalue;
     int numStates;
 
+    // Constructor
     ComplexRateEigen(int nS) : numStates(nS) {
         cc_ijk = new std::complex<double>[numStates * numStates * numStates];
         ceigenvalue = new std::complex<double>[numStates];
@@ -83,7 +99,7 @@ struct ComplexRateEigen {
         std::fill(oldCeigenvalue, oldCeigenvalue + numStates, 0.0);  
     }
     
-
+    // Copy constructor
     ComplexRateEigen(const ComplexRateEigen& other) {
         numStates = other.numStates;
         cc_ijk = new std::complex<double>[numStates * numStates * numStates];
@@ -97,6 +113,7 @@ struct ComplexRateEigen {
         std::copy(other.oldCeigenvalue, other.oldCeigenvalue + numStates, oldCeigenvalue);
     }
 
+    // Assignment operator
     ComplexRateEigen& operator=(const ComplexRateEigen& other) {
         if (this != &other) {
             delete [] cc_ijk;
@@ -119,10 +136,10 @@ struct ComplexRateEigen {
     }
 
     ~ComplexRateEigen() {
-    delete [] cc_ijk;
-    delete [] ceigenvalue;
-    delete [] oldCC_ijk;
-    delete [] oldCeigenvalue;
+        delete [] cc_ijk;
+        delete [] ceigenvalue;
+        delete [] oldCC_ijk;
+        delete [] oldCeigenvalue;
     }
 };
 

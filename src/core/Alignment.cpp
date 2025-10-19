@@ -2,6 +2,10 @@
 #include "Msg.hpp"
 #include "ncl/nxscharactersblock.cpp"
 
+/**
+ * @brief Construct a new alignment from the provided NEXUS file.
+ * 
+ */
 Alignment::Alignment(std::string fn) {
     
     MultiFormatReader nexusReader;
@@ -33,6 +37,11 @@ Alignment::Alignment(std::string fn) {
     }
 }
 
+/**
+ * @brief Construct a new alignment from a siteMatrix. This kind of matrix consits of entries
+ * with values 0-60 to indicate the codon at that taxon/site pair. The matrix should be indexed
+ * so that matrix[t*numChar + c] gives the character code for taxon t and site c
+ */
 Alignment::Alignment(int* siteMatrix, int nC, int nT) : numChar(nC), numTaxa(nT) {
 
     matrix = new unsigned long long int*[numTaxa];
@@ -56,11 +65,20 @@ Alignment::Alignment(int* siteMatrix, int nC, int nT) : numChar(nC), numTaxa(nT)
     std::cout << "Initialized alignment from simulation" << std::endl;
 }
 
+/**
+ * @brief Destructor
+ * 
+ */
 Alignment::~Alignment(){
     delete [] matrix[0];
     delete [] matrix;
 }
 
+/**
+ * @brief Takes in a NEXUS character block from the NEXUS class library and constructs a codon matrix. Each
+ * bit of each entry of the ULL encodes whether or not that site can emit that character. This allows us to consider
+ * ambiguous sites in an easy way without collecting a list of what ambiguous sites can represent. 
+ */
 void Alignment::readCodonData(NxsCharactersBlock* charBlock){
     numTaxa = charBlock->GetNumActiveTaxa();
     numChar = charBlock->GetNumActiveChar();

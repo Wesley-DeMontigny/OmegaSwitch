@@ -32,7 +32,15 @@ template <class T> Matrix<T> 		&operator*=(Matrix<T> &A, const T &b);
 template <class T> Matrix<T> 		&operator/=(Matrix<T> &A, const T &b);
 
 
-
+/**
+ * @brief This class implements all of the constructors, destructors, and operators required
+ * for us to do basic Matrix/vector algebra
+ * 
+ * @tparam T The type the matrix is made up of
+ * @note All of this code was provided by John Huelsenbeck from a version of MrBayes. The only
+ * modifications that have been done to it are that the matrix is now accessed using the () operators,
+ * which can take both a row index and a column index, as opposed to the previous [] operator.
+ */
 template <class T> 
 class Matrix { 
  

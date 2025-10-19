@@ -11,6 +11,9 @@
 #include "Probability.hpp"
 #include "Msg.hpp"
 
+/**
+ * @brief For each element x in v, return a matrix with elements 10^x. Used to convert between log spaces.
+ */
 std::vector<double> pow10Vector(std::vector<double> v){
     std::vector<double> returnVec;
     for(double n : v)
@@ -18,10 +21,15 @@ std::vector<double> pow10Vector(std::vector<double> v){
     return returnVec;
 }
 
+/**
+ * @brief Constructor for the Bayesian Optimizer. Takes in the number of parameters we are trying to optimize and the
+ * number of itersations per sample. 
+ */
 BayesianOptimizer::BayesianOptimizer(int nP, int s) : numParams(nP), iterationsPerSample(s), hyperparams(nP, 1.0) {}
 
-BayesianOptimizer::~BayesianOptimizer() {}
-
+/**
+ * @brief Compute the autocorrelation score within a particular window.
+ */
 double BayesianOptimizer::autocorrelationScore(const std::vector<std::vector<double>>& r, int start, int end){
     int window = 25;
 
@@ -59,19 +67,9 @@ double BayesianOptimizer::autocorrelationScore(const std::vector<std::vector<dou
     return 1 - (autoCorrSum / window - 1);
 }
 
-double BayesianOptimizer::averageProportionalJumpingDistance(const std::vector<std::vector<double>>& r){
-    double apjd = 0.0; // Average proportional jumping distance
-    for(int i = 1; i < r.size(); i++){
-        double sum = 0.0;
-        for(int j = 0; j < r[0].size(); j++){
-            sum += std::abs(r[i][j] - r[i-1][j])/r[i-1][j];
-        }
-        apjd += sum;
-    }
-
-    return apjd/r.size();
-}
-
+/**
+ * @brief Get the set of MCMC tunable parameters with the maximum score (miniumum autocorrelation)
+ */
 std::vector<double> BayesianOptimizer::getMaximum(){
 
     std::sort(samples.begin(), samples.end(), [](const ParamScorePair& a, const ParamScorePair& b) {
@@ -84,6 +82,9 @@ std::vector<double> BayesianOptimizer::getMaximum(){
     return samples[0].params;
 }
 
+/**
+ * @brief Get the top N set of MCMC tunable parameters by autocorrelation score
+ */
 std::vector<std::vector<double>> BayesianOptimizer::getMaximumN(int N){
     std::vector<std::vector<double>> returnVec;
 
@@ -98,6 +99,10 @@ std::vector<std::vector<double>> BayesianOptimizer::getMaximumN(int N){
     return returnVec;
 }
 
+/**
+ * @brief Compute the entry in the covariance matrix corresponding to the Kernel value for
+ * two tunable parameter sets.
+ */
 double BayesianOptimizer::kernel(std::vector<double>& a, std::vector<double>& b){
     double sum = 0.0;
     for(int i = 0; i < numParams; i++){
@@ -109,6 +114,9 @@ double BayesianOptimizer::kernel(std::vector<double>& a, std::vector<double>& b)
     return sampleVariance * std::exp(sum);
 }
 
+/**
+ * @brief 
+ */
 double BayesianOptimizer::marginalLogLikelihood(){
     int numSamples = samples.size();
     double likelihood = -0.5;
@@ -127,7 +135,10 @@ double BayesianOptimizer::marginalLogLikelihood(){
     return likelihood;
 }
 
-// See Rasmussen and Williams Ch. 5
+/**
+ * @brief Compute the gradient of the marginal log likelihood of the Gaussian process
+ * with respect to the hyperparameters. See Rasmussen and Williams Ch. 5 for theoretical background.
+ */
 std::vector<double> BayesianOptimizer::nLLGradient(){
     int numSamples = samples.size();
     std::vector<double> gradients(numParams, 0.0);
@@ -158,7 +169,7 @@ std::vector<double> BayesianOptimizer::nLLGradient(){
         }
     }
 
-    // Gradient of the Kernel with respect to the parameters
+    // Gradient of the Kernel with respect to the hyperparameters
     for(int p = 0; p < numParams; p++){
         Matrix<double> kCopy = kernelMatrix.copy();
 
@@ -185,6 +196,10 @@ std::vector<double> BayesianOptimizer::nLLGradient(){
     return gradients;
 }
 
+/**
+ * @brief Compute the log prior probability of the hyperparameters. Here we are
+ * just using a standard log Normal
+ */
 double BayesianOptimizer::logPrior(){
     double total = 0.0;
     for(int i = 0; i < numParams; i++){
@@ -197,6 +212,10 @@ double BayesianOptimizer::logPrior(){
     return total;
 }
 
+/**
+ * @brief Compute the gradient of the log prior with respect to the hyperparameter
+ * values.
+ */
 std::vector<double> BayesianOptimizer::nLPGradient(){
     std::vector<double> gradients(numParams, 0.0);
 
@@ -210,6 +229,10 @@ std::vector<double> BayesianOptimizer::nLPGradient(){
     return gradients;
 }
 
+/**
+ * @brief Register a set of tunable parameters (s) and their corresponding
+ * value in the GP (the autocorrelation score).
+ */
 void BayesianOptimizer::registerSample(std::vector<double> s, double o){
     ParamScorePair sample;
     sample.score = o;
@@ -239,36 +262,10 @@ void BayesianOptimizer::registerSample(std::vector<double> s, double o){
     }
 }
 
-double BayesianOptimizer::expectedImprovement(std::vector<double>& sample, double currentMaxObjective, int numSamples){
-    std::vector<double> kStar(numSamples, 0.0);
-    for(int j = 0; j < numSamples; j++){
-        kStar[j] = kernel(sample, samples[j].params);
-    }
-
-    double predictive_mean = 0.0;
-    for(int j = 0; j < numSamples; j++){
-        predictive_mean += kStar[j] * alpha[j];
-    }
-
-    std::vector<double> v = kStar;
-    Math::forwardSubstitutionRow(choleskyFactor, v);
-
-    double predictive_variance = kernel(kStar, kStar);
-    for(int j = 0; j < numSamples; j++){
-        predictive_variance -= v[j]*v[j];
-    }
-    double predictive_std = std::sqrt(predictive_variance);
-
-    // Compute expected improvement and compare
-    double diff = predictive_mean - currentMaxObjective;
-    double z = diff/predictive_std;
-    double EI = std::max(0.0, diff) + 
-                predictive_std * Probability::Normal::pdf(0, 1, z) - 
-                std::abs(diff) * Probability::Normal::cdf(0, 1, z);
-    
-    return EI;
-}
-
+/**
+ * @brief Compute the upper confidence bound of a set of hypothetical tunable parameters
+ * using an exploration parameter of 0.25.
+ */
 double BayesianOptimizer::UCB(std::vector<double>& sample, int numSamples){
     std::vector<double> kStar(numSamples, 0.0);
     for(int j = 0; j < numSamples; j++){
@@ -293,6 +290,11 @@ double BayesianOptimizer::UCB(std::vector<double>& sample, int numSamples){
     return predictive_mean + 0.25*predictive_std;
 }
 
+/**
+ * @brief Select the best next set of tunable MCMC parameters based on the Gaussian Process
+ * and the UCB acquisition function. Right now we are just looking acroos the whole space 
+ * using latin hypercube sampling.
+ */
 std::vector<double> BayesianOptimizer::maximizeAcquisition(){
     assert(samples.size() >= 3); // We need to make sure that we have selected three coherent points
 
@@ -339,7 +341,6 @@ std::vector<double> BayesianOptimizer::maximizeAcquisition(){
     std::vector<ParamScorePair> parameterScorePairs;
     for(int i = 0; i < numLHCSamples; i++){
         
-        //double score = expectedImprovement(lhcSamples[i], currentMaxObjective, numSamples);
         double score = UCB(lhcSamples[i], numSamples);
 
         ParamScorePair point;
@@ -355,6 +356,9 @@ std::vector<double> BayesianOptimizer::maximizeAcquisition(){
     return parameterScorePairs[0].params;
 }
 
+/**
+ * @brief  Define the bounds of our search using the change of the parameters so far and the current center
+ */
 void BayesianOptimizer::setBounds(std::vector<double>& diff, std::vector<double>& mean){
     assert(diff.size() == mean.size());
     upperBound.clear();
@@ -372,8 +376,12 @@ void BayesianOptimizer::setBounds(std::vector<double>& diff, std::vector<double>
     }
 }
 
-// See Rasmussen and Williams (2008) Algorithm 2.1
-void BayesianOptimizer::updateCholesky(){
+/**
+ * @brief Update the Cholesky factor for the the covariance matrix of
+ * the covariance matrix of the Gaussian process. See Rasmussen and Williams (2008) 
+ * Algorithm 2.1 for details.
+ */ 
+ void BayesianOptimizer::updateCholesky(){
     int numSamples = samples.size();
 
     Matrix<double> K(numSamples, numSamples, 0.0);
@@ -409,6 +417,10 @@ void BayesianOptimizer::updateCholesky(){
     Math::backSubstitutionRow(LT, alpha);
 }
 
+/**
+ * @brief Update the hyperparameters of the Gaussian process using latin hypercube sampling as initialization
+ * and BFGS to get to an optimum. 
+ */
 void BayesianOptimizer::updateGaussianProcess() {
     assert(samples.size() >= 3); // We need to make sure that we have selected three coherent points
 
@@ -655,6 +667,9 @@ void BayesianOptimizer::updateGaussianProcess() {
     }
 }
 
+/**
+ * @brief Smooth the autocorrelation score over the entire MCMC trajectory.
+ */
 double BayesianOptimizer::smoothAverageAutocorrelation(const std::vector<std::vector<double>>& r){
     int L = r.size();
 

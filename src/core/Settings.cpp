@@ -4,6 +4,12 @@
 #include <string>
 #include <vector>
 
+/**
+ * @brief Settings constructor
+ * 
+ * @param argc The number of arguments passed from the main function
+ * @param argv The arguments passed from the main function
+ */
 Settings::Settings(int argc,  char* argv[]) {
 
     std::vector<std::string> settings;
@@ -183,7 +189,10 @@ Settings::Settings(int argc,  char* argv[]) {
     print();
 }
 
-
+/**
+ * @brief Prints out the parameters values and settings that are being used this run 
+ * 
+ */
 void Settings::print(){
     std::cout << "Inference Input/Output:" << std::endl;
     std::cout << "   * -nexus             : " << nexusInput << std::endl;
@@ -233,7 +242,11 @@ void Settings::print(){
     std::cout << std::endl;
 }
 
-void Settings::usage(void) {
+/**
+ * @brief Informs the user how to use our software from the command line
+ * 
+ */
+void Settings::usage() {
 
     std::cout << "Inference Input/Output:" << std::endl;
     std::cout << "   * -nexus             : Input nexus file containing the nculeotide alignment." << std::endl;

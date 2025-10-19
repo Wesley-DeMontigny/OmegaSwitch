@@ -4,11 +4,13 @@
 #include <string>
 
 
-
+/**
+ * @brief Basic class for outputting errors and warnings to the screen
+ * 
+ */
 namespace Msg {
-
-   void   error(std::string s);
-   void   warning(std::string s);
+   void   error(std::string s);        // Output an error to the screen (exits the program)
+   void   warning(std::string s);      // Output a warning to the screen
 }
 
 #endif

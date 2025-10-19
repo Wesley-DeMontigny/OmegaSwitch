@@ -12,7 +12,12 @@ static bool availableNormalRv = false;
 static double extraNormalRv = 0.0;
 
 
-
+/**
+ * @brief This namespace contains all functions related to probability distributions. The functions
+ * and namespaces are all pretty self explanatory.
+ * 
+ * @note All of this code was provided by John Huelsenbeck from a version of MrBayes.
+ */
 namespace  Probability {
 
     namespace Beta {

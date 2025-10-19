@@ -7,18 +7,28 @@
 #include "RandomVariable.hpp"
 
 
-
+/**
+ * @brief Default constructor for a random variable
+ */
 RandomVariable::RandomVariable(void) {
 
     uint32_t seed = (uint32_t) time(NULL);
     initialize(seed);
 }
 
+
+/**
+ * @brief Default constructor for a random variable
+ */
 RandomVariable::RandomVariable(uint32_t seed) {
 
     initialize(seed);
 }
 
+/**
+ * @brief Extract random integer from the system
+ * 
+ */
 uint32_t RandomVariable::extractU32(void) {
 
     int i = index;
@@ -39,7 +49,9 @@ uint32_t RandomVariable::extractU32(void) {
     return y;
 }
 
-
+/**
+ * @brief Initialize Mersenne-Twister
+ */
 void RandomVariable::initialize(uint32_t seed) {
 
     mt[0] = seed;
@@ -54,7 +66,9 @@ void RandomVariable::initialize(uint32_t seed) {
 }
 
 
-
+/**
+ * @brief Perform twist operation
+ */
 void RandomVariable::twist(void) {
 
     for (uint32_t i=0; i<N; i++)
@@ -70,7 +84,10 @@ void RandomVariable::twist(void) {
     index = 0;
 }
 
+/**
+ * @brief Draw from a uniform distribution on the unit interval.
+ */
 double RandomVariable::uniformRv(void) {
-
+    // This is an especially easy draw because you are treating the whole spectrum of unsigned integers as if it is approximately continuous
     return (double)extractU32() / UINT32_MAX;
 }

@@ -15,6 +15,7 @@
 #include <string>
 #include <iostream>
 #include <unordered_map>
+
 #if TIME_PROFILE==1
 #include <chrono>
 #endif
@@ -23,8 +24,10 @@
 #elif defined(__ARM_NEON__)
 #include <arm_neon.h>
 #endif
-M0Model::M0Model(Settings s, Alignment* a, TreeParameter* t, M0Matrix* m) : 
-            aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0), numChar(0) {
+
+M0Model::M0Model(Settings* s, Alignment* a, TreeParameter* t, M0Matrix* m, tf::Executor& e) : 
+            aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0), numChar(0), executor(e),
+            branchLog(s->branchOutput), analysisLog(s->mcmcOutput), treeLog(s->treeOutput) {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
@@ -164,7 +167,7 @@ void M0Model::regenerateLikelihood(){
 
     tf::Taskflow phyloTaskflow;
     
-    int chunkSize = 50;
+    int chunkSize = 25;
     for(int range = 0; range < (int)std::ceil((double)numChar / chunkSize); range++){
         int start = range * chunkSize;
         int end = start + chunkSize-1;
@@ -175,6 +178,8 @@ void M0Model::regenerateLikelihood(){
             // Avoid defining these within the tight inner loop and just treat them as working space
             #ifdef __AVX2__
             double tmp[4];
+            __m256d pj;
+            __m256d vj;
             #elif defined(__ARM_NEON__)
             float64x2_t pj;
             float64x2_t vj;
@@ -205,8 +210,8 @@ void M0Model::regenerateLikelihood(){
                                     // SIMD block - we will process multiples of 4 at a time
                                     __m256d sumVec = _mm256_setzero_pd();
                                     for (; j <= stateSpace - 4; j += 4) {
-                                        __m256d pj = _mm256_loadu_pd(&P(i, j));
-                                        __m256d vj = _mm256_loadu_pd(&pD[j]);
+                                        pj = _mm256_loadu_pd(&P(i, j));
+                                        vj = _mm256_loadu_pd(&pD[j]);
                                         sumVec = _mm256_fmadd_pd(pj, vj, sumVec); // += P(i,j) * pD(j)
                                     }
 
@@ -290,19 +295,11 @@ void M0Model::regenerateLikelihood(){
         pR += stateSpace;
     }
 
-    #if LOGGING == 1
-    std::cout << "Non-rescaled likelihood: " << lnL << std::endl;
-    #endif
-
     double* rescalePointer = rescaling;
     for(int i = 0, len = numNodes * numChar; i < len; i++){
         lnL += *rescalePointer;
         rescalePointer++;
     }
-
-    #if LOGGING == 1
-    std::cout << "Rescaled likelihood: " << lnL << std::endl;
-    #endif
 
     currentLikelihood = lnL;
 
@@ -317,70 +314,145 @@ void M0Model::tuneMoves(){
     rateMatrix->tune();
 }
 
-std::string M0Model::tabularHeader(){
-    std::string returnString = "Iteration\tPosterior\tLikelihood\tPrior\tK\tOmega";
-    for(int i = 0; i < 61; i++){
-        returnString += "\tPi[" + std::to_string(i) + "]";
+std::vector<double> M0Model::getTunableParameterRecord(){
+    std::vector<double> record = {
+        rateMatrix->getK(), rateMatrix->getOmega()
+    };
+    for(double entry : rateMatrix->getRawStationary())
+        record.push_back(entry);
+    for(double entry : tree->getTree()->getBranchLengths())
+        record.push_back(entry);
+
+    return record;
+}
+
+std::vector<double> M0Model::getTunableParameters(){
+    std::vector<double> returnVec(5, 0.0);
+    returnVec[0] = tree->branchDelta;
+    returnVec[1] = tree->treeAlpha;
+    returnVec[2] = rateMatrix->stationaryAlpha;
+    returnVec[3] = rateMatrix->kDelta;
+    returnVec[4] = rateMatrix->omegaDelta;
+    return returnVec;
+}
+
+void M0Model::setTunableParameters(const std::vector<double> & v){
+    tree->branchDelta = v[0];
+    tree->treeAlpha = v[1];
+    rateMatrix->stationaryAlpha = v[2];
+    rateMatrix->kDelta = v[3];
+    rateMatrix->omegaDelta = v[4];
+}
+
+void M0Model::printAcceptanceRates(){
+    std::cout << "Tree Acceptance Rate: " << tree->getTreeRate() << "\tBranch Acceptance Rate: " << tree->getBranchRate() <<
+    "\tStationary Acceptance Rate: " << rateMatrix->getStationaryRate() << "\tK Acceptance Rate: " << rateMatrix->getKRate() <<
+    "\tOmega Acceptance Rate: " << rateMatrix->getOmegaRate() << std::endl;
+}
+
+void M0Model::printTabular(int i){
+    if(i == 0){
+        std::string returnString = "Iteration\tPosterior\tLikelihood\tPrior\tK\tOmega";
+        for(int i = 0; i < 61; i++)
+            returnString += "\tPi[" + std::to_string(i) + "]";
+
+        std::cout << returnString << std::endl;
     }
-
-    return returnString + "\n";
-}
-
-std::string M0Model::tabularOut(int i){
-    std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" +
-                               std::to_string(currentLikelihood) + "\t" + std::to_string(lnPrior()) + "\t" +
-                               std::to_string(rateMatrix->getK()) + "\t" + std::to_string(rateMatrix->getOmega());
-    std::vector<double> stationary = rateMatrix->getRawStationary();
-    for(double i : stationary){
-        returnString += "\t" + std::to_string(i);
-    }
-
-    return returnString + "\n";
-}
-
-std::string M0Model::treeHeader(){
-    return "Iteration\tPosterior\tTree\n";
-}
-
-std::string M0Model::treeOut(int i){
-    return std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" + tree->writeNewick() + "\n";
-}
-
-std::string M0Model::branchHeader(){
-    std::string returnString = "Iteration\tPosterior";
-    TreeObject* treeObj = tree->getTree();
-    std::vector<Node*> poSeq = treeObj->getPostOrderSeq();
-    std::vector<Node*> nodes;
-    for(Node* n : poSeq)
-        nodes.push_back(n);
-    std::sort(nodes.begin(), nodes.end(), [](const Node* a, const Node* b) {
-        return a->getIndex() > b->getIndex();
-    });
-
-    for(Node* n : nodes){
-        if(n != treeObj->getRoot()){
-            returnString += "\tBranch[" + std::to_string(n->getIndex()) + "]";
+    else{
+        std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" +
+                                std::to_string(currentLikelihood) + "\t" + std::to_string(lnPrior()) + "\t" +
+                                std::to_string(rateMatrix->getK()) + "\t" + std::to_string(rateMatrix->getOmega());
+        std::vector<double> stationary = rateMatrix->getRawStationary();
+        for(double i : stationary){
+            returnString += "\t" + std::to_string(i);
         }
+
+        std::cout << returnString << std::endl;
     }
-    return returnString + "\n";
 }
 
-std::string M0Model::branchOut(int i){
-    std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood);
-    TreeObject* treeObj = tree->getTree();
-    std::vector<Node*> poSeq = treeObj->getPostOrderSeq();
-    std::vector<Node*> nodes;
-    for(Node* n : poSeq)
-        nodes.push_back(n);
-    std::sort(nodes.begin(), nodes.end(), [](const Node* a, const Node* b) {
-        return a->getIndex() > b->getIndex();
-    });
+void M0Model::writeLogHeaders(){
+    if(analysisLog != ""){
+        std::string tabHeader = "Iteration\tPosterior\tLikelihood\tPrior\tK\tOmega";
+        for(int i = 0; i < 61; i++)
+            tabHeader += "\tPi[" + std::to_string(i) + "]";
 
-    for(Node* n : nodes){
-        if(n != treeObj->getRoot()){
-            returnString += "\t" + std::to_string(treeObj->getBranchLength(n));
-        }
+
+        std::ofstream outFile(analysisLog, std::ios::out);
+        outFile << tabHeader << "\n";
     }
 
-    return returnString + "\n";
+    if(treeLog != ""){
+        std::string treeHeader =  "Iteration\tPosterior\tTree\n";
+        std::ofstream outFile(treeLog, std::ios::out);
+        outFile << treeHeader;
+    }
+
+    if(branchLog != ""){
+        std::string branchHeader = "Iteration\tPosterior";
+        TreeObject* treeObj = tree->getTree();
+        std::vector<Node*> poSeq = treeObj->getPostOrderSeq();
+        std::vector<Node*> nodes;
+        for(Node* n : poSeq)
+            nodes.push_back(n);
+        std::sort(nodes.begin(), nodes.end(), [](const Node* a, const Node* b) {
+            return a->getIndex() > b->getIndex();
+        });
+
+        for(Node* n : nodes){
+            if(n != treeObj->getRoot()){
+                branchHeader += "\tBranch[" + std::to_string(n->getIndex()) + "]";
+            }
+        }
+        branchHeader += "\n";
+
+        std::ofstream outFile(branchLog, std::ios::out);
+        outFile << branchHeader;
+    }
+}
+
+void M0Model::writeLogData(int i) {
+    if(analysisLog != ""){
+        std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" +
+                                std::to_string(currentLikelihood) + "\t" + std::to_string(lnPrior()) + "\t" +
+                                std::to_string(rateMatrix->getK()) + "\t" + std::to_string(rateMatrix->getOmega());
+        std::vector<double> stationary = rateMatrix->getRawStationary();
+        for(double i : stationary){
+            returnString += "\t" + std::to_string(i);
+        }
+        returnString += "\n";
+
+        std::ofstream outFile(analysisLog, std::ios::app);
+        outFile << returnString;
+    }
+
+    if(treeLog != ""){
+        std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" + tree->writeNewick() + "\n";
+        
+        std::ofstream outFile(treeLog, std::ios::app);
+        outFile << returnString;
+    }
+
+    if(branchLog != ""){
+        std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood);
+        TreeObject* treeObj = tree->getTree();
+        std::vector<Node*> poSeq = treeObj->getPostOrderSeq();
+        std::vector<Node*> nodes;
+        for(Node* n : poSeq)
+            nodes.push_back(n);
+        std::sort(nodes.begin(), nodes.end(), [](const Node* a, const Node* b) {
+            return a->getIndex() > b->getIndex();
+        });
+
+        for(Node* n : nodes){
+            if(n != treeObj->getRoot()){
+                returnString += "\t" + std::to_string(treeObj->getBranchLength(n));
+            }
+        }
+
+        returnString =+ "\n";
+
+        std::ofstream outFile(branchLog, std::ios::app);
+        outFile << returnString;
+    }
 }

@@ -5,18 +5,22 @@
 class Alignment;
 class Node;
 
+/**
+ * @brief 
+ * 
+ */
 class ConditionalLikelihood{
     public:
-        ConditionalLikelihood(void) = delete;
-        ConditionalLikelihood(Alignment* aln, int nN, int nR, int ss);
-        ~ConditionalLikelihood();
-        double* operator()(int n, int s, int r);
+                                ConditionalLikelihood(void) = delete;
+                                ConditionalLikelihood(Alignment* aln, int nN, int nR, int ss);
+                                ~ConditionalLikelihood();
+        double*                 operator()(int n, int s, int r);
     private:
-        double* condLikelihoods[2];
-        int numChar;
-        int numNodes;
-        int numRates;
-        int stateSpace;
+        double*                 condLikelihoods[2];
+        int                     numChar;
+        int                     numNodes;
+        int                     numRates;
+        int                     stateSpace;
 };
 
 #endif

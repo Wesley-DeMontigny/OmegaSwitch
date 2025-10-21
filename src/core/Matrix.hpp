@@ -45,54 +45,54 @@ template <class T>
 class Matrix { 
  
 public: 
-		Matrix(void);                                   //!< null constructor (0 X 0 matrix) 
-		Matrix(int m, int n);                           //!< creates a m X n matrix without initialization 
-		Matrix(int m, int n, const T &a);               //!< creates a m X n matrix initializing all elements to a constant 
-		inline Matrix(const Matrix &A);                      //!< creates a m X n matrix with elements shared by another matrix, A 
-		~Matrix(void);                                  //!< destructor 
-		operator T*() { return v; }                //!< type cast operator
-		operator const T*() { return v; }          //!< type cast operator for const
-		inline Matrix   &operator=(const T &a);                           //!< assignment operator (all elements have the value a) 
-		Matrix   		&operator=(const Matrix &A) { return ref(A); }  //!< assignment operator (shallow copy, elements share data) 
-		bool   			operator==(const Matrix &A) const;              //!< equality operator 
-		T&   			operator()(size_t r, size_t c) { return this->v[r*n + c]; }
-		const T&   		operator()(size_t r, size_t c) const { return this->v[r*n + c]; }
-		friend std::ostream& 	operator<<<>(std::ostream &s, const Matrix<T> &A);  //!< operator << 
-		friend std::istream& 	operator>><>(std::istream &s, Matrix<T> &A);        //!< operator >> 
-		friend Matrix<T> 		operator+<>(const Matrix<T> &A, const Matrix<T> &B);     //!< operator + 
-		friend Matrix<T> 		operator-<>(const Matrix<T> &A, const Matrix<T> &B);     //!< operator - 
-		friend Matrix<T> 		operator*<>(const Matrix<T> &A, const Matrix<T> &B);     //!< operator * (matrix multiplication) 
-		friend Matrix<T> 		&operator+=<>(Matrix<T> &A, const Matrix<T> &B);   //!< operator += 
-		friend Matrix<T> 		&operator-=<>(Matrix<T> &A, const Matrix<T> &B);   //!< operator -= 
-		friend Matrix<T> 		&operator*=<>(Matrix<T> &A, const Matrix<T> &B);   //!< operator *= (matrix multiplication)
-		friend Matrix<T> 		operator+<>(const T &a, const Matrix<T> &B);               //!< operator + for scalar + matrix 
-		friend Matrix<T> 		operator-<>(const T &a, const Matrix<T> &B);               //!< operator - for scalar - matrix 
-		friend Matrix<T> 		operator*<>(const T &a, const Matrix<T> &B);               //!< operator * for scalar * matrix 
-		friend Matrix<T> 		operator/<>(const T &a, const Matrix<T> &B);               //!< operator / for scalar / matrix 
-		friend Matrix<T> 		operator+<>(const Matrix<T> &A, const T &b);               //!< operator + for matrix + scalar 
-		friend Matrix<T> 		operator-<>(const Matrix<T> &A, const T &b);               //!< operator - for matrix - scalar 
-		friend Matrix<T> 		operator*<>(const Matrix<T> &A, const T &b);               //!< operator * for matrix * scalar 
-		friend Matrix<T> 		operator/<>(const Matrix<T> &A, const T &b);               //!< operator / for matrix / scalar 
-		friend Matrix<T> 		&operator+=<>(Matrix<T> &A, const T &b);             //!< operator += for scalar 
-		friend Matrix<T> 		&operator-=<>(Matrix<T> &A, const T &b);             //!< operator -= for scalar 
-		friend Matrix<T> 		&operator*=<>(Matrix<T> &A, const T &b);             //!< operator *= for scalar 
-		friend Matrix<T> 		&operator/=<>(Matrix<T> &A, const T &b);             //!< operator /= for scalar 
-		inline Matrix   &ref(const Matrix &A);                          //!< creates a reference to another matrix (shallow copy) 
-		Matrix   		copy(void) const;                                 //!< creates a copy of another matrix (deep copy, with separate data elements) 
-		Matrix   		&inject(const Matrix &A);                       //!< copy the values of elements from one matrix to another 
-		int   			dim1(void) const { return m; }                    //!< number of rows 
-		int   			dim2(void) const { return n; }                    //!< number of columns 
-		T*   			expose(void) { return v; }
-		int   			getRefCount(void) const { return *refCount; }     //!< get the number of matrices that share the same data 
+								Matrix(void);                                   					//!< null constructor (0 X 0 matrix) 
+								Matrix(int m, int n);                           					//!< creates a m X n matrix without initialization 
+								Matrix(int m, int n, const T &a);              		 				//!< creates a m X n matrix initializing all elements to a constant 
+		inline 					Matrix(const Matrix &A);                      						//!< creates a m X n matrix with elements shared by another matrix, A 
+								~Matrix(void);                                  					//!< destructor 
+		operator 				T*() { return v; }               					 				//!< type cast operator
+		operator const 			T*() { return v; }          										//!< type cast operator for const
+		inline Matrix   		&operator=(const T &a);                           					//!< assignment operator (all elements have the value a) 
+		Matrix   				&operator=(const Matrix &A) { return ref(A); }  					//!< assignment operator (shallow copy, elements share data) 
+		bool   					operator==(const Matrix &A) const;              					//!< equality operator 
+		T&   					operator()(size_t r, size_t c) { return this->v[r*n + c]; }
+		const T&   				operator()(size_t r, size_t c) const { return this->v[r*n + c]; }
+		friend std::ostream& 	operator<<<>(std::ostream &s, const Matrix<T> &A);  				//!< operator << 
+		friend std::istream& 	operator>><>(std::istream &s, Matrix<T> &A);        				//!< operator >> 
+		friend Matrix<T> 		operator+<>(const Matrix<T> &A, const Matrix<T> &B);     			//!< operator + 
+		friend Matrix<T> 		operator-<>(const Matrix<T> &A, const Matrix<T> &B);     			//!< operator - 
+		friend Matrix<T> 		operator*<>(const Matrix<T> &A, const Matrix<T> &B);     			//!< operator * (matrix multiplication) 
+		friend Matrix<T> 		&operator+=<>(Matrix<T> &A, const Matrix<T> &B);   					//!< operator += 
+		friend Matrix<T> 		&operator-=<>(Matrix<T> &A, const Matrix<T> &B);   					//!< operator -= 
+		friend Matrix<T> 		&operator*=<>(Matrix<T> &A, const Matrix<T> &B);   					//!< operator *= (matrix multiplication)
+		friend Matrix<T> 		operator+<>(const T &a, const Matrix<T> &B);               			//!< operator + for scalar + matrix 
+		friend Matrix<T> 		operator-<>(const T &a, const Matrix<T> &B);               			//!< operator - for scalar - matrix 
+		friend Matrix<T> 		operator*<>(const T &a, const Matrix<T> &B);               			//!< operator * for scalar * matrix 
+		friend Matrix<T> 		operator/<>(const T &a, const Matrix<T> &B);               			//!< operator / for scalar / matrix 
+		friend Matrix<T> 		operator+<>(const Matrix<T> &A, const T &b);               			//!< operator + for matrix + scalar 
+		friend Matrix<T> 		operator-<>(const Matrix<T> &A, const T &b);               			//!< operator - for matrix - scalar 
+		friend Matrix<T> 		operator*<>(const Matrix<T> &A, const T &b);               			//!< operator * for matrix * scalar 
+		friend Matrix<T> 		operator/<>(const Matrix<T> &A, const T &b);               			//!< operator / for matrix / scalar 
+		friend Matrix<T> 		&operator+=<>(Matrix<T> &A, const T &b);             				//!< operator += for scalar 
+		friend Matrix<T> 		&operator-=<>(Matrix<T> &A, const T &b);             				//!< operator -= for scalar 
+		friend Matrix<T> 		&operator*=<>(Matrix<T> &A, const T &b);            	 			//!< operator *= for scalar 
+		friend Matrix<T> 		&operator/=<>(Matrix<T> &A, const T &b);             				//!< operator /= for scalar 
+		inline Matrix   		&ref(const Matrix &A);                          					//!< creates a reference to another matrix (shallow copy) 
+		Matrix   				copy(void) const;                                 					//!< creates a copy of another matrix (deep copy, with separate data elements) 
+		Matrix   				&inject(const Matrix &A);                       					//!< copy the values of elements from one matrix to another 
+		int   					dim1(void) const { return m; }                    					//!< number of rows 
+		int   					dim2(void) const { return n; }                    					//!< number of columns 
+		T*   					expose(void) { return v; }
+		int   					getRefCount(void) const { return *refCount; }     					//!< get the number of matrices that share the same data 
 
 	private: 
-		T*				v; 
-		int   			m; 
-		int   			n; 
-		int*			refCount; 
-		bool   			cArray; 
+		T*						v; 
+		int   					m; 
+		int   					n; 
+		int*					refCount; 
+		bool   					cArray; 
 
-		void   			destroy(void); 
+		void   					destroy(void); 
  
 }; 
 

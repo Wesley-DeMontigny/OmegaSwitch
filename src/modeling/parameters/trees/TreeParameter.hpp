@@ -4,36 +4,40 @@
 #include "TreeObject.hpp"
 #include <string>
 
+/**
+ * @brief 
+ * 
+ */
 class TreeParameter : public Parameter{
     public:
-        TreeParameter(void)=delete;
-        TreeParameter(Alignment* aln, std::string newick, double lambda);
-        TreeParameter(TreeObject& tree, double lambda);
-        ~TreeParameter();
-        TreeObject* getTree(){return trees[0];}
+                            TreeParameter(void)=delete;
+                            TreeParameter(Alignment* aln, std::string newick, double lambda);   //
+                            TreeParameter(TreeObject& tree, double lambda);                     //
+                            ~TreeParameter();                                                   //
 
-        void accept();
-        void reject();
+        double              getBranchRate();                                                    //
+        double              getTreeRate();                                                      //
+        double              lnPrior();                                                          //
+        double              update();                                                           //
+        std::string         writeNewick() {return trees[0]->getNewick();}                       //
+        TreeObject*         getTree(){return trees[0];}                                         //
+        void                accept();                                                           //
+        void                reject();                                                           //
+        void                tune();                                                             //
 
-        double update();
-        void tune();
-        double lnPrior();
-
-        std::string writeNewick() {return trees[0]->getNewick();}
-
-        double branchDelta;
-        double treeAlpha;
-        int branchCount;
-        int branchAcceptCount;
-        int treeCount; 
-        int treeAcceptCount;
+        double              branchDelta;                                                        //
+        double              treeAlpha;                                                          //
     private:
-        bool fixedTree;
-        int moveChoice;
-        double lambda;
-        double currentPrior;
-        double oldPrior;
-        TreeObject* trees[2];
+        bool                fixedTree;                                                          //
+        double              currentPrior;                                                       //
+        double              lambda;                                                             //
+        double              oldPrior;                                                           //
+        int                 branchAcceptCount;                                                  //
+        int                 branchCount;                                                        //
+        int                 moveChoice;                                                         //
+        int                 treeAcceptCount;                                                    //
+        int                 treeCount;                                                          //
+        TreeObject*          trees[2];                                                          //
 };
 
 #endif

@@ -11,11 +11,11 @@
  * needed to revert to the old values if there is an update and a rejection during MCMC
  */
 struct RateEigen {
-    double* c_ijk;  // This is a pre-computed tensor to avoid computing V D V^-1 every time. Cijk = Vik (V^-1)kj
-    double* eigenvalue; // The real eigenvalues obtained by EigenSystem
-    double* oldC_ijk; // Old values to reset the current ones if there was a rejection
-    double* oldEigenvalue;
-    int numStates;
+    double*     c_ijk;          // This is a pre-computed tensor to avoid computing V D V^-1 every time. Cijk = Vik (V^-1)kj
+    double*     eigenvalue;     // The real eigenvalues obtained by EigenSystem
+    double*     oldC_ijk;       // Old values to reset the current ones if there was a rejection
+    double*     oldEigenvalue;
+    int         numStates;
 
     // Constructor
     RateEigen(int nS) : numStates(nS) {
@@ -80,9 +80,9 @@ struct RateEigen {
  * needed to revert to the old values if there is an update and a rejection during MCMC
  */
 struct ComplexRateEigen {
-    std::complex<double>* cc_ijk; // This is a pre-computed tensor to avoid computing V D V^-1 every time. Cijk = Vik (V^-1)kj
-    std::complex<double>* ceigenvalue; // The complex eigenvalues obtained by EigenSystem
-    std::complex<double>* oldCC_ijk; // Old values to reset the current ones if there was a rejection
+    std::complex<double>* cc_ijk;       // This is a pre-computed tensor to avoid computing V D V^-1 every time. Cijk = Vik (V^-1)kj
+    std::complex<double>* ceigenvalue;  // The complex eigenvalues obtained by EigenSystem
+    std::complex<double>* oldCC_ijk;    // Old values to reset the current ones if there was a rejection
     std::complex<double>* oldCeigenvalue;
     int numStates;
 

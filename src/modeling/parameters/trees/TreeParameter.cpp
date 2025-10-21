@@ -278,28 +278,36 @@ double TreeParameter::update() {
     return hastings;
 }
 
+double TreeParameter::getBranchRate(){
+    return (double)branchAcceptCount/(double)branchCount;
+}
+
+double TreeParameter::getTreeRate(){
+    return (double)treeAcceptCount/(double)treeCount;
+}
+
 void TreeParameter::tune() {
     if(branchCount > 0){
-        double rate1 = (double)branchAcceptCount/(double)branchCount;
+        double rate = getBranchRate();
 
-        if ( rate1 > 0.33 ) {
-            branchDelta *= (1.0 + ((rate1-0.33)/0.67));
+        if ( rate > 0.33 ) {
+            branchDelta *= (1.0 + ((rate-0.33)/0.67));
         }
         else {
-            branchDelta /= (2.0 - rate1/0.33);
+            branchDelta /= (2.0 - rate/0.33);
         }
         branchAcceptCount = 0;
         branchCount = 0;
     }
 
     if(treeCount > 0){
-        double rate2 = (double)treeAcceptCount/(double)treeCount;
+        double rate = getTreeRate();
 
-        if ( rate2 > 0.33 ) {
-            treeAlpha /= (1.0 + ((rate2-0.33)/0.67));
+        if ( rate > 0.33 ) {
+            treeAlpha /= (1.0 + ((rate-0.33)/0.67));
         }
         else {
-            treeAlpha *= (2.0 - rate2/0.33);
+            treeAlpha *= (2.0 - rate/0.33);
         }
         treeAcceptCount = 0;
         treeCount = 0;

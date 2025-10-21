@@ -15,8 +15,6 @@ TransitionProbability::TransitionProbability(const int nn, const int ss)
 	accept();
 }
 
-/* Destructor. Deallocates memory used for Q matrix
-   and eigensystem. */
 TransitionProbability::~TransitionProbability(void) {
 	delete eigens;
 	
@@ -73,8 +71,6 @@ void TransitionProbability::setProbs(const int state, const int rate, const int 
 		tiProbsComplexEigens(v, P0, complexRateEigen[rate], stateSubset);
 }
 
-/* This function calculates transition probabilities using
-   complex eigenvalues and eigenvectors. */
 void TransitionProbability::tiProbsComplexEigens(const double v, Matrix<double>& P, ComplexRateEigen& rE) {
 
 	std::vector<std::complex<double>> ceigValExp;
@@ -95,8 +91,7 @@ void TransitionProbability::tiProbsComplexEigens(const double v, Matrix<double>&
 		}
 }
 
-/* This function calculates transition probabilities using
-   eigenvalues and eigenvectors. */
+
 void TransitionProbability::tiProbsEigens(const double v, Matrix<double> &P, RateEigen& rE) {
 	
 	std::vector<double> eigValExp;
@@ -117,8 +112,6 @@ void TransitionProbability::tiProbsEigens(const double v, Matrix<double> &P, Rat
 		}
 }
 
-/* This function calculates transition probabilities using
-   complex eigenvalues and eigenvectors. */
 void TransitionProbability::tiProbsComplexEigens(const double v, Matrix<double>& P, ComplexRateEigen& rE, const int stateSubset) {
 
 	std::vector<std::complex<double>> ceigValExp;
@@ -139,8 +132,6 @@ void TransitionProbability::tiProbsComplexEigens(const double v, Matrix<double>&
 		}
 }
 
-/* This function calculates transition probabilities using
-   eigenvalues and eigenvectors. */
 void TransitionProbability::tiProbsEigens(const double v, Matrix<double> &P, RateEigen& rE, const int stateSubset) {
 	
 	std::vector<double> eigValExp;
@@ -176,19 +167,13 @@ void TransitionProbability::allocateQ(int size){
 			}
 		}
 	}
-
-	isComplex.shrink_to_fit();
-	rateEigen.shrink_to_fit();
-	complexRateEigen.shrink_to_fit();
-	probs1.shrink_to_fit();
-	probs2.shrink_to_fit();
 }
 
 void TransitionProbability::updateQ(Matrix<double> Q, const int index) {
 	isComplex[index] = eigens->update(Q, rateEigen[index], complexRateEigen[index]);
 }
 
-// Be sure you want to delete!!
+
 void TransitionProbability::deleteQ(const int index) {
 	isComplex.erase(isComplex.begin() + index);
 	rateEigen.erase(rateEigen.begin() + index);
@@ -201,12 +186,6 @@ void TransitionProbability::deleteQ(const int index) {
 	auto prob_it2 = probs2.begin() + index;
 	delete [] *prob_it2;
 	probs2.erase(prob_it2);
-
-	isComplex.shrink_to_fit();
-	rateEigen.shrink_to_fit();
-	complexRateEigen.shrink_to_fit();
-	probs1.shrink_to_fit();
-	probs2.shrink_to_fit();
 }
 
 void TransitionProbability::deleteNQ(const int count) {
@@ -223,10 +202,4 @@ void TransitionProbability::deleteNQ(const int count) {
 		delete [] *probs_it2;
 		probs2.pop_back();
 	}
-	
-	isComplex.shrink_to_fit();
-	rateEigen.shrink_to_fit();
-	complexRateEigen.shrink_to_fit();
-	probs1.shrink_to_fit();
-	probs2.shrink_to_fit();
 }

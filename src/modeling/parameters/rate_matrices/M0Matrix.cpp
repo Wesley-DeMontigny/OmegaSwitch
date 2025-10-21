@@ -1,59 +1,27 @@
 #include "M0Matrix.hpp"
-#include "core/Matrix.hpp"
+#include "MatrixHelper.hpp"
 #include "core/RandomVariable.hpp"
 #include "core/Probability.hpp"
 #include "core/Settings.hpp"
 #include <cmath>
 #include <algorithm>
 
-M0Matrix::M0Matrix(Settings settings) : 
+M0Matrix::M0Matrix(Settings& settings) : 
                                    currentQMatrix(61, 61, 0.0), oldQMatrix(61, 61, 0.0), currentStationary(61, -1), oldStationary(61, -1), 
                                    kLambda(settings.kLambda), omegaLambda(settings.omegaLambda), stationaryAlpha(30000), kDelta(0.5),
                                    omegaDelta(0.5), stationaryPriorAlpha(61, 2.0) {
-    std::vector<int> aaMap = {8, 11, 8, 11, 16, 16, 16, 16, 14, 15, 14, 15, 7, 7, 10, 7, 13, 6, 13, 6, 12, 12, 12, 12, 14, 14, 14, 14, 9, 9, 9, 9, 3, 2, 3, 2, 0, 0, 0, 0, 5, 5, 5, 5, 17, 17, 17, 17, 19, 19, 15, 15, 15, 15, 1, 18, 1, 9, 4, 9, 4};  
-    std::vector<const char*> codons = {"AAA", "AAC", "AAG", "AAT", "ACA", "ACC", "ACG", "ACT", "AGA", "AGC", "AGG", "AGT", "ATA", "ATC", "ATG", "ATT", "CAA", "CAC", "CAG", "CAT", "CCA", "CCC", "CCG", "CCT", "CGA", "CGC", "CGG", "CGT", "CTA", "CTC", "CTG", "CTT", "GAA", "GAC", "GAG", "GAT", "GCA", "GCC", "GCG", "GCT", "GGA", "GGC", "GGG", "GGT", "GTA", "GTC", "GTG", "GTT", "TAC", "TAT", "TCA", "TCC", "TCG", "TCT", "TGC", "TGG", "TGT", "TTA", "TTC", "TTG", "TTT"};
-
-
-    // Because of the complicated nature of this matrix, we need to classify each of the positions in the matrix;
-    for(int i = 0; i < 61; i++){
-        for(int j = i + 1; j < 61; j++){
-            int mismatch = 0;
-            bool isTransition = false;
-            for(int k = 0; k < 3; k++){
-                if(codons[i][k] != codons[j][k]){
-                    mismatch++;
-                    if(mismatch > 1){
-                        break;
-                    }
-                    if((codons[i][k] == 'A' && codons[j][k] == 'G') || (codons[i][k] == 'G' && codons[j][k] == 'A') || 
-                       (codons[i][k] == 'T' && codons[j][k] == 'C') || (codons[i][k] == 'C' && codons[j][k] == 'T'))
-                        isTransition = true;
-                }
-            }
-            if(mismatch == 1){
-                auto pair = std::make_pair(i, j);
-                valid.insert(pair);
-                if(aaMap[i] != aaMap[j])
-                    nonsynonymous.insert(pair);
-                else
-                    synonymous.insert(pair);
-                if(isTransition)
-                    transition.insert(pair);
-            }
-        }
-    }
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
-    currentK = Probability::Exponential::rv(&rng, kLambda);
-    oldK = currentK;
-    currentKPrior = Probability::Exponential::lnPdf(kLambda, currentK);
-    oldKPrior = currentKPrior;
+    currentParams[0] = Probability::Exponential::rv(&rng, kLambda);
+    oldParams[0] = currentParams[0];
+    currentParamPriors[0] = Probability::Exponential::lnPdf(kLambda, currentParams[0]);
+    oldParamPriors[0] = currentParamPriors[0];
 
-    currentOmega = Probability::Exponential::rv(&rng, omegaLambda);
-    oldOmega = currentOmega;
-    currentOmegaPrior = Probability::Exponential::lnPdf(omegaLambda, currentOmega);
-    oldOmegaPrior = currentOmegaPrior;
+    currentParams[1] = Probability::Exponential::rv(&rng, omegaLambda);
+    oldParams[1] = currentParams[1];
+    currentParamPriors[1] = Probability::Exponential::lnPdf(omegaLambda, currentParams[1]);
+    oldParamPriors[1] = currentParamPriors[1];
     
     Probability::Dirichlet::rv(&rng, stationaryPriorAlpha, currentStationary);
     oldStationary = currentStationary;
@@ -71,25 +39,25 @@ M0Matrix::M0Matrix(Settings settings) :
 }
 
 void M0Matrix::rebuildQMatrix() {
-    for (auto coord : valid) {
+    for (auto coord : MatrixHelper::validPairs) {
         currentQMatrix(coord.first, coord.second) = currentStationary[coord.second];
         currentQMatrix(coord.second, coord.first) = currentStationary[coord.first];
     }
-    for (auto coord : transition) {
-        currentQMatrix(coord.first, coord.second) *= currentK;
-        currentQMatrix(coord.second, coord.first) *= currentK;
+    for (auto coord : MatrixHelper::transitionPairs) {
+        currentQMatrix(coord.first, coord.second) *= currentParams[0];
+        currentQMatrix(coord.second, coord.first) *= currentParams[0];
     }
-    for (auto coord : nonsynonymous) {
-        currentQMatrix(coord.first, coord.second) *= currentOmega;
-        currentQMatrix(coord.second, coord.first) *= currentOmega;
+    for (auto coord : MatrixHelper::nonsynonymousPairs) {
+        currentQMatrix(coord.first, coord.second) *= currentParams[1];
+        currentQMatrix(coord.second, coord.first) *= currentParams[1];
     }
 }
 
 void M0Matrix::accept() {
-    oldK = currentK;
-    oldKPrior = currentKPrior;
-    oldOmega = currentOmega;
-    oldOmegaPrior = currentOmegaPrior;
+    oldParams[0] = currentParams[0];
+    oldParamPriors[0] = currentParamPriors[0];
+    oldParams[1] = currentParams[1];
+    oldParamPriors[1] = currentParamPriors[1];
     oldStationary = currentStationary;
     oldStationaryPrior = currentStationaryPrior;
 
@@ -109,10 +77,10 @@ void M0Matrix::accept() {
 }
 
 void M0Matrix::reject() {
-    currentK = oldK;
-    currentKPrior = oldKPrior;
-    currentOmega = oldOmega;
-    currentOmegaPrior = oldOmegaPrior;
+    currentParams[0] = oldParams[0];
+    currentParamPriors[0] = oldParamPriors[0];
+    currentParams[1] = oldParams[1];
+    currentParamPriors[1] = oldParamPriors[1];
     currentStationary = oldStationary;
     currentStationaryPrior = oldStationaryPrior;
 
@@ -122,7 +90,7 @@ void M0Matrix::reject() {
 }
 
 double M0Matrix::lnPrior() {
-    return currentKPrior + currentStationaryPrior + currentOmegaPrior;
+    return currentParamPriors[0] + currentStationaryPrior + currentParamPriors[1];
 }
 
 double M0Matrix::updateK() {
@@ -132,16 +100,16 @@ double M0Matrix::updateK() {
     moveChoice = 0;
     kCount += 1;
 
-    double currentV = currentK;
+    double currentV = currentParams[0];
     double scale = std::exp(kDelta * (rng.uniformRv() - 0.5));
-    double newV = currentK * scale;
+    double newV = currentV * scale;
 
-    currentK = newV;
+    currentParams[0] = newV;
     hastings = std::log(scale);
 
     this->dirty();
 
-    currentKPrior = Probability::Exponential::lnPdf(kLambda, currentK);
+    currentParamPriors[0] = Probability::Exponential::lnPdf(kLambda, currentParams[0]);
 
     rebuildQMatrix();
 
@@ -155,16 +123,16 @@ double M0Matrix::updateOmega() {
     moveChoice = 2;
     omegaCount += 1;
 
-    double currentV = currentOmega;
+    double currentV = currentParams[1];
     double scale = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
-    double newV = currentOmega * scale;
+    double newV = currentV * scale;
 
-    currentOmega = newV;
+    currentParams[1] = newV;
     hastings = std::log(scale);
 
     this->dirty();
 
-    currentOmegaPrior = Probability::Exponential::lnPdf(omegaLambda, currentOmega);
+    currentParamPriors[1] = Probability::Exponential::lnPdf(omegaLambda, currentParams[1]);
 
     rebuildQMatrix();
 
@@ -278,24 +246,36 @@ std::vector<double> M0Matrix::getStationary(){
 double M0Matrix::dNdS(){
         Matrix<double> tempMatrix(currentQMatrix.copy());
 
-    for(auto coord : valid){
+    for(auto coord : MatrixHelper::validPairs){
         tempMatrix(coord.first, coord.second) /= currentStationary[coord.second];
         tempMatrix(coord.second, coord.first) /= currentStationary[coord.first];
     }
 
     double dN1 = 0.0;
-    for(auto coord : nonsynonymous){
+    for(auto coord : MatrixHelper::nonsynonymousPairs){
         dN1 += tempMatrix(coord.first, coord.second) * currentStationary[coord.first];
         dN1 += tempMatrix(coord.second, coord.first) * currentStationary[coord.second];
     }
 
     double dS1 = 0.0;
-    for(auto coord : synonymous){
+    for(auto coord : MatrixHelper::synonymousPairs){
         dS1 += tempMatrix(coord.first, coord.second) * currentStationary[coord.first];
         dS1 += tempMatrix(coord.second, coord.first) * currentStationary[coord.second];
     }
 
     return dN1/dS1;
+}
+
+double M0Matrix::getOmegaRate(){
+    return (double)omegaAcceptCount/(double)omegaCount;
+}
+
+double M0Matrix::getStationaryRate(){
+    return (double)stationaryAcceptCount/(double)stationaryCount;
+}
+
+double M0Matrix::getKRate(){
+    return (double)kAcceptCount/(double)kCount;
 }
 
 void M0Matrix::tune(){

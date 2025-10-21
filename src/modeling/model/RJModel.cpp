@@ -16,6 +16,8 @@
 #include <iostream>
 #include <unordered_map>
 #include <chrono>
+#include <fstream>
+
 #if TIME_PROFILE==1
 #include <chrono>
 #endif
@@ -25,8 +27,10 @@
 #include <arm_neon.h>
 #endif
 
-RJModel::RJModel(Settings s, Alignment* a, TreeParameter* t, RJMatrix* m) : 
-            aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0), numChar(0) {
+RJModel::RJModel(Settings* s, Alignment* a, TreeParameter* t, RJMatrix* m, tf::Executor& e) : 
+            aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0), numChar(0), executor(e),
+            branchLog(s->branchOutput), tipsLog(s->tipsOutput), ancestralLog(s->ancestralStatesOutput), treeLog(s->treeOutput),
+            analysisLog(s->mcmcOutput)  {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
@@ -112,8 +116,10 @@ void RJModel::reject() {
 double RJModel::lnPrior(){
     double prior = tree->lnPrior() + rateMatrix->lnPrior();
     int activeOmegas = rateMatrix->getActiveOmegas();
+
+    // Prior over the number of active omegas
     if(activeOmegas == 1){
-        prior += std::log(0.35);
+        prior += std::log(0.25);
     }
     else if(activeOmegas == 2){
         prior += std::log(0.25);
@@ -125,7 +131,7 @@ double RJModel::lnPrior(){
         prior += std::log(0.15);
     }
     else{
-        prior += std::log(0.05);
+        prior += std::log(0.15);
     }
 
 
@@ -138,6 +144,7 @@ void RJModel::regenerateLikelihood(){
     const std::vector<Node*> poSeq = activeT->getPostOrderSeq();
 
     int numClasses = rateMatrix->getActiveOmegas();
+    int activeSubspace = numClasses * 61;
 
     #if TIME_PROFILE==1
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
@@ -162,8 +169,8 @@ void RJModel::regenerateLikelihood(){
                 double v = activeT->getBranchLength(n);
                 activeTP[nIndex] ^= true;
                 bool activeIndex = activeTP[nIndex];
-                probsTaskflow.emplace([this, nIndex, v, activeIndex, numClasses](){
-                    transProb->setProbs(activeIndex, 0, nIndex, numClasses*61, v);
+                probsTaskflow.emplace([this, nIndex, v, activeIndex, numClasses, activeSubspace](){
+                    transProb->setProbs(activeIndex, 0, nIndex, activeSubspace, v);
                 });
             }
             n->setNeedsTPUpdate(false);
@@ -185,17 +192,19 @@ void RJModel::regenerateLikelihood(){
 
     tf::Taskflow phyloTaskflow;
     
-    int chunkSize = 50;
+    int chunkSize = 25;
     for(int range = 0; range < (int)std::ceil((double)numChar / chunkSize); range++){
         int start = range * chunkSize;
         int end = start + chunkSize-1;
         end = std::min(end, numChar-1);
 
-        phyloTaskflow.emplace([this, &poSeq, start, end, numClasses](){
+        phyloTaskflow.emplace([this, &poSeq, start, end, numClasses, activeSubspace](){
 
             // Avoid defining these within the tight inner loop and just treat them as working space
             #ifdef __AVX2__
             double tmp[4];
+            __m256d pj;
+            __m256d vj;
             #elif defined(__ARM_NEON__)
             float64x2_t pj;
             float64x2_t vj;
@@ -218,16 +227,16 @@ void RJModel::regenerateLikelihood(){
 
                             const Matrix<double>& P = (*transProb)(activeTP[dIndex], 0, dIndex);
                             for(int c = 0; c < currentChunkSize; c++){
-                                for(int i = 0; i < numClasses * 61; i++){
+                                for(int i = 0; i < activeSubspace; i++){
                                     double sum = 0.0;
                                     #ifdef __AVX2__
                                     int j = 0;
 
                                     // SIMD block - we will process multiples of 4 at a time
                                     __m256d sumVec = _mm256_setzero_pd();
-                                    for (; j <= numClasses * 61 - 4; j += 4) {
-                                        __m256d pj = _mm256_loadu_pd(&P(i, j));
-                                        __m256d vj = _mm256_loadu_pd(&pD[j]);
+                                    for (; j <= activeSubspace - 4; j += 4) {
+                                        pj = _mm256_loadu_pd(&P(i, j));
+                                        vj = _mm256_loadu_pd(&pD[j]);
                                         sumVec = _mm256_fmadd_pd(pj, vj, sumVec); // += P(i,j) * pD(j)
                                     }
 
@@ -235,14 +244,14 @@ void RJModel::regenerateLikelihood(){
                                     sum = tmp[0] + tmp[1] + tmp[2] + tmp[3];
 
                                     //In most of our models the state space is not perfectly divisible by 4
-                                    for (; j < numClasses * 61; ++j) {
+                                    for (; j < activeSubspace; ++j) {
                                         sum += P(i, j) * pD[j];
                                     }
                                     #elif defined(__ARM_NEON__)
                                     int j = 0;
                                     
                                     // For the M series chips
-                                    for (; j <= numClasses * 61 - 2; j += 2) {
+                                    for (; j <= activeSubspace - 2; j += 2) {
                                         pj = vld1q_f64(&P(i, j)); 
                                         vj = vld1q_f64(&pD[j]);
                                         prod = vmulq_f64(pj, vj);
@@ -251,12 +260,12 @@ void RJModel::regenerateLikelihood(){
                                     }
 
                                     // In some of our models the state space is not perfectly divisible by 2
-                                    for (; j < numClasses * 61; ++j) {
+                                    for (; j < activeSubspace; ++j) {
                                         sum += P(i, j) * pD[j];
                                     }
                                     #else
                                     // In case our CPU really doesn't have any optimizations available.
-                                    for(int j = 0; j < numClasses * 61; j++){
+                                    for(int j = 0; j < activeSubspace; j++){
                                         sum += P(i, j) * pD[j];
                                     }
                                     #endif
@@ -274,13 +283,13 @@ void RJModel::regenerateLikelihood(){
                     for(int c = 0; c < currentChunkSize; c++){
                         double max = *pNN;
                         pNN++;
-                        for(int i = 1; i < numClasses * 61; i++){
+                        for(int i = 1; i < activeSubspace; i++){
                             if(*pNN > max)
                                 max = *pNN;
                             pNN++;
                         }
-                        pNN -= numClasses * 61;
-                        for(int i = 0; i < numClasses * 61; i++){
+                        pNN -= activeSubspace;
+                        for(int i = 0; i < activeSubspace; i++){
                             *pNN /= max;
                             pNN++;
                         }
@@ -312,19 +321,11 @@ void RJModel::regenerateLikelihood(){
         pR += stateSpace;
     }
 
-    #if LOGGING == 1
-    std::cout << "Non-rescaled likelihood: " << lnL << std::endl;
-    #endif
-
     double* rescalePointer = rescaling;
     for(int i = 0, len = numNodes * numChar; i < len; i++){
         lnL += *rescalePointer;
         rescalePointer++;
     }
-
-    #if LOGGING == 1
-    std::cout << "Rescaled likelihood: " << lnL << std::endl;
-    #endif
 
     currentLikelihood = lnL;
 
@@ -339,102 +340,189 @@ void RJModel::tuneMoves(){
     rateMatrix->tune();
 }
 
-std::string RJModel::tabularHeader(){
-    std::string returnString = "Iteration\tPosterior\tLikelihood\tPrior\tOmegaCount\tK\tOmega\tOmegaIncrement1\tOmegaIncrement2\tOmegaIncrement3\tOmegaIncrement4\tR";
-    for(int i = 0; i < 61; i++){
-        returnString += "\tPi[" + std::to_string(i) + "]";
+std::vector<double> RJModel::getTunableParameterRecord(){
+    std::vector<double> record = {
+        rateMatrix->getK(), rateMatrix->getOmega(0), rateMatrix->getOmega(1), 
+        rateMatrix->getOmega(2), rateMatrix->getOmega(3), rateMatrix->getOmega(4),
+        rateMatrix->getR()
+    };
+    for(double entry : rateMatrix->getRawStationary())
+        record.push_back(entry);
+    for(double entry : tree->getTree()->getBranchLengths())
+        record.push_back(entry);
+
+    return record;
+}
+
+std::vector<double> RJModel::getTunableParameters(){
+    std::vector<double> returnVec(6, 0.0);
+    returnVec[0] = tree->branchDelta;
+    returnVec[1] = tree->treeAlpha;
+    returnVec[2] = rateMatrix->stationaryAlpha;
+    returnVec[3] = rateMatrix->kDelta;
+    returnVec[4] = rateMatrix->omegaDelta;
+    returnVec[5] = rateMatrix->rDelta;
+    return returnVec;
+}
+
+void RJModel::setTunableParameters(const std::vector<double> & v){
+    tree->branchDelta = v[0];
+    tree->treeAlpha = v[1];
+    rateMatrix->stationaryAlpha = v[2];
+    rateMatrix->kDelta = v[3];
+    rateMatrix->omegaDelta = v[4];
+    rateMatrix->rDelta = v[5];
+}
+
+void RJModel::printAcceptanceRates(){
+    std::cout << "Tree Acceptance Rate: " << tree->getTreeRate() << "\tBranch Acceptance Rate: " << tree->getBranchRate() <<
+    "\tStationary Acceptance Rate: " << rateMatrix->getStationaryRate() << "\tK Acceptance Rate: " << rateMatrix->getKRate() <<
+    "\tOmega Acceptance Rate: " << rateMatrix->getOmegaRate() << "\tR Acceptance Rate: " << rateMatrix->getRRate() << std::endl;
+}
+
+void RJModel::printTabular(int i){
+    if(i == 0){
+        std::string returnString = "Iteration\tPosterior\tLikelihood\tPrior\tOmegaCount\tK\tOmega\tOmegaIncrement1\tOmegaIncrement2\tOmegaIncrement3\tOmegaIncrement4\tR";
+        for(int i = 0; i < 61; i++)
+            returnString += "\tPi[" + std::to_string(i) + "]";
+            
+
+        std::cout << returnString << std::endl;
     }
-
-    return returnString + "\n";
-}
-
-std::string RJModel::tabularOut(int i){
-    std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" +
-                               std::to_string(currentLikelihood) + "\t" + std::to_string(lnPrior()) + "\t" +
-                               std::to_string(rateMatrix->getActiveOmegas()) + "\t" +
-                               std::to_string(rateMatrix->getK()) + "\t" + std::to_string(rateMatrix->getOmega1()) + "\t" +
-                               std::to_string(rateMatrix->getOmega2()) + "\t" + std::to_string(rateMatrix->getOmega3()) + "\t" +
-                               std::to_string(rateMatrix->getOmega4()) + "\t" + std::to_string(rateMatrix->getOmega5()) + "\t" +
-                               std::to_string(rateMatrix->getR());
-    std::vector<double> stationary = rateMatrix->getRawStationary();
-    for(double i : stationary){
-        returnString += "\t" + std::to_string(i);
-    }
-
-    return returnString + "\n";
-}
-
-std::string RJModel::treeHeader(){
-    return "Iteration\tPosterior\tTree\n";
-}
-
-std::string RJModel::treeOut(int i){
-    return std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" + tree->writeNewick() + "\n";
-}
-
-
-std::string RJModel::tipsHeader(){
-    std::string returnString = "Iteration";
-    std::vector<Node*> tips = tree->getTree()->getTips();
-
-    for(Node* n : tips){
-        std::string name = n->getName();
-        for(int c = 0; c < numChar; c++){
-            returnString += "\t" + name + "[" + std::to_string(c) + "]";
+    else{
+        std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" +
+                                std::to_string(currentLikelihood) + "\t" + std::to_string(lnPrior()) + "\t" +
+                                std::to_string(rateMatrix->getActiveOmegas()) + "\t" +
+                                std::to_string(rateMatrix->getK()) + "\t" + std::to_string(rateMatrix->getOmega(0)) + "\t" +
+                                std::to_string(rateMatrix->getOmega(1)) + "\t" + std::to_string(rateMatrix->getOmega(2)) + "\t" +
+                                std::to_string(rateMatrix->getOmega(3)) + "\t" + std::to_string(rateMatrix->getOmega(4)) + "\t" +
+                                std::to_string(rateMatrix->getR());
+        std::vector<double> stationary = rateMatrix->getRawStationary();
+        for(double i : stationary){
+            returnString += "\t" + std::to_string(i);
         }
-    }
 
-    return returnString + "\n";
+        std::cout << returnString << std::endl;
+    }
 }
 
-std::string RJModel::ancestralHeader(){
-    std::string returnString = "Iteration";
+void RJModel::writeLogHeaders(){
+    if(analysisLog != ""){
+        std::string tabHeader = "Iteration\tPosterior\tLikelihood\tPrior\tOmegaCount\tK\tOmega\tOmegaIncrement1\tOmegaIncrement2\tOmegaIncrement3\tOmegaIncrement4\tR\n";
+        for(int i = 0; i < 61; i++)
+            tabHeader += "\tPi[" + std::to_string(i) + "]";
+        
+        std::ofstream outFile(analysisLog, std::ios::out);
+        outFile << tabHeader;
+    }
 
-    for(int i = 0; i < numNodes; i++) {
-        for(int c = 0; c < numChar; c++){
-            returnString += "\t" + std::to_string(i) + "[" + std::to_string(c) + "]";
+    if(treeLog != ""){
+        std::string treeHeader =  "Iteration\tPosterior\tTree\n";
+        std::ofstream outFile(treeLog, std::ios::out);
+        outFile << treeHeader;
+    }
+
+    if(tipsLog != ""){
+        std::string tipHeader = "Iteration";
+        std::vector<Node*> tips = tree->getTree()->getTips();
+        for(Node* n : tips){
+            std::string name = n->getName();
+            for(int c = 0; c < numChar; c++){
+                tipHeader += "\t" + name + "[" + std::to_string(c) + "]";
+            }
         }
+        tipHeader += "\n";
+
+        std::ofstream outFile(tipsLog, std::ios::out);
+        outFile << tipHeader;
     }
 
-    return returnString + "\n";
+    if(ancestralLog != ""){
+        std::string ancestralHeader = "Iteration";
+        for(int i = 0; i < numNodes; i++) {
+            for(int c = 0; c < numChar; c++){
+                ancestralHeader += "\t" + std::to_string(i) + "[" + std::to_string(c) + "]";
+            }
+        }
+        ancestralHeader += "\n";
+
+        std::ofstream outFile(ancestralLog, std::ios::out);
+        outFile << ancestralHeader;
+    }
+
+    if(branchLog != ""){
+        std::string branchHeader = "Iteration\tPosterior";
+        TreeObject* treeObj = tree->getTree();
+        std::vector<Node*> poSeq = treeObj->getPostOrderSeq();
+        std::vector<Node*> nodes;
+        for(Node* n : poSeq)
+            nodes.push_back(n);
+        std::sort(nodes.begin(), nodes.end(), [](const Node* a, const Node* b) {
+            return a->getIndex() > b->getIndex();
+        });
+
+        for(Node* n : nodes){
+            if(n != treeObj->getRoot()){
+                branchHeader += "\tBranch[" + std::to_string(n->getIndex()) + "]";
+            }
+        }
+        branchHeader += "\n";
+
+        std::ofstream outFile(branchLog, std::ios::out);
+        outFile << branchHeader;
+    }
 }
 
-std::tuple<std::string, std::string> RJModel::reconstructionOut(int i){
-    RandomVariable& rng = RandomVariable::randomVariableInstance();
+void RJModel::writeLogData(int i) {
+    if(analysisLog != ""){
+        std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" +
+                                std::to_string(currentLikelihood) + "\t" + std::to_string(lnPrior()) + "\t" +
+                                std::to_string(rateMatrix->getActiveOmegas()) + "\t" +
+                                std::to_string(rateMatrix->getK()) + "\t" + std::to_string(rateMatrix->getOmega(0)) + "\t" +
+                                std::to_string(rateMatrix->getOmega(1)) + "\t" + std::to_string(rateMatrix->getOmega(2)) + "\t" +
+                                std::to_string(rateMatrix->getOmega(3)) + "\t" + std::to_string(rateMatrix->getOmega(4)) + "\t" +
+                                std::to_string(rateMatrix->getR());
+        std::vector<double> stationary = rateMatrix->getRawStationary();
+        for(double i : stationary){
+            returnString += "\t" + std::to_string(i);
+        }
+        returnString += "\n";
 
-    std::string tipString = std::to_string(i);
-    std::string ancestralString = std::to_string(i);
-    std::vector<Node*> tips = tree->getTree()->getTips();
+        std::ofstream outFile(analysisLog, std::ios::app);
+        outFile << returnString;
+    }
 
-    TreeObject* activeT = tree->getTree();
-    std::vector<Node*> preOrderSeq = activeT->getPostOrderSeq();
-    std::reverse(preOrderSeq.begin(), preOrderSeq.end());
+    if(treeLog != ""){
+        std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" + tree->writeNewick() + "\n";
+        
+        std::ofstream outFile(treeLog, std::ios::app);
+        outFile << returnString;
+    }
 
-    auto dNdSTuple = rateMatrix->dNdS();
-    double dNdS1 = std::get<0>(dNdSTuple);
-    double dNdS2 = std::get<1>(dNdSTuple);
-    double dNdS3 = std::get<2>(dNdSTuple);
-    double dNdS4 = std::get<3>(dNdSTuple);
-    double dNdS5 = std::get<4>(dNdSTuple);
+    if(tipsLog != "" || ancestralLog != ""){
+        RandomVariable& rng = RandomVariable::randomVariableInstance();
 
-    int numClasses = rateMatrix->getActiveOmegas();
+        std::vector<Node*> tips = tree->getTree()->getTips();
 
-    int* reconstructedStates = new int[numNodes*numChar];
-    double* reconstructeddNdS = new double[numNodes*numChar];
+        TreeObject* activeT = tree->getTree();
+        std::vector<Node*> preOrderSeq = activeT->getPostOrderSeq();
+        std::reverse(preOrderSeq.begin(), preOrderSeq.end());
 
-    std::fill(reconstructeddNdS, reconstructeddNdS + numNodes*numChar, 0.0);
+        std::array<double, 5> dNdS = rateMatrix->dNdS();
+        int numClasses = rateMatrix->getActiveOmegas();
+        int activeSubspace = 61*numClasses;
 
-    int numJointDraws = 1;
+        int* reconstructedStates = new int[numNodes*numChar];
+        double* reconstructeddNdS = new double[numNodes*numChar];
 
-    for(int d = 0; d < numJointDraws; d++){
-
+        std::fill(reconstructeddNdS, reconstructeddNdS + numNodes*numChar, 0.0);
         std::fill(reconstructedStates, reconstructedStates + numNodes*numChar, -1);
 
         tf::Taskflow phyloTaskflow;
         std::unordered_map<int, tf::Task> taskMap;
 
         Node* root = activeT->getRoot();
-        taskMap.insert(std::make_pair(root->getIndex(), phyloTaskflow.emplace([this, root, &rng, reconstructedStates, reconstructeddNdS, dNdS1, dNdS2, dNdS3, dNdS4, dNdS5, numClasses](){
+        taskMap.insert(std::make_pair(root->getIndex(), phyloTaskflow.emplace([this, root, &rng, reconstructedStates, reconstructeddNdS, dNdS, numClasses, activeSubspace](){
             int rIndex = root->getIndex();
             double* pR = (*postOrder)(rIndex, activeCL[rIndex], 0);
             int* reconstructedP = reconstructedStates + rIndex*numChar;
@@ -442,7 +530,7 @@ std::tuple<std::string, std::string> RJModel::reconstructionOut(int i){
 
             for(int c = 0; c < numChar; c++){
                 double total = 0;
-                for(int i = 0; i < 61*numClasses; i++){
+                for(int i = 0; i < activeSubspace; i++){
                     total += pR[i];
                 }
 
@@ -450,26 +538,12 @@ std::tuple<std::string, std::string> RJModel::reconstructionOut(int i){
 
                 double sum = 0;
                 bool success = false;
-                for(int i = 0; i < 61*numClasses; i++){
+                for(int i = 0; i < activeSubspace; i++){
                     sum += pR[i];
 
                     if(sum >= draw){
                         *reconstructedP = i;
-                        if(i < 61){
-                            *dNdSP += dNdS1;
-                        }
-                        else if(i < 122){
-                            *dNdSP += dNdS2;
-                        }
-                        else if(i < 183){
-                            *dNdSP += dNdS3;
-                        }
-                        else if(i < 244){
-                            *dNdSP += dNdS4;
-                        }
-                        else{
-                            *dNdSP += dNdS5;
-                        }
+                        *dNdSP = dNdS[(int)(i/61.0)];
                         success = true;
                         break;
                     }
@@ -486,7 +560,7 @@ std::tuple<std::string, std::string> RJModel::reconstructionOut(int i){
 
         for(Node* n : preOrderSeq){
             if(n != activeT->getRoot()){
-                taskMap.insert(std::make_pair(n->getIndex(), phyloTaskflow.emplace([this, n, &rng, reconstructedStates, reconstructeddNdS, dNdS1, dNdS2, dNdS3, dNdS4, dNdS5, numClasses](){
+                taskMap.insert(std::make_pair(n->getIndex(), phyloTaskflow.emplace([this, n, &rng, reconstructedStates, reconstructeddNdS, dNdS, numClasses, activeSubspace](){
                     int nIndex = n->getIndex();
                     double* pN = (*postOrder)(nIndex, activeCL[nIndex], 0);
 
@@ -500,7 +574,7 @@ std::tuple<std::string, std::string> RJModel::reconstructionOut(int i){
                         int ancestorState = *(reconstructedStates + ancestorIndex*numChar + c);
 
                         double total = 0;
-                        for(int i = 0; i < numClasses*61; i++){
+                        for(int i = 0; i < activeSubspace; i++){
                             total += P(ancestorState, i) * pN[i];
                         }
 
@@ -508,26 +582,12 @@ std::tuple<std::string, std::string> RJModel::reconstructionOut(int i){
 
                         double sum = 0;
                         bool success = false;
-                        for(int i = 0; i < numClasses*61; i++){
+                        for(int i = 0; i < activeSubspace; i++){
                             sum += P(ancestorState, i) * pN[i];
 
                             if(sum >= draw){
                                 *reconstructedP = i;
-                                if(i < 61){
-                                    *dNdSP += dNdS1;
-                                }
-                                else if(i < 122){
-                                    *dNdSP += dNdS2;
-                                }
-                                else if(i < 183){
-                                    *dNdSP += dNdS3;
-                                }
-                                else if(i < 244){
-                                    *dNdSP += dNdS4;
-                                }
-                                else{
-                                    *dNdSP += dNdS5;
-                                }
+                                *dNdSP = dNdS[(int)(i/61.0)];
                                 success = true;
                                 break;
                             }
@@ -555,66 +615,60 @@ std::tuple<std::string, std::string> RJModel::reconstructionOut(int i){
         }
 
         executor.run(phyloTaskflow).wait();
-    }
 
-    for(Node* n : tips) {
-        int index = n->getIndex();
-        double* dNdSP = reconstructeddNdS + index*numChar;
-        for(int c = 0; c < numChar; c++) {
-            tipString += "\t" + std::to_string(*dNdSP/numJointDraws);
-            dNdSP++;
+        if(tipsLog != ""){
+            std::string tipString = std::to_string(i);
+            for(Node* n : tips) {
+                int index = n->getIndex();
+                double* dNdSP = reconstructeddNdS + index*numChar;
+                for(int c = 0; c < numChar; c++) {
+                    tipString += "\t" + std::to_string(*dNdSP);
+                    dNdSP++;
+                }
+            }
+
+            std::ofstream outFile(tipsLog, std::ios::app);
+            outFile << tipString;
         }
-    }
 
-    for(int i = 0; i < numNodes; i++) {
-        double* dNdSP = reconstructeddNdS + i*numChar;
-        for(int c = 0; c < numChar; c++) {
-            ancestralString += "\t" + std::to_string(*dNdSP/numJointDraws);
-            dNdSP++;
+        if(ancestralLog != ""){
+            std::string ancestralString = std::to_string(i);
+            for(int i = 0; i < numNodes; i++) {
+                double* dNdSP = reconstructeddNdS + i*numChar;
+                for(int c = 0; c < numChar; c++) {
+                    ancestralString += "\t" + std::to_string(*dNdSP);
+                    dNdSP++;
+                }
+            }
+
+            std::ofstream outFile(ancestralLog, std::ios::app);
+            outFile << ancestralString;
         }
+
+        delete [] reconstructedStates;
+        delete [] reconstructeddNdS;
     }
 
-    delete [] reconstructedStates;
-    delete [] reconstructeddNdS;
+    if(branchLog != ""){
+        std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood);
+        TreeObject* treeObj = tree->getTree();
+        std::vector<Node*> poSeq = treeObj->getPostOrderSeq();
+        std::vector<Node*> nodes;
+        for(Node* n : poSeq)
+            nodes.push_back(n);
+        std::sort(nodes.begin(), nodes.end(), [](const Node* a, const Node* b) {
+            return a->getIndex() > b->getIndex();
+        });
 
-    return std::make_tuple(tipString + "\n", ancestralString + "\n");
-}
-
-std::string RJModel::branchHeader(){
-    std::string returnString = "Iteration\tPosterior";
-    TreeObject* treeObj = tree->getTree();
-    std::vector<Node*> poSeq = treeObj->getPostOrderSeq();
-    std::vector<Node*> nodes;
-    for(Node* n : poSeq)
-        nodes.push_back(n);
-    std::sort(nodes.begin(), nodes.end(), [](const Node* a, const Node* b) {
-        return a->getIndex() > b->getIndex();
-    });
-
-    for(Node* n : nodes){
-        if(n != treeObj->getRoot()){
-            returnString += "\tBranch[" + std::to_string(n->getIndex()) + "]";
+        for(Node* n : nodes){
+            if(n != treeObj->getRoot()){
+                returnString += "\t" + std::to_string(treeObj->getBranchLength(n));
+            }
         }
+
+        returnString =+ "\n";
+
+        std::ofstream outFile(branchLog, std::ios::app);
+        outFile << returnString;
     }
-    return returnString + "\n";
-}
-
-std::string RJModel::branchOut(int i){
-    std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood);
-    TreeObject* treeObj = tree->getTree();
-    std::vector<Node*> poSeq = treeObj->getPostOrderSeq();
-    std::vector<Node*> nodes;
-    for(Node* n : poSeq)
-        nodes.push_back(n);
-    std::sort(nodes.begin(), nodes.end(), [](const Node* a, const Node* b) {
-        return a->getIndex() > b->getIndex();
-    });
-
-    for(Node* n : nodes){
-        if(n != treeObj->getRoot()){
-            returnString += "\t" + std::to_string(treeObj->getBranchLength(n));
-        }
-    }
-
-    return returnString + "\n";
 }

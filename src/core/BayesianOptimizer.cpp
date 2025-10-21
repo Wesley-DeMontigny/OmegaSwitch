@@ -300,10 +300,6 @@ std::vector<double> BayesianOptimizer::maximizeAcquisition(){
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
-    #if LOGGING==1
-    std::cout << "Using latin hypercube sampling to sample candidate parameters..." << std::endl;
-    #endif
-
     int numLHCSamples = 2500;
     int numSamples = samples.size();
 

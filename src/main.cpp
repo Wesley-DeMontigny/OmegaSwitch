@@ -4,22 +4,22 @@
 #include "core/Probability.hpp"
 #include "core/Matrix.hpp"
 #include "ncl/nxscharactersblock.h"
+#include "modeling/analysis/Move.hpp"
+#include "modeling/analysis/MCMC.hpp"
 #include "modeling/parameters/trees/TreeObject.hpp"
 #include "modeling/parameters/trees/TreeParameter.hpp"
-#include "modeling/model/TransitionProbability.hpp"
 #include "modeling/parameters/rate_matrices/M0Matrix.hpp"
-#include "modeling/model/M0Model.hpp"
-#include "modeling/analysis/M0Mcmc.hpp"
 #include "modeling/parameters/rate_matrices/RJMatrix.hpp"
-#include "modeling/model/RJModel.hpp"
-#include "modeling/analysis/RJMcmc.hpp"
 #include "modeling/parameters/rate_matrices/RJDPPMatrix.hpp"
+#include "modeling/model/TransitionProbability.hpp"
+#include "modeling/model/Model.hpp"
+#include "modeling/model/M0Model.hpp"
+#include "modeling/model/RJModel.hpp"
 #include "modeling/model/RJDPPModel.hpp"
-#include "modeling/analysis/RJDPPMcmc.hpp"
-#include "modeling/parameters/RJDirichletProcessPrior.hpp"
 #include "modeling/parameters/trees/Node.hpp"
 #include <algorithm>
 #include <chrono>
+#include <taskflow/taskflow.hpp>
 
 #ifdef __AVX2__
 #pragma message("Optimizing using AVX2")
@@ -29,48 +29,154 @@
 #pragma message("No CPU optimizations available")
 #endif
 
-void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, bool disableBayesOpt){
+void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, bool disableBayesOpt, tf::Executor& executor){
 
     if(settings.RJ){
         std::cout << "Initializing the Reversible Jump model..." << std::endl;
 
         RJMatrix rateMatrix(settings);
 
-        RJModel model(settings, &aln, &treeParam, &rateMatrix);
+        RJModel model(&settings, &aln, &treeParam, &rateMatrix, executor);
 
-        RJMcmc myMCMC(&model, &treeParam, &rateMatrix, settings, disableBayesOpt);
+        std::vector<Move> moves;
+        moves.emplace_back(Move{
+            settings.treeWeight,
+            aln.getNumTaxa(),
+            [&treeParam]() {return treeParam.update();},
+            []() {return true;}
+        });
+        moves.emplace_back(Move{
+            settings.omegaWeight,
+            3,
+            [&rateMatrix]() {return rateMatrix.updateOmega();},
+            []() {return true;}
+        });
+        moves.emplace_back(Move{
+            settings.kWeight,
+            3,
+            [&rateMatrix]() {return rateMatrix.updateK();},
+            []() {return true;}
+        });
+        moves.emplace_back(Move{
+            settings.stationaryWeight,
+            5,
+            [&rateMatrix]() {return rateMatrix.updateStationary();},
+            []() {return true;}
+        });
+        moves.emplace_back(Move{
+            settings.rjWeight,
+            3,
+            [&rateMatrix]() {return rateMatrix.updateActiveOmegas();},
+            []() {return true;}
+        });
+        moves.emplace_back(Move{
+            settings.rWeight,
+            3,
+            [&rateMatrix]() {return rateMatrix.updateR();},
+            [&rateMatrix]() {return rateMatrix.getActiveOmegas() > 1;}
+        });
+
+        MCMC mcmc(&model, moves, settings, disableBayesOpt);
         
         std::cout << "Starting MCMC..." << std::endl;
-        myMCMC.burnin();
-        myMCMC.run();
+        mcmc.burnin();
+        mcmc.run();
     }
     else if(settings.RJDPP){
         std::cout << "Initializing the Reversible Jump DPP model..." << std::endl;
 
-        RJDPPMatrix rateMatrix(settings);
+        RJDPPMatrix rateMatrix(settings, aln.getNumChar());
 
-        RJDirichletProcessPrior dpp(&rateMatrix, aln.getNumChar(), settings);
+        RJDPPModel model(&settings, &aln, &treeParam, &rateMatrix, executor);
 
-        RJDPPModel model(settings, &aln, &treeParam, &rateMatrix, &dpp);
+        std::vector<Move> moves;
+        moves.emplace_back(Move{
+            settings.treeWeight,
+            aln.getNumTaxa(),
+            [&treeParam]() {return treeParam.update();},
+            []() {return true;}
+        });
+        moves.emplace_back(Move{
+            settings.omegaWeight,
+            3,
+            [&rateMatrix]() {return rateMatrix.updateOmega();},
+            []() {return true;}
+        });
+        moves.emplace_back(Move{
+            settings.kWeight,
+            3,
+            [&rateMatrix]() {return rateMatrix.updateK();},
+            []() {return true;}
+        });
+        moves.emplace_back(Move{
+            settings.stationaryWeight,
+            5,
+            [&rateMatrix]() {return rateMatrix.updateStationary();},
+            []() {return true;}
+        });
+        moves.emplace_back(Move{
+            settings.rjWeight,
+            3,
+            [&rateMatrix]() {return rateMatrix.updateActiveOmegas();},
+            []() {return true;}
+        });
+        moves.emplace_back(Move{
+            settings.rWeight,
+            3,
+            [&rateMatrix]() {return rateMatrix.updateR();},
+            [&rateMatrix]() {return rateMatrix.getActiveOmegas() > 1;}
+        });
+        moves.emplace_back(Move{
+            settings.dppWeight,
+            1,
+            [&model]() {return model.updateDPP();},
+            []() {return true;}
+        });
 
-        RJDPPMcmc myMCMC(&model, &treeParam, &rateMatrix, &dpp, settings, disableBayesOpt);
+        MCMC mcmc(&model, moves, settings, disableBayesOpt);
         
         std::cout << "Starting MCMC..." << std::endl;
-        myMCMC.burnin();
-        myMCMC.run();
+        mcmc.burnin();
+        mcmc.run();
     }
     else { // Default to the M0 model
         std::cout << "Initializing the M0 model..." << std::endl;
 
         M0Matrix rateMatrix(settings);
 
-        M0Model model(settings, &aln, &treeParam, &rateMatrix);
+        M0Model model(&settings, &aln, &treeParam, &rateMatrix, executor);
 
-        M0Mcmc myMCMC(&model, &treeParam, &rateMatrix, settings, disableBayesOpt);
+        std::vector<Move> moves;
+        moves.emplace_back(Move{
+            settings.treeWeight,
+            aln.getNumTaxa(),
+            [&treeParam]() {return treeParam.update();},
+            []() {return true;}
+        });
+        moves.emplace_back(Move{
+            settings.omegaWeight,
+            3,
+            [&rateMatrix]() {return rateMatrix.updateOmega();},
+            []() {return true;}
+        });
+        moves.emplace_back(Move{
+            settings.kWeight,
+            3,
+            [&rateMatrix]() {return rateMatrix.updateK();},
+            []() {return true;}
+        });
+        moves.emplace_back(Move{
+            settings.stationaryWeight,
+            5,
+            [&rateMatrix]() {return rateMatrix.updateStationary();},
+            []() {return true;}
+        });
+
+        MCMC mcmc(&model, moves, settings, disableBayesOpt);
         
         std::cout << "Starting MCMC..." << std::endl;
-        myMCMC.burnin();
-        myMCMC.run();
+        mcmc.burnin();
+        mcmc.run();
     }
 }
 
@@ -116,6 +222,7 @@ int randomTransition(RandomVariable& rng, const int ancestralState, const Matrix
 int main(int argc, char* argv[]) {
 
     Settings settings(argc, argv);
+    tf::Executor executor(8);
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
@@ -123,7 +230,7 @@ int main(int argc, char* argv[]) {
     if(settings.simulateM0 == false && settings.simulateRJ == false && settings.simulateRJDPP == false){
         Alignment aln(settings.nexusInput);
         TreeParameter treeParam(&aln, settings.fixedTree, settings.treeLengthLambda);
-        inference(settings, aln, treeParam, false);
+        inference(settings, aln, treeParam, false, executor);
     }
     else{
         int numSites = 100;
@@ -239,16 +346,16 @@ int main(int argc, char* argv[]) {
                 RJMatrix rateMatrix(settings);
                 double omegaDraw = rng.uniformRv();
                 int activeOmegas = 1;
-                if(omegaDraw > 0.95){
+                if(omegaDraw > 0.85){
                     activeOmegas = 5;
                 }
-                else if(omegaDraw > 0.8){
+                else if(omegaDraw > 0.70){
                     activeOmegas = 4;
                 }
-                else if(omegaDraw > 0.6){
+                else if(omegaDraw > 0.50){
                     activeOmegas = 3;
                 }
-                else if(omegaDraw > 0.35){
+                else if(omegaDraw > 0.25){
                     activeOmegas = 2;
                 }
 
@@ -256,7 +363,7 @@ int main(int argc, char* argv[]) {
                 std::vector<double> stationary = rateMatrix.getStationary();
                 std::vector<double> rawStationary = rateMatrix.getRawStationary();
                 transProb.updateQ(rateMatrix.Q(), 0);
-                auto dNdS = rateMatrix.dNdS();
+                std::array<double, 5> dNdS = rateMatrix.dNdS();
 
                 for(Node* n : preOrderSeq){
                     if(n != root){
@@ -281,21 +388,7 @@ int main(int argc, char* argv[]) {
                             }
                         }
                         else{
-                            if(sites[c*numNodes + nIndex] < 61){
-                                truedNdS[c*numTaxa + nIndex] = std::get<0>(dNdS);
-                            }
-                            else if(sites[c*numNodes + nIndex] < 122){
-                                truedNdS[c*numTaxa + nIndex] = std::get<1>(dNdS);
-                            }
-                            else if(sites[c*numNodes + nIndex] < 183){
-                                truedNdS[c*numTaxa + nIndex] = std::get<2>(dNdS);
-                            }
-                            else if(sites[c*numNodes + nIndex] < 244){
-                                truedNdS[c*numTaxa + nIndex] = std::get<3>(dNdS);
-                            }
-                            else {
-                                truedNdS[c*numTaxa + nIndex] = std::get<4>(dNdS);
-                            }
+                            truedNdS[c*numTaxa + nIndex] = dNdS[(int)(i/61.0)];
                             tipSites[c*numTaxa + nIndex] = sites[c*numNodes + nIndex];
                         }
                     }
@@ -314,9 +407,9 @@ int main(int argc, char* argv[]) {
                     }
                 }
                 fs << std::endl;
-                fs << activeOmegas << "\t" << rateMatrix.getK() << "\t" << rateMatrix.getOmega1() 
-                   << "\t" << rateMatrix.getOmega2() << "\t" << rateMatrix.getOmega3() << "\t" 
-                   << rateMatrix.getOmega4() << "\t" << rateMatrix.getOmega5() << "\t" << rateMatrix.getR();
+                fs << activeOmegas << "\t" << rateMatrix.getK() << "\t" << rateMatrix.getOmega(0) 
+                   << "\t" << rateMatrix.getOmega(1) << "\t" << rateMatrix.getOmega(2) << "\t" 
+                   << rateMatrix.getOmega(3) << "\t" << rateMatrix.getOmega(4) << "\t" << rateMatrix.getR();
                 for(int element = 0; element < 61; element++){
                     fs << "\t" << rawStationary[element];
                 }
@@ -331,7 +424,7 @@ int main(int argc, char* argv[]) {
             }
             else if(settings.simulateRJDPP){
                 TransitionProbability transProb(numNodes, 183);
-                RJDPPMatrix rateMatrix(settings);
+                RJDPPMatrix rateMatrix(settings, numSites);
                 double omegaDraw = rng.uniformRv();
                 int activeOmegas = 1;
                 if(omegaDraw > 0.8){
@@ -341,22 +434,18 @@ int main(int argc, char* argv[]) {
                     activeOmegas = 2;
                 }
 
-                RJDirichletProcessPrior dpp(&rateMatrix, numSites, settings);
-                rateMatrix.refreshQBackground(activeOmegas);
                 std::vector<double> stationary = rateMatrix.getStationary(activeOmegas);
                 std::vector<double> rawStationary = rateMatrix.getRawStationary();
-                std::vector<RJCategory> categories = dpp.getCategories();
-                std::vector<int> assignments = dpp.getAssignments();
+                std::vector<Category> categories = rateMatrix.getCategories();
+                std::vector<int> assignments = rateMatrix.getAssignments();
+                std::vector<std::array<double, 3>> dNdSVec;
+
                 transProb.allocateQ(categories.size());
-                std::vector<double> dNdS1;
-                std::vector<double> dNdS2;
-                std::vector<double> dNdS3;
+
                 for(int cat = 0; cat < categories.size(); cat++){
-                    transProb.updateQ(rateMatrix.Q(categories[cat].omega1, categories[cat].omega2, categories[cat].omega3), cat);
-                    auto dNdS = rateMatrix.dNdS(categories[cat].omega1, categories[cat].omega2, categories[cat].omega3);
-                    dNdS1.push_back(std::get<0>(dNdS));
-                    dNdS2.push_back(std::get<1>(dNdS));
-                    dNdS3.push_back(std::get<2>(dNdS));
+                    transProb.updateQ(rateMatrix.Q(cat), cat);
+                    std::array<double, 3> dNdS = rateMatrix.dNdS(cat);
+                    dNdSVec.push_back(dNdS);
                 }
 
                 for(Node* n : preOrderSeq){
@@ -385,15 +474,7 @@ int main(int argc, char* argv[]) {
                             }
                         }
                         else{
-                            if(sites[c*numNodes + nIndex] < 61){
-                                truedNdS[c*numTaxa + nIndex] = dNdS1[cat];
-                            }
-                            else if(sites[c*numNodes + nIndex] < 122){
-                                truedNdS[c*numTaxa + nIndex] = dNdS2[cat];
-                            }
-                            else {
-                                truedNdS[c*numTaxa + nIndex] = dNdS3[cat];
-                            }
+                            truedNdS[c*numTaxa + nIndex] = dNdSVec[cat][(int)(i/61.0)];
                             tipSites[c*numTaxa + nIndex] = sites[c*numNodes + nIndex];
                         }
                     }
@@ -448,7 +529,7 @@ int main(int argc, char* argv[]) {
                 if(settings.branchOutput != "")
                     settings.branchOutput = branchOutput + std::to_string(i);
                 
-                inference(settings, aln, treeParam, false);
+                inference(settings, aln, treeParam, true, executor);
             }
             else{
                 if(settings.treeOutput != "")
@@ -465,7 +546,7 @@ int main(int argc, char* argv[]) {
                     settings.branchOutput = branchOutput + std::to_string(i) + "_Bayes";
                 
                 TreeParameter treeParamA(tree, settings.treeLengthLambda);
-                inference(settings, aln, treeParamA, false);
+                inference(settings, aln, treeParamA, false, executor);
 
                 if(settings.treeOutput != "")
                     settings.treeOutput = treeOutput + std::to_string(i) + "_Classic";
@@ -481,7 +562,7 @@ int main(int argc, char* argv[]) {
                     settings.branchOutput = branchOutput + std::to_string(i) + "_Classic";
                 
                 TreeParameter treeParamB(tree, settings.treeLengthLambda);
-                inference(settings, aln, treeParamB, true);
+                inference(settings, aln, treeParamB, true, executor);
             }
         }
     }

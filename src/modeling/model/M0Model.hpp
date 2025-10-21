@@ -3,6 +3,7 @@
 #include "modeling/parameters/trees/TreeParameter.hpp"
 #include <taskflow/taskflow.hpp>
 #include "core/Alignment.hpp"
+#include "Model.hpp"
 
 class ConditionalLikelihood;
 class TransitionProbability;
@@ -10,51 +11,47 @@ class RandomVariable;
 class M0Matrix;
 class Settings;
 
-class M0Model {
+/**
+ * @brief 
+ * 
+ */
+class M0Model : public Model {
     public:
-        M0Model(void) = delete;
-        M0Model(Settings s, Alignment* a, TreeParameter* t, M0Matrix* m);
-        ~M0Model();
+                                M0Model(void) = delete;
+                                M0Model(Settings* s, Alignment* a, TreeParameter* t, M0Matrix* m, tf::Executor& e);
+                                ~M0Model();
 
-        void accept();
-        void reject();
-        void tuneMoves();
-        double lnLikelihood() {return currentLikelihood;}
-        double lnPrior();
-
-        void regenerateLikelihood();
-
-        int getNumTaxa(){return aln->getNumTaxa();}
-        int getNumChar(){return numChar;}
-        int getNumNodes(){return numNodes;}
-
-        TransitionProbability* getTransitionProbability() { return transProb; }
-        ConditionalLikelihood* getConditionalLikelihood() { return postOrder; }
-
-        std::string tabularHeader();
-        std::string tabularOut(int i);
-        std::string treeHeader();
-        std::string treeOut(int i);
-        std::string branchHeader();
-        std::string branchOut(int i);
-    protected:
-        double oldLikelihood;
-        double currentLikelihood;
+        double                  lnLikelihood() override {return currentLikelihood; }                                    //
+        double                  lnPrior() override;                                                                     //
+        std::vector<double>     getTunableParameterRecord() override;                                                   //
+        std::vector<double>     getTunableParameters() override;                                                        //
+        void                    accept() override;                                                                      //
+        void                    printAcceptanceRates() override;                                                        //
+        void                    printTabular(int i) override;                                                           //
+        void                    regenerateLikelihood() override;                                                        //
+        void                    reject() override;                                                                      //
+        void                    setTunableParameters(const std::vector<double> & v) override;                           //
+        void                    tuneMoves() override;                                                                   //
+        void                    writeLogData(int i) override;                                                           //
+        void                    writeLogHeaders() override;                                                             //
     private:
-        int stateSpace;
-        int numChar;
-        int numNodes;
-        bool* activeTP;
-        bool* activeCL;
-        double* rescaling;
-
-        tf::Executor executor;
-
-        M0Matrix* rateMatrix;
-        Alignment* aln;
-        ConditionalLikelihood* postOrder;
-        TransitionProbability* transProb;
-        TreeParameter* tree;
+        Alignment*              aln;
+        bool*                   activeCL;
+        bool*                   activeTP;
+        ConditionalLikelihood*  postOrder;
+        double                  currentLikelihood;
+        double                  oldLikelihood;
+        double*                 rescaling;
+        int                     numChar;
+        int                     numNodes;
+        int                     stateSpace;
+        M0Matrix*               rateMatrix;
+        std::string             analysisLog;
+        std::string             treeLog;
+        std::string             branchLog;
+        tf::Executor&           executor;
+        TransitionProbability*  transProb;
+        TreeParameter*          tree;
 };
 
 #endif

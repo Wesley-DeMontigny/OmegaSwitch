@@ -5,72 +5,62 @@
 #include "modeling/parameters/Parameter.hpp"
 #include <set>
 #include <vector>
+#include <array>
 
 class Settings;
 
+/**
+ * @brief 
+ * 
+ */
 class M0Matrix : public Parameter {
     public:
-        M0Matrix(Settings settings);
-        Matrix<double> Q();
-        std::vector<double> stationary();
-        double dNdS();
+                                M0Matrix(Settings& settings);                   //
 
-        void accept();
-        void reject();
-        void tune();
-        double lnPrior();
+        double                  dNdS();                                         //
+        double                  getK() {return currentParams[0];}               //
+        double                  getKRate();                                     //
+        double                  getOmega() {return currentParams[1];}           //
+        double                  getOmegaRate();                                 //
+        double                  getStationaryRate();                            //
+        double                  lnPrior();                                      //
+        double                  updateK();                                      //
+        double                  updateOmega();                                  //
+        double                  updateStationary();                             //
+        Matrix<double>          Q();                                            //
+        std::vector<double>     getRawStationary() {return currentStationary;}  //
+        std::vector<double>     getStationary();                                //
+        void                    accept();                                       //
+        void                    reject();                                       //
+        void                    tune();                                         //
 
-        double updateK();
-        double updateOmega();
-        double updateStationary();
-
-        std::vector<double> getStationary();
-        std::vector<double> getRawStationary() {return currentStationary;}
-        double getK() {return currentK;}
-        double getOmega() {return currentOmega;}
-
-        double kDelta;
-        double omegaDelta;
-        double stationaryAlpha;
-        int kCount = 0;
-        int kAcceptCount = 0;
-        int stationaryCount = 0;
-        int stationaryAcceptCount = 0;
-        int omegaCount = 0;
-        int omegaAcceptCount = 0;
+        double                  kDelta;                                         //
+        double                  omegaDelta;                                     //
+        double                  stationaryAlpha;                                //
     private:
-        Matrix<double> currentQMatrix;
-        Matrix<double> oldQMatrix;
+        void                    rebuildQMatrix();                               //
 
-        void rebuildQMatrix();
-
-        int moveChoice = -1;
-
-        std::vector<int> randomStates;
-
-        double kLambda;
-        double omegaLambda;
-
-        double currentK = 0;
-        double oldK = 0;
-        double currentKPrior = 0;
-        double oldKPrior = 0;
-
-        double currentOmega = 0;
-        double oldOmega = 0;
-        double currentOmegaPrior = 0;
-        double oldOmegaPrior = 0;
-
-        std::vector<double> currentStationary;
-        std::vector<double> oldStationary;
-        double currentStationaryPrior = 0;
-        double oldStationaryPrior = 0;
-        std::vector<double> stationaryPriorAlpha;
-
-        std::set<std::pair<int, int>> nonsynonymous;
-        std::set<std::pair<int, int>> synonymous;
-        std::set<std::pair<int, int>> valid;
-        std::set<std::pair<int, int>> transition;
+        double                  oldStationaryPrior = 0;                         //
+        double                  currentStationaryPrior = 0;                     //
+        double                  kLambda;                                        //
+        double                  omegaLambda;                                    //
+        int                     kAcceptCount = 0;                               //
+        int                     kCount = 0;                                     //
+        int                     moveChoice = -1;                                //
+        int                     omegaAcceptCount = 0;                           //
+        int                     omegaCount = 0;                                 //
+        int                     stationaryAcceptCount = 0;                      //
+        int                     stationaryCount = 0;                            //
+        Matrix<double>          currentQMatrix;                                 //
+        Matrix<double>          oldQMatrix;                                     //
+        std::array<double, 2>   currentParamPriors = {0,0};                     //
+        std::array<double, 2>   currentParams = {0,0};                          // Parameters for the rate matrix in the order of K, O
+        std::array<double, 2>   oldParamPriors = {0,0};                         //
+        std::array<double, 2>   oldParams = {0,0};                              //
+        std::vector<double>     stationaryPriorAlpha;                           //
+        std::vector<double>     currentStationary;                              //
+        std::vector<double>     oldStationary;                                  //
+        std::vector<int>        randomStates;                                   //
 };
 
 #endif

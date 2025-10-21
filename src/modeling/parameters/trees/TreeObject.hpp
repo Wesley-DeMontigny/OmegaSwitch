@@ -10,49 +10,51 @@ class Node;
 class Alignment;
 class RandomVariable;
 
+/**
+ * @brief 
+ * 
+ */
 class TreeObject {
 
     public:
-                            TreeObject(void) = delete;
-                            TreeObject(int nt, bool rooted);
-                            TreeObject(Alignment* aln, bool rooted);
-                            TreeObject(const TreeObject& t);
-                            TreeObject(std::string newick, std::vector<std::string> taxaNames);
-                           ~TreeObject(void);
-        TreeObject&         operator=(const TreeObject& rhs);
-        void                flipAllTPs();
-        void                flipAllCLs();
-        double              getBranchLength(Node* n) const;
-        std::map<Node*, double> getBranchLengthMapping();
-        std::vector<double> getBranchLengths();
-        std::string         getNewick() const;
-        int                 getNumTaxa(){return numTaxa;}
-        int                 getNumNodes(){return nodes.size();}
-        std::vector<Node*>  getPostOrderSeq() {return postOrderSeq;}
-        Node*               getRoot() {return root;}
-        std::vector<Node*>  getTips();
-        void                initPostOrder(void);
-        void                passDown(Node* p, std::vector<Node*>& vec);
-        void                print(void) const;
-        void                print(std::string header) const;
-        void                setBranchLength(Node* n, double length);
-        void                updateAll();
-        void                accept();
-        void                reject();
+                                    TreeObject(void) = delete;
+                                    TreeObject(int nt, bool rooted);
+                                    TreeObject(Alignment* aln, bool rooted);
+                                    TreeObject(const TreeObject& t);
+                                    TreeObject(std::string newick, std::vector<std::string> taxaNames);
+                                    ~TreeObject(void);
+        TreeObject&                 operator=(const TreeObject& rhs);
+
+        double                      getBranchLength(Node* n) const;
+        int                         getNumNodes(){return nodes.size();}
+        int                         getNumTaxa(){return numTaxa;}
+        Node*                       getRoot() {return root;}
+        std::map<Node*, double>     getBranchLengthMapping();
+        std::string                 getNewick() const;
+        std::vector<double>         getBranchLengths();
+        std::vector<Node*>          getPostOrderSeq() {return postOrderSeq;}
+        std::vector<Node*>          getTips();
+        void                        initPostOrder(void);
+        void                        passDown(Node* p, std::vector<Node*>& vec);
+        void                        print(std::string header) const;
+        void                        print(void) const;
+        void                        setBranchLength(Node* n, double length);
+        void                        updateAll();
         
     private:
-        Node*               addNode(void);
-        std::map<Node*, double> branchLengths;
-        void                clone(const TreeObject& t);
-        void                deleteAllNodes();
-        int                 getTaxonIndex(std::string token, std::vector<std::string> taxaNames);
-        std::vector<Node*>  nodes;
-        int                 numTaxa;
-        std::vector<std::string> parseNewickString(std::string newick);
-        std::vector<Node*>  postOrderSeq;
-        Node*               root;
-        void                showNode(Node* p, int indent) const;
-        void                writeNode(Node* p, std::stringstream& strm) const;
+        int                         getTaxonIndex(std::string token, std::vector<std::string> taxaNames);
+        Node*                       addNode(void);
+        std::vector<std::string>    parseNewickString(std::string newick);
+        void                        clone(const TreeObject& t);
+        void                        deleteAllNodes();
+        void                        showNode(Node* p, int indent) const;
+        void                        writeNode(Node* p, std::stringstream& strm) const;
+
+        int                         numTaxa;
+        Node*                       root;
+        std::map<Node*, double>     branchLengths;
+        std::vector<Node*>          nodes;
+        std::vector<Node*>          postOrderSeq;
 };
 
 #endif

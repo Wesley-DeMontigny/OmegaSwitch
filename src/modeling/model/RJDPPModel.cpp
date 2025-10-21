@@ -8,7 +8,6 @@
 #include "modeling/parameters/trees/TreeObject.hpp"
 #include "modeling/parameters/trees/TreeParameter.hpp"
 #include "modeling/parameters/rate_matrices/RJDPPMatrix.hpp"
-#include "modeling/parameters/RJDirichletProcessPrior.hpp"
 #include "core/RandomVariable.hpp"
 #include "core/Settings.hpp"
 #include <cmath>
@@ -16,6 +15,7 @@
 #include <string>
 #include <iostream>
 #include <unordered_map>
+
 #if TIME_PROFILE==1
 #include <chrono>
 #endif
@@ -25,9 +25,10 @@
 #include <arm_neon.h>
 #endif
 
-RJDPPModel::RJDPPModel(Settings s, Alignment* a, TreeParameter* t, RJDPPMatrix* m, RJDirichletProcessPrior* d) : 
-            aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0),
-            dpp(d), numChar(0) {
+RJDPPModel::RJDPPModel(Settings* s, Alignment* a, TreeParameter* t, RJDPPMatrix* m, tf::Executor& e) : 
+            aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0), numChar(0), executor(e), numGibbsUpdate(s->numGibbs),
+            branchLog(s->branchOutput), tipsLog(s->tipsOutput), ancestralLog(s->ancestralStatesOutput), treeLog(s->treeOutput),
+            analysisLog(s->mcmcOutput), dppLog(s->dppOutput), omegaLambda(s->omegaLambda) {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
@@ -56,8 +57,6 @@ RJDPPModel::RJDPPModel(Settings s, Alignment* a, TreeParameter* t, RJDPPMatrix* 
     std::fill(rescaling, rescaling + rescaleWidth * 2, 0.0);
 
     activeT->updateAll();
-
-    dpp->registerModel(this);
 }
 
 RJDPPModel::~RJDPPModel(){
@@ -86,10 +85,6 @@ void RJDPPModel::accept() {
         rateMatrix->accept();
         rateMatrix->clean();
     }
-    if(dpp->isDirty()){
-        dpp->accept();
-        dpp->clean();
-    }
 
     transProb->accept();
 }
@@ -112,18 +107,15 @@ void RJDPPModel::reject() {
         rateMatrix->reject();
         rateMatrix->clean();
     }
-    if(dpp->isDirty()){
-        dpp->reject();
-        dpp->clean();
-    }
 
     transProb->reject();
 }
 
 double RJDPPModel::lnPrior(){
-    double prior = dpp->lnPrior() + tree->lnPrior() + rateMatrix->lnPrior();
-    int activeOmegas = dpp->getActiveOmegas();
+    double prior = tree->lnPrior() + rateMatrix->lnPrior();
+    int activeOmegas = rateMatrix->getActiveOmegas();
 
+    // Prior over the number of active omegas
     if(activeOmegas == 1){
         prior += std::log(0.5);
     }
@@ -141,10 +133,11 @@ void RJDPPModel::regenerateLikelihood(){
     TreeObject* activeT = tree->getTree();
 
     const std::vector<Node*> poSeq = activeT->getPostOrderSeq();
-    std::vector<int> assignments = dpp->getAssignments();
-    std::vector<RJCategory> categories = dpp->getCategories();
-    int numCats = dpp->getNumCategories();
-    int numClasses = dpp->getActiveOmegas();
+    std::vector<int> assignments = rateMatrix->getAssignments();
+    std::vector<Category> categories = rateMatrix->getCategories();
+    int numCats = rateMatrix->getNumCategories();
+    int numClasses = rateMatrix->getActiveOmegas();
+    int activeSubspace = 61 * numClasses;
 
     #if TIME_PROFILE==1
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
@@ -155,29 +148,10 @@ void RJDPPModel::regenerateLikelihood(){
     if(rateMatrix->isDirty()){
         activeT->updateAll();
         transProb->allocateQ(numCats);
-        rateMatrix->refreshQBackground(numClasses);
         for(int i = 0; i < numCats; i++){
-            double omega1 = categories[i].omega1;
-            double omega2 = categories[i].omega2;
-            double omega3 = categories[i].omega3;
-            rateTaskflow.emplace([this, i, omega1, omega2, omega3](){
-                transProb->updateQ(rateMatrix->Q(omega1, omega2, omega3), i);
+            rateTaskflow.emplace([this, i](){
+                transProb->updateQ(rateMatrix->Q(i), i);
             });
-        }
-    }
-    else if(dpp->isDirty()){ // Only spend time updating the dirty ones
-        activeT->updateAll();
-        transProb->allocateQ(numCats);
-        rateMatrix->refreshQBackground(numClasses);
-        for(int i = 0; i < numCats; i++){
-            if(categories[i].dirty){
-                double omega1 = categories[i].omega1;
-                double omega2 = categories[i].omega2;
-                double omega3 = categories[i].omega3;
-                rateTaskflow.emplace([this, i, omega1, omega2, omega3](){
-                    transProb->updateQ(rateMatrix->Q(omega1, omega2, omega3), i);
-                });
-            }
         }
     }
 
@@ -197,9 +171,9 @@ void RJDPPModel::regenerateLikelihood(){
                 double v = activeT->getBranchLength(n);
                 activeTP[nIndex] ^= true;
                 bool activeIndex = activeTP[nIndex];
-                probsTaskflow.emplace([this, numCats, nIndex, v, activeIndex, numClasses](){
+                probsTaskflow.emplace([this, numCats, nIndex, v, activeIndex, activeSubspace](){
                     for(int i = 0; i < numCats; i++){
-                        transProb->setProbs(activeIndex, i, nIndex, numClasses * 61, v);
+                        transProb->setProbs(activeIndex, i, nIndex, activeSubspace, v);
                     }
                 });
             }
@@ -222,17 +196,19 @@ void RJDPPModel::regenerateLikelihood(){
 
     tf::Taskflow phyloTaskflow;
     
-    int chunkSize = 50;
+    int chunkSize = 25;
     for(int range = 0; range < (int)std::ceil((double)numChar / chunkSize); range++){
         int start = range * chunkSize;
         int end = start + chunkSize-1;
         end = std::min(end, numChar-1);
 
-        phyloTaskflow.emplace([this, &poSeq, numCats, &assignments, numClasses, start, end](){
+        phyloTaskflow.emplace([this, &poSeq, numCats, &assignments, numClasses, activeSubspace, start, end](){
 
             // Avoid defining these within the tight inner loop and just treat them as working space
             #ifdef __AVX2__
             double tmp[4];
+            __m256d pj;
+            __m256d vj;
             #elif defined(__ARM_NEON__)
             float64x2_t pj;
             float64x2_t vj;
@@ -255,16 +231,16 @@ void RJDPPModel::regenerateLikelihood(){
 
                             for(int c = 0; c < currentChunkSize; c++){
                                 const Matrix<double>& P = (*transProb)(activeTP[dIndex], assignments[c + start], dIndex);
-                                for(int i = 0; i < numClasses * 61; i++){
+                                for(int i = 0; i < activeSubspace; i++){
                                     double sum = 0.0;
                                     #ifdef __AVX2__
                                     int j = 0;
 
                                     // SIMD block - we will process multiples of 4 at a time
                                     __m256d sumVec = _mm256_setzero_pd();
-                                    for (; j <= numClasses * 61 - 4; j += 4) {
-                                        __m256d pj = _mm256_loadu_pd(&P(i, j));
-                                        __m256d vj = _mm256_loadu_pd(&pD[j]);
+                                    for (; j <= activeSubspace - 4; j += 4) {
+                                        pj = _mm256_loadu_pd(&P(i, j));
+                                        vj = _mm256_loadu_pd(&pD[j]);
                                         sumVec = _mm256_fmadd_pd(pj, vj, sumVec); // += P(i,j) * pD(j)
                                     }
 
@@ -272,14 +248,14 @@ void RJDPPModel::regenerateLikelihood(){
                                     sum = tmp[0] + tmp[1] + tmp[2] + tmp[3];
 
                                     //In most of our models the state space is not perfectly divisible by 4
-                                    for (; j < numClasses * 61; ++j) {
+                                    for (; j < activeSubspace; ++j) {
                                         sum += P(i, j) * pD[j];
                                     }
                                     #elif defined(__ARM_NEON__)
                                     int j = 0;
                                     
                                     // For the M series chips
-                                    for (; j <= numClasses * 61 - 2; j += 2) {
+                                    for (; j <= activeSubspace - 2; j += 2) {
                                         pj = vld1q_f64(&P(i, j)); 
                                         vj = vld1q_f64(&pD[j]);
                                         prod = vmulq_f64(pj, vj);
@@ -288,12 +264,12 @@ void RJDPPModel::regenerateLikelihood(){
                                     }
 
                                     // In some of our models the state space is not perfectly divisible by 2
-                                    for (; j < numClasses * 61; ++j) {
+                                    for (; j < activeSubspace; ++j) {
                                         sum += P(i, j) * pD[j];
                                     }
                                     #else
                                     // In case our CPU really doesn't have any optimizations available.
-                                    for(int j = 0; j < numClasses * 61; j++){
+                                    for(int j = 0; j < activeSubspace; j++){
                                         sum += P(i, j) * pD[j];
                                     }
                                     #endif
@@ -311,13 +287,13 @@ void RJDPPModel::regenerateLikelihood(){
                     for(int c = 0; c < currentChunkSize; c++){
                         double max = *pNN;
                         pNN++;
-                        for(int i = 1; i < numClasses * 61; i++){
+                        for(int i = 1; i < activeSubspace; i++){
                             if(*pNN > max)
                                 max = *pNN;
                             pNN++;
                         }
-                        pNN -= numClasses * 61;
-                        for(int i = 0; i < numClasses * 61; i++){
+                        pNN -= activeSubspace;
+                        for(int i = 0; i < activeSubspace; i++){
                             *pNN /= max;
                             pNN++;
                         }
@@ -341,7 +317,7 @@ void RJDPPModel::regenerateLikelihood(){
 
     for(int c = 0; c < numChar; c++){
         double like = 0.0;
-        for(int i = 0; i < numClasses * 61; i++){
+        for(int i = 0; i < activeSubspace; i++){
             like += pR[i]*f[i];
         }
 
@@ -349,19 +325,11 @@ void RJDPPModel::regenerateLikelihood(){
         pR += stateSpace;
     }
 
-    #if LOGGING == 1
-    std::cout << "Non-rescaled likelihood: " << lnL << std::endl;
-    #endif
-
     double* rescalePointer = rescaling;
     for(int i = 0, len = numNodes * numChar; i < len; i++){
         lnL += *rescalePointer;
         rescalePointer++;
     }
-
-    #if LOGGING == 1
-    std::cout << "Rescaled likelihood: " << lnL << std::endl;
-    #endif
 
     currentLikelihood = lnL;
 
@@ -371,300 +339,499 @@ void RJDPPModel::regenerateLikelihood(){
     #endif
 }
 
-void RJDPPModel::regenerateTransitionProbs(int site, int category){
+void RJDPPModel::regenerateTransitionProbs(int category){
     TreeObject* activeT = tree->getTree();
 
     std::vector<Node*> poSeq = activeT->getPostOrderSeq();
-    std::vector<RJCategory> categories = dpp->getCategories();
-    int numClasses = dpp->getActiveOmegas();
-
-    double omega1 = categories[category].omega1;
-    double omega2 = categories[category].omega2;
-    double omega3 = categories[category].omega3;
+    int numClasses = rateMatrix->getActiveOmegas();
+    int activeSubspace = numClasses * 61;
     
-    transProb->updateQ(rateMatrix->Q(omega1, omega2, omega3), category);
+    transProb->updateQ(rateMatrix->Q(category), category);
 
     for(Node* n : poSeq){
         int nIndex = n->getIndex();
 
         if(n != activeT->getRoot()){
             double v = activeT->getBranchLength(n);
-            transProb->setProbs(activeTP[nIndex], category, nIndex, numClasses*61, v);
+            transProb->setProbs(activeTP[nIndex], category, nIndex, activeSubspace, v);
         }
     }
 }
 
-
-double RJDPPModel::testCategory(int site, int category, bool update){
+double RJDPPModel::updateDPP(){
+    RandomVariable& rng = RandomVariable::randomVariableInstance();
     TreeObject* activeT = tree->getTree();
-
     std::vector<Node*> poSeq = activeT->getPostOrderSeq();
-    std::vector<RJCategory> categories = dpp->getCategories();
-    int numClasses = dpp->getActiveOmegas();
 
-    if(update) {
-        double omega1 = categories[category].omega1;
-        double omega2 = categories[category].omega2;
-        double omega3 = categories[category].omega3;
-        transProb->updateQ(rateMatrix->Q(omega1, omega2, omega3), category);
-    }
+    int numClasses = rateMatrix->getActiveOmegas();
+    int activeSubspace = numClasses * 61;
+    int numAux = 5;
+    int bufferSize = ((2 * numAux) + rateMatrix->getNumCategories());
 
-    double* siteBuffer = new double[numNodes * stateSpace];
-    std::fill(siteBuffer, siteBuffer + (numNodes * stateSpace), 1.0);
+    double alphaSplit = std::log(rateMatrix->getAlpha()/(double)numAux);
 
-    double* rescaleBuffer = new double[numNodes];
-    std::fill(rescaleBuffer, rescaleBuffer + numNodes, 0.0);
+    double* tempCLBuffer = new double[numNodes * bufferSize * stateSpace];
+    double* tempRescaleBuffer = new double[numNodes * bufferSize];
+    std::fill(tempCLBuffer, tempCLBuffer + numNodes * bufferSize * stateSpace, 0.0);
+    std::fill(tempRescaleBuffer, tempRescaleBuffer + numNodes * bufferSize, 0.0);
 
-    // Some setup
-    for(Node* n : poSeq){
-        int nIndex = n->getIndex();
-        if(update){
-            if(n != activeT->getRoot()){
-                double v = activeT->getBranchLength(n);
-                transProb->setProbs(activeTP[nIndex], category, nIndex, numClasses * 61, v);
-            }
+    #ifdef __AVX2__
+    double tmp[4];
+    __m256d pj;
+    __m256d vj;
+    #elif defined(__ARM_NEON__)
+    float64x2_t pj;
+    float64x2_t vj;
+    float64x2_t prod;
+    #endif
+    
+    for(int iter = 0; iter < numGibbsUpdate; iter++) {
+        int randomSite = (int)(rng.uniformRv() * numChar);
+
+        auto deleted = rateMatrix->unassignMember(randomSite); // This will also return an integer if it needs to be deleted
+        if(deleted.has_value()){
+           transProb->deleteQ(deleted.value());
         }
 
-        if(n->getIsTip()){
-            double* dataPointer = (*postOrder)(nIndex, activeCL[nIndex], 0) + site*stateSpace;
-            double* sitePointer = siteBuffer + nIndex*stateSpace;
-            for(int i = 0; i < stateSpace; i++){
-                *sitePointer = *dataPointer;
-                dataPointer++;
-                sitePointer++;
-            }
+        int numCurrentCats = rateMatrix->getNumCategories();
+        int numTestableCats = numCurrentCats + numAux;
+        std::vector<double> conditionalL;
+        std::vector<Category> currentCategories = rateMatrix->getCategories();
+        std::vector<std::array<double, 3>> newOmegas;
+
+        for(int n = 0; n < numAux; n++){
+            newOmegas.emplace_back(std::array<double,3>{
+                Probability::Exponential::rv(&rng, omegaLambda),
+                Probability::Exponential::rv(&rng, omegaLambda),
+                Probability::Exponential::rv(&rng, omegaLambda)
+            });
         }
-    }
 
-    for(Node* n : poSeq){
-        int nIndex = n->getIndex();
-        
-        double* pNN = siteBuffer + (nIndex * stateSpace);
-        if(n->getIsTip() == false){
+        transProb->allocateQ(numCurrentCats + (numAux * 2));
 
-            std::set<Node*>& nNeighbors = n->getNeighbors();
+        tf::Taskflow transProbTasks;
 
-            for(Node* d : nNeighbors){
-                if(d != n->getAncestor()){
-                    int dIndex = d->getIndex();
-                    double* pN = pNN;
-                    double* pD = siteBuffer + (dIndex * stateSpace);
+        for(int c = numCurrentCats; c < numTestableCats; c++){
+            transProbTasks.emplace([this, &poSeq, c, numCurrentCats, activeSubspace, &newOmegas, activeT](){
+                transProb->updateQ(rateMatrix->Q(newOmegas[c - numCurrentCats]), c);
+                for(Node* n : poSeq){
+                    int nIndex = n->getIndex();
+                    if(n != activeT->getRoot()){
+                        double v = activeT->getBranchLength(n);
+                        transProb->setProbs(activeTP[nIndex], c, nIndex, activeSubspace, v);
+                    }
+                }
+            });
+        }
 
-                    Matrix<double> P = (*transProb)(activeTP[dIndex], category, dIndex);
-                    for(int i = 0; i < numClasses * 61; i++){
-                        double sum = 0.0;
-                        #ifdef __AVX2__
-                        int j = 0;
+        executor.run(transProbTasks).wait();
 
-                        // SIMD block - we will process multiples of 4 at a time
-                        __m256d sumVec = _mm256_setzero_pd();
-                        for (; j <= numClasses * 61 - 4; j += 4) {
-                            __m256d pj = _mm256_loadu_pd(&P(i, j));
-                            __m256d vj = _mm256_loadu_pd(&pD[j]);
-                            sumVec = _mm256_fmadd_pd(pj, vj, sumVec); // += P(i,j) * pD(j)
+        if(bufferSize < numCurrentCats + numAux){
+            delete [] tempCLBuffer;
+            delete [] tempRescaleBuffer;
+
+            bufferSize = (2 * numAux) + numCurrentCats;
+            tempCLBuffer = new double[numNodes * bufferSize * stateSpace];
+            tempRescaleBuffer = new double[numNodes * bufferSize];
+            std::fill(tempCLBuffer, tempCLBuffer + numNodes * bufferSize * stateSpace, 0.0);
+            std::fill(tempRescaleBuffer, tempRescaleBuffer + numNodes * bufferSize, 0.0);
+        }
+
+        int nodeSpacer = bufferSize * stateSpace;
+        int activeNodeSpacer = numTestableCats * stateSpace;
+        int fullSpacer = numNodes * nodeSpacer;
+
+        for(auto n : poSeq){
+            int nIndex = n->getIndex();
+            auto pNN = tempCLBuffer + nIndex * nodeSpacer;
+            if(!n->getIsTip()){
+                std::fill(pNN, pNN + activeNodeSpacer, 1.0);
+                std::set<Node*>& nNeighbors = n->getNeighbors();
+
+                for(Node* d : nNeighbors){
+                    if(d != n->getAncestor()){
+                        int dIndex = d->getIndex();
+                        double* pN = pNN;
+                        double* pD = tempCLBuffer + (dIndex * nodeSpacer);
+
+                        for(int c = 0; c < numTestableCats; c++){
+                            Matrix<double> P = (*transProb)(activeTP[dIndex], c, dIndex);
+                            for(int i = 0; i < activeSubspace; i++){
+                                double sum = 0.0;
+                                #ifdef __AVX2__
+                                int j = 0;
+
+                                // SIMD block - we will process multiples of 4 at a time
+                                __m256d sumVec = _mm256_setzero_pd();
+                                for (; j <= activeSubspace - 4; j += 4) {
+                                    pj = _mm256_loadu_pd(&P(i, j));
+                                    vj = _mm256_loadu_pd(&pD[j]);
+                                    sumVec = _mm256_fmadd_pd(pj, vj, sumVec); // += P(i,j) * pD(j)
+                                }
+
+                                _mm256_storeu_pd(tmp, sumVec); //Access all of the things we were doing simultaneous operations on and sum them
+                                sum = tmp[0] + tmp[1] + tmp[2] + tmp[3];
+
+                                //In most of our models the state space is not perfectly divisible by 4
+                                for (; j < activeSubspace; ++j) {
+                                    sum += P(i, j) * pD[j];
+                                }
+
+                                #elif defined(__ARM_NEON__)
+                                int j = 0;
+                                
+                                // For the M series chips
+                                for (; j <= activeSubspace - 2; j += 2) {
+                                    pj = vld1q_f64(&P(i, j)); 
+                                    vj = vld1q_f64(&pD[j]);
+                                    prod = vmulq_f64(pj, vj);
+
+                                    sum += vgetq_lane_f64(prod, 0) + vgetq_lane_f64(prod, 1);
+                                }
+
+                                // In some of our models the state space is not perfectly divisible by 2
+                                for (; j < activeSubspace; ++j) {
+                                    sum += P(i, j) * pD[j];
+                                }
+                                #else
+                                // In case our CPU really doesn't have any optimizations available.
+                                for(int j = 0; j < activeSubspace; j++){
+                                    sum += P(i, j) * pD[j];
+                                }
+                                #endif
+                                (*pN) *= sum;
+                                pN++;
+                            }
+                            pN+=(3-numClasses)*61;
+                            pD+=stateSpace;
                         }
+                    }
+                }
 
-                        double tmp[4];
-                        _mm256_storeu_pd(tmp, sumVec); //Access all of the things we were doing simultaneous operations on and sum them
-                        sum = tmp[0] + tmp[1] + tmp[2] + tmp[3];
+                double* rescalePointer = tempRescaleBuffer + (nIndex * bufferSize);
+                std::fill(rescalePointer, rescalePointer + bufferSize, 0.0);
 
-                        //In most of our models the state space is not perfectly divisible by 4
-                        for (; j < numClasses * 61; ++j) {
-                            sum += P(i, j) * pD[j];
-                        }
-
-                        #elif defined(__ARM_NEON__)
-                        int j = 0;
-                        
-                        // For the M series chips
-                        for (; j <= numClasses * 61 - 2; j += 2) {
-                            float64x2_t pj = vld1q_f64(&P(i, j)); 
-                            float64x2_t vj = vld1q_f64(&pD[j]);
-                            float64x2_t prod = vmulq_f64(pj, vj);
-
-                            sum += vgetq_lane_f64(prod, 0) + vgetq_lane_f64(prod, 1);
-                        }
-
-                        // In some of our models the state space is not perfectly divisible by 2
-                        for (; j < numClasses * 61; ++j) {
-                            sum += P(i, j) * pD[j];
-                        }
-                        #else
-                        // In case our CPU really doesn't have any optimizations available.
-                        for(int j = 0; j < numClasses * 61; j++){
-                            sum += P(i, j) * pD[j];
-                        }
-                        #endif
-                        (*pN) *= sum;
-                        pN++;
+                for(int c = 0; c < numTestableCats; c++){
+                    double max = *pNN;
+                    pNN++;
+                    for(int i = 1; i < activeSubspace; i++){
+                        if(*pNN > max)
+                            max = *pNN;
+                        pNN++;
+                    }
+                    pNN -= activeSubspace;
+                    for(int i = 0; i < activeSubspace; i++){
+                        *pNN /= max;
+                        pNN++;
+                    }
+                    *rescalePointer = std::log(max);
+                    rescalePointer++;
+                }
+            }
+            else{
+                double* dataPointer = (*postOrder)(nIndex, activeCL[nIndex], 0) + randomSite*stateSpace;
+                double* sitePointer = tempCLBuffer + nIndex*nodeSpacer;
+                for(int c = 0; c < numTestableCats; c++){
+                    for(int i = 0; i < stateSpace; i++){
+                        *sitePointer = dataPointer[i];
+                        sitePointer++;
                     }
                 }
             }
+        }
 
-            double* rescalePointer = rescaleBuffer + nIndex;
 
-            double max = *pNN;
-            pNN++;
-            for(int i = 1; i < numClasses * 61; i++){
-                if(*pNN > max)
-                    max = *pNN;
-                pNN++;
+        int rIndex = activeT->getRoot()->getIndex();
+        std::vector<double> f = rateMatrix->getStationary(numClasses);
+        std::vector<double> likelihoodVec(numTestableCats, 0.0);
+        likelihoodVec.reserve(numTestableCats);
+        double* siteRoot = tempCLBuffer + (rIndex * nodeSpacer);
+
+        for(int c = 0; c < numTestableCats; c++){
+            for(int i = 0; i < activeSubspace; i++){
+                likelihoodVec[c] += siteRoot[i]*f[i];
             }
-            pNN -= numClasses * 61;
-            for(int i = 0; i < numClasses * 61; i++){
-                *pNN /= max;
-                pNN++;
+            siteRoot += stateSpace;
+            likelihoodVec[c] = std::log(likelihoodVec[c]);
+        }
+
+        double* rescaleBufferPointer = tempRescaleBuffer;
+        for(int i = 0; i < numNodes; i++){
+            for(int c = 0; c < numTestableCats; c++){
+                likelihoodVec[c] += rescaleBufferPointer[c];
             }
-            *rescalePointer = std::log(max);
+            rescaleBufferPointer += bufferSize;
+        }
+
+        for(int c = 0; c < numCurrentCats; c++){
+            likelihoodVec[c] += std::log(currentCategories[c].members.size());
+        }
+
+        for(int c = numCurrentCats; c < numTestableCats; c++){
+            likelihoodVec[c] += alphaSplit; 
+        }
+
+        double maxL = *std::max_element(likelihoodVec.begin(), likelihoodVec.end());
+        double total = 0.0;
+        for(double& d : likelihoodVec){
+            d -= maxL;
+            d = std::exp(d);
+            total += d;
+        }
+
+        double categoryDraw = total * rng.uniformRv();
+        bool assigned = false;
+
+        total = 0.0;
+        for(int i = 0; i < likelihoodVec.size(); i++){
+            total += likelihoodVec[i];
+            if(total > categoryDraw){
+                if(i < numCurrentCats) { //It already exists
+                    rateMatrix->assignMember(randomSite, i);
+                }
+                else { // Generate a new category
+                    rateMatrix->addCategory(newOmegas[i - numCurrentCats]);
+                    rateMatrix->assignMember(randomSite, numCurrentCats);
+                    regenerateTransitionProbs(numCurrentCats);
+                }
+                assigned = true;
+                break;
+            }
+        }
+
+        if(assigned == false){
+            std::cout << randomSite << " was not assigned to any category.\n";
+            std::cout << "Log Likelihoods: \n";
+            for(double& a : conditionalL){
+                std::cout << a << "\n";
+            }
+            std::cout << std::flush;
+            Msg::error("Failed to assign!");
+        }
+
+        int bufferDiff = transProb->getNumMatrices() - rateMatrix->getNumCategories();
+        if(bufferDiff > 30){
+            transProb->deleteNQ(bufferDiff - 30);
         }
     }
 
-    int rIndex = activeT->getRoot()->getIndex();
-    std::vector<double> f = rateMatrix->getStationary(numClasses);
-    double lnL = 0.0;
-    double* siteRoot = siteBuffer + (rIndex * stateSpace);
+    rateMatrix->regenerateCatPrior();
+    rateMatrix->regenerateAssignments();
 
-    for(int i = 0; i < numClasses * 61; i++){
-        lnL += siteRoot[i]*f[i];
-    }
-    lnL = std::log(lnL);
-
-    double* rescaleBufferPointer = rescaleBuffer;
-    for(int i = 0; i < numNodes; i++){
-        lnL += *rescaleBufferPointer;
-        rescaleBufferPointer++;
-    }
-    
-    delete [] siteBuffer;
-
-    delete [] rescaleBuffer;
-
-    return lnL;
+    return INFINITY;
 }
 
 void RJDPPModel::tuneMoves(){
     tree->tune();
     rateMatrix->tune();
-    dpp->tune();
 }
 
-std::string RJDPPModel::tabularHeader(){
-    std::string returnString = "Iteration\tPosterior\tLikelihood\tPrior\tOmegaCount\tK\tR";
-    for(int i = 0; i < 61; i++){
-        returnString += "\tPi[" + std::to_string(i) + "]";
+
+std::vector<double> RJDPPModel::getTunableParameterRecord(){
+    std::vector<double> record = {
+        rateMatrix->getK(), rateMatrix->getR()
+    };
+    for(double entry : rateMatrix->getRawStationary())
+        record.push_back(entry);
+    for(double entry : tree->getTree()->getBranchLengths())
+        record.push_back(entry);
+
+    return record;
+}
+
+std::vector<double> RJDPPModel::getTunableParameters(){
+    std::vector<double> returnVec(5, 0.0);
+    returnVec[0] = tree->branchDelta;
+    returnVec[1] = tree->treeAlpha;
+    returnVec[2] = rateMatrix->stationaryAlpha;
+    returnVec[3] = rateMatrix->kDelta;
+    returnVec[4] = rateMatrix->rDelta;
+    return returnVec;
+}
+
+void RJDPPModel::setTunableParameters(const std::vector<double> & v){
+    tree->branchDelta = v[0];
+    tree->treeAlpha = v[1];
+    rateMatrix->stationaryAlpha = v[2];
+    rateMatrix->kDelta = v[3];
+    rateMatrix->rDelta = v[4];
+}
+
+void RJDPPModel::printAcceptanceRates(){
+    std::cout << "Tree Acceptance Rate: " << tree->getTreeRate() << "\tBranch Acceptance Rate: " << tree->getBranchRate() <<
+    "\tStationary Acceptance Rate: " << rateMatrix->getStationaryRate() << "\tK Acceptance Rate: " << rateMatrix->getKRate() <<
+    "\tOmega Acceptance Rate: " << rateMatrix->getOmegaRate() << "\tR Acceptance Rate: " << rateMatrix->getRRate() << std::endl;
+}
+
+void RJDPPModel::printTabular(int i){
+    if(i == 0){
+        std::string returnString = "Iteration\tPosterior\tLikelihood\tPrior\tOmegaCount\tK\tR";
+        for(int i = 0; i < 61; i++)
+            returnString += "\tPi[" + std::to_string(i) + "]";
+            
+
+        std::cout << returnString << std::endl;
     }
-
-    return returnString + "\n";
-}
-
-std::string RJDPPModel::tabularOut(int i){
-    std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" +
-                               std::to_string(currentLikelihood) + "\t" + std::to_string(lnPrior()) + "\t" +
-                               std::to_string(dpp->getActiveOmegas()) + "\t" +
-                               std::to_string(rateMatrix->getK()) + "\t" + std::to_string(rateMatrix->getR());
-    std::vector<double> stationary = rateMatrix->getRawStationary();
-    for(double i : stationary){
-        returnString += "\t" + std::to_string(i);
-    }
-
-    return returnString + "\n";
-}
-
-std::string RJDPPModel::treeHeader(){
-    return "Iteration\tPosterior\tTree\n";
-}
-
-std::string RJDPPModel::treeOut(int i){
-    return std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" + tree->writeNewick() + "\n";
-}
-
-std::string RJDPPModel::dppHeader(){
-    std::string returnString = "Iteration\tPosterior\tCategoryCount";
-    for(int i = 0; i < numChar; i++)
-        returnString += "\tOmega[" + std::to_string(i) + "]" + "\tOmegaIncrement1[" + std::to_string(i) + "]\tOmegaIncrement2[" + std::to_string(i) + "]";
-    return returnString + "\n";
-}
-
-std::string RJDPPModel::dppOut(int i){
-    std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t";
-    std::vector<RJCategory> categories = dpp->getCategories();
-    returnString += std::to_string(categories.size());
-    std::vector<int> assignments = dpp->getAssignments();
-    for(int c : assignments){
-        returnString += "\t" + std::to_string(categories[c].omega1) + "\t" + std::to_string(categories[c].omegaIncrement1) + "\t" + std::to_string(categories[c].omegaIncrement2);
-    }
-
-    return returnString + "\n";
-}
-
-std::string RJDPPModel::tipsHeader(){
-    std::string returnString = "Iteration";
-    std::vector<Node*> tips = tree->getTree()->getTips();
-
-    for(Node* n : tips){
-        std::string name = n->getName();
-        for(int c = 0; c < numChar; c++){
-            returnString += "\t" + name + "[" + std::to_string(c) + "]";
+    else{
+        std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" +
+                                std::to_string(currentLikelihood) + "\t" + std::to_string(lnPrior()) + "\t" +
+                                std::to_string(rateMatrix->getActiveOmegas()) + "\t" +
+                                std::to_string(rateMatrix->getK()) + "\t" +std::to_string(rateMatrix->getR());
+        std::vector<double> stationary = rateMatrix->getRawStationary();
+        for(double i : stationary){
+            returnString += "\t" + std::to_string(i);
         }
-    }
 
-    return returnString + "\n";
+        std::cout << returnString << std::endl;
+    }
 }
 
-std::string RJDPPModel::ancestralHeader(){
-    std::string returnString = "Iteration";
+void RJDPPModel::writeLogHeaders(){
+    if(analysisLog != ""){
+        std::string tabHeader = "Iteration\tPosterior\tLikelihood\tPrior\tOmegaCount\tK\tR\n";
+        for(int i = 0; i < 61; i++)
+            tabHeader += "\tPi[" + std::to_string(i) + "]";
+        
+        std::ofstream outFile(analysisLog, std::ios::out);
+        outFile << tabHeader;
+    }
 
-    for(int i = 0; i < numNodes; i++) {
-        for(int c = 0; c < numChar; c++){
-            returnString += "\t" + std::to_string(i) + "[" + std::to_string(c) + "]";
+    if(treeLog != ""){
+        std::string treeHeader =  "Iteration\tPosterior\tTree\n";
+        std::ofstream outFile(treeLog, std::ios::out);
+        outFile << treeHeader;
+    }
+
+    if(dppLog != ""){
+        std::string dppHeader = "Iteration\tPosterior\tCategoryCount";
+        for(int i = 0; i < numChar; i++)
+            dppHeader += "\tOmega[" + std::to_string(i) + "]" + "\tOmegaIncrement1[" + std::to_string(i) + "]\tOmegaIncrement2[" + std::to_string(i) + "]";
+        dppHeader += "\n";
+        std::ofstream outFile(dppLog, std::ios::out);
+        outFile << dppHeader;
+    }
+
+    if(tipsLog != ""){
+        std::string tipHeader = "Iteration";
+        std::vector<Node*> tips = tree->getTree()->getTips();
+        for(Node* n : tips){
+            std::string name = n->getName();
+            for(int c = 0; c < numChar; c++){
+                tipHeader += "\t" + name + "[" + std::to_string(c) + "]";
+            }
         }
+        tipHeader += "\n";
+
+        std::ofstream outFile(tipsLog, std::ios::out);
+        outFile << tipHeader;
     }
 
-    return returnString + "\n";
+    if(ancestralLog != ""){
+        std::string ancestralHeader = "Iteration";
+        for(int i = 0; i < numNodes; i++) {
+            for(int c = 0; c < numChar; c++){
+                ancestralHeader += "\t" + std::to_string(i) + "[" + std::to_string(c) + "]";
+            }
+        }
+        ancestralHeader += "\n";
+
+        std::ofstream outFile(ancestralLog, std::ios::out);
+        outFile << ancestralHeader;
+    }
+
+    if(branchLog != ""){
+        std::string branchHeader = "Iteration\tPosterior";
+        TreeObject* treeObj = tree->getTree();
+        std::vector<Node*> poSeq = treeObj->getPostOrderSeq();
+        std::vector<Node*> nodes;
+        for(Node* n : poSeq)
+            nodes.push_back(n);
+        std::sort(nodes.begin(), nodes.end(), [](const Node* a, const Node* b) {
+            return a->getIndex() > b->getIndex();
+        });
+
+        for(Node* n : nodes){
+            if(n != treeObj->getRoot()){
+                branchHeader += "\tBranch[" + std::to_string(n->getIndex()) + "]";
+            }
+        }
+        branchHeader += "\n";
+
+        std::ofstream outFile(branchLog, std::ios::out);
+        outFile << branchHeader;
+    }
 }
 
-std::tuple<std::string, std::string> RJDPPModel::reconstructionOut(int i){
-    RandomVariable& rng = RandomVariable::randomVariableInstance();
+void RJDPPModel::writeLogData(int i) {
+    if(analysisLog != ""){
+        std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" +
+                                std::to_string(currentLikelihood) + "\t" + std::to_string(lnPrior()) + "\t" +
+                                std::to_string(rateMatrix->getActiveOmegas()) + "\t" +
+                                std::to_string(rateMatrix->getK()) + "\t" + std::to_string(rateMatrix->getR());
+        std::vector<double> stationary = rateMatrix->getRawStationary();
+        for(double i : stationary){
+            returnString += "\t" + std::to_string(i);
+        }
+        returnString += "\n";
 
-    std::string tipString = std::to_string(i);
-    std::string ancestralString = std::to_string(i);
-    std::vector<Node*> tips = tree->getTree()->getTips();
-
-    TreeObject* activeT = tree->getTree();
-    std::vector<Node*> preOrderSeq = activeT->getPostOrderSeq();
-    std::reverse(preOrderSeq.begin(), preOrderSeq.end());
-    std::vector<int> assignments = dpp->getAssignments();
-    std::vector<RJCategory> categories = dpp->getCategories();
-    int numCats = dpp->getNumCategories();
-
-    std::vector<double> dNdS1;
-    std::vector<double> dNdS2;
-    std::vector<double> dNdS3;
-    for(RJCategory c : categories){
-        auto dNdSTuple = rateMatrix->dNdS(c.omega1, c.omega2, c.omega3);
-        dNdS1.push_back(std::get<0>(dNdSTuple));
-        dNdS2.push_back(std::get<1>(dNdSTuple));
-        dNdS3.push_back(std::get<2>(dNdSTuple));
+        std::ofstream outFile(analysisLog, std::ios::app);
+        outFile << returnString;
     }
 
-    int numClasses = dpp->getActiveOmegas();
+    if(treeLog != ""){
+        std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" + tree->writeNewick() + "\n";
+        
+        std::ofstream outFile(treeLog, std::ios::app);
+        outFile << returnString;
+    }
 
-    int* reconstructedStates = new int[numNodes*numChar];
-    double* reconstructeddNdS = new double[numNodes*numChar];
+    if(dppLog != ""){
+        std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t";
+        std::vector<Category> categories = rateMatrix->getCategories();
+        returnString += std::to_string(categories.size());
+        std::vector<int> assignments = rateMatrix->getAssignments();
+        for(int c : assignments){
+            returnString += "\t" + std::to_string(categories[c].omegas[0]) + "\t" + std::to_string(categories[c].omegas[1]) + "\t" + std::to_string(categories[c].omegas[2]);
+        }
+        returnString += "\n";
 
-    std::fill(reconstructeddNdS, reconstructeddNdS + numNodes*numChar, 0.0);
+        std::ofstream outFile(dppLog, std::ios::app);
+        outFile << returnString;
+    }
 
-    int numJointDraws = 1;
+    if(tipsLog != "" || ancestralLog != ""){
+        RandomVariable& rng = RandomVariable::randomVariableInstance();
 
-    for(int d = 0; d < numJointDraws; d++){
+        std::string tipString = std::to_string(i);
+        std::string ancestralString = std::to_string(i);
+        std::vector<Node*> tips = tree->getTree()->getTips();
 
+        TreeObject* activeT = tree->getTree();
+        std::vector<Node*> preOrderSeq = activeT->getPostOrderSeq();
+        std::reverse(preOrderSeq.begin(), preOrderSeq.end());
+        std::vector<int> assignments = rateMatrix->getAssignments();
+        std::vector<Category> categories = rateMatrix->getCategories();
+        int numCats = rateMatrix->getNumCategories();
+
+        std::vector<std::array<double, 3>> dNdSVec;
+        for(int i = 0; i < numCats; i++){
+            std::array<double, 3> dNdS = rateMatrix->dNdS(i);
+            dNdSVec.push_back(dNdS);
+        }
+
+        int numClasses = rateMatrix->getActiveOmegas();
+
+        int* reconstructedStates = new int[numNodes*numChar];
+        double* reconstructeddNdS = new double[numNodes*numChar];
+
+        std::fill(reconstructeddNdS, reconstructeddNdS + numNodes*numChar, 0.0);
         std::fill(reconstructedStates, reconstructedStates + numNodes*numChar, -1);
 
         tf::Taskflow phyloTaskflow;
         std::unordered_map<int, tf::Task> taskMap;
 
         Node* root = activeT->getRoot();
-        taskMap.insert(std::make_pair(root->getIndex(), phyloTaskflow.emplace([this, root, &rng, reconstructedStates, reconstructeddNdS, assignments, dNdS1, dNdS2, dNdS3, numClasses](){
+        taskMap.insert(std::make_pair(root->getIndex(), phyloTaskflow.emplace([this, root, &rng, reconstructedStates, reconstructeddNdS, assignments, dNdSVec, numClasses](){
             int rIndex = root->getIndex();
             double* pR = (*postOrder)(rIndex, activeCL[rIndex], 0);
             int* reconstructedP = reconstructedStates + rIndex*numChar;
@@ -685,15 +852,7 @@ std::tuple<std::string, std::string> RJDPPModel::reconstructionOut(int i){
 
                     if(sum >= draw){
                         *reconstructedP = i;
-                        if(i < 61){
-                            *dNdSP += dNdS1[assignments[c]];
-                        }
-                        else if(i < 122){
-                            *dNdSP += dNdS2[assignments[c]];
-                        }
-                        else if(i < 183) {
-                            *dNdSP += dNdS3[assignments[c]];
-                        }
+                        *dNdSP = dNdSVec[assignments[c]][(int)(i/61.0)];
                         success = true;
                         break;
                     }
@@ -710,7 +869,7 @@ std::tuple<std::string, std::string> RJDPPModel::reconstructionOut(int i){
 
         for(Node* n : preOrderSeq){
             if(n != activeT->getRoot()){
-                taskMap.insert(std::make_pair(n->getIndex(), phyloTaskflow.emplace([this, n, &rng, reconstructedStates, reconstructeddNdS, assignments, dNdS1, dNdS2, dNdS3, numClasses](){
+                taskMap.insert(std::make_pair(n->getIndex(), phyloTaskflow.emplace([this, n, &rng, reconstructedStates, reconstructeddNdS, assignments, dNdSVec, numClasses](){
                     int nIndex = n->getIndex();
                     double* pN = (*postOrder)(nIndex, activeCL[nIndex], 0);
 
@@ -737,15 +896,7 @@ std::tuple<std::string, std::string> RJDPPModel::reconstructionOut(int i){
 
                             if(sum >= draw){
                                 *reconstructedP = i;
-                                if(i < 61){
-                                    *dNdSP += dNdS1[assignments[c]];
-                                }
-                                else if(i < 122){
-                                    *dNdSP += dNdS2[assignments[c]];
-                                }
-                                else if(i < 183) {
-                                    *dNdSP += dNdS3[assignments[c]];
-                                }
+                                *dNdSP = dNdSVec[assignments[c]][(int)(i/61.0)];
                                 success = true;
                                 break;
                             }
@@ -773,66 +924,60 @@ std::tuple<std::string, std::string> RJDPPModel::reconstructionOut(int i){
         }
 
         executor.run(phyloTaskflow).wait();
-    }
 
-    for(Node* n : tips) {
-        int index = n->getIndex();
-        double* dNdSP = reconstructeddNdS + index*numChar;
-        for(int c = 0; c < numChar; c++) {
-            tipString += "\t" + std::to_string(*dNdSP/numJointDraws);
-            dNdSP++;
+        if(tipsLog != ""){
+            std::string tipString = std::to_string(i);
+            for(Node* n : tips) {
+                int index = n->getIndex();
+                double* dNdSP = reconstructeddNdS + index*numChar;
+                for(int c = 0; c < numChar; c++) {
+                    tipString += "\t" + std::to_string(*dNdSP);
+                    dNdSP++;
+                }
+            }
+
+            std::ofstream outFile(tipsLog, std::ios::app);
+            outFile << tipString;
         }
-    }
 
-    for(int i = 0; i < numNodes; i++) {
-        double* dNdSP = reconstructeddNdS + i*numChar;
-        for(int c = 0; c < numChar; c++) {
-            ancestralString += "\t" + std::to_string(*dNdSP/numJointDraws);
-            dNdSP++;
+        if(ancestralLog != ""){
+            std::string ancestralString = std::to_string(i);
+            for(int i = 0; i < numNodes; i++) {
+                double* dNdSP = reconstructeddNdS + i*numChar;
+                for(int c = 0; c < numChar; c++) {
+                    ancestralString += "\t" + std::to_string(*dNdSP);
+                    dNdSP++;
+                }
+            }
+
+            std::ofstream outFile(ancestralLog, std::ios::app);
+            outFile << ancestralString;
         }
+
+        delete [] reconstructedStates;
+        delete [] reconstructeddNdS;
     }
 
-    delete [] reconstructedStates;
-    delete [] reconstructeddNdS;
+    if(branchLog != ""){
+        std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood);
+        TreeObject* treeObj = tree->getTree();
+        std::vector<Node*> poSeq = treeObj->getPostOrderSeq();
+        std::vector<Node*> nodes;
+        for(Node* n : poSeq)
+            nodes.push_back(n);
+        std::sort(nodes.begin(), nodes.end(), [](const Node* a, const Node* b) {
+            return a->getIndex() > b->getIndex();
+        });
 
-    return std::make_tuple(tipString + "\n", ancestralString + "\n");
-}
-
-std::string RJDPPModel::branchHeader(){
-    std::string returnString = "Iteration\tPosterior";
-    TreeObject* treeObj = tree->getTree();
-    std::vector<Node*> poSeq = treeObj->getPostOrderSeq();
-    std::vector<Node*> nodes;
-    for(Node* n : poSeq)
-        nodes.push_back(n);
-    std::sort(nodes.begin(), nodes.end(), [](const Node* a, const Node* b) {
-        return a->getIndex() > b->getIndex();
-    });
-
-    for(Node* n : nodes){
-        if(n != treeObj->getRoot()){
-            returnString += "\tBranch[" + std::to_string(n->getIndex()) + "]";
+        for(Node* n : nodes){
+            if(n != treeObj->getRoot()){
+                returnString += "\t" + std::to_string(treeObj->getBranchLength(n));
+            }
         }
+
+        returnString =+ "\n";
+
+        std::ofstream outFile(branchLog, std::ios::app);
+        outFile << returnString;
     }
-    return returnString + "\n";
-}
-
-std::string RJDPPModel::branchOut(int i){
-    std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood);
-    TreeObject* treeObj = tree->getTree();
-    std::vector<Node*> poSeq = treeObj->getPostOrderSeq();
-    std::vector<Node*> nodes;
-    for(Node* n : poSeq)
-        nodes.push_back(n);
-    std::sort(nodes.begin(), nodes.end(), [](const Node* a, const Node* b) {
-        return a->getIndex() > b->getIndex();
-    });
-
-    for(Node* n : nodes){
-        if(n != treeObj->getRoot()){
-            returnString += "\t" + std::to_string(treeObj->getBranchLength(n));
-        }
-    }
-
-    return returnString + "\n";
 }

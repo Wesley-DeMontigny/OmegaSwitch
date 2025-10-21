@@ -1,8 +1,10 @@
 #ifndef RJ_MODEL_HPP
 #define RJ_MODEL_HPP
 #include "modeling/parameters/trees/TreeParameter.hpp"
-#include <taskflow/taskflow.hpp>
 #include "core/Alignment.hpp"
+#include "Model.hpp"
+#include <taskflow/taskflow.hpp>
+#include <string>
 
 class ConditionalLikelihood;
 class TransitionProbability;
@@ -10,54 +12,45 @@ class RandomVariable;
 class RJMatrix;
 class Settings;
 
-class RJModel {
+class RJModel : public Model {
     public:
-        RJModel(void) = delete;
-        RJModel(Settings s, Alignment* a, TreeParameter* t, RJMatrix* m);
-        ~RJModel();
+                                RJModel(void) = delete;
+                                RJModel(Settings* s, Alignment* a, TreeParameter* t, RJMatrix* m, tf::Executor& e);     //
+                                ~RJModel();                                                                             //
 
-        void accept();
-        void reject();
-        void tuneMoves();
-        double lnLikelihood() {return currentLikelihood;}
-        double lnPrior();
-
-        void regenerateLikelihood();
-
-        int getNumTaxa(){return aln->getNumTaxa();}
-        int getNumChar(){return numChar;}
-        int getNumNodes(){return numNodes;}
-
-        TransitionProbability* getTransitionProbability() { return transProb; }
-        ConditionalLikelihood* getConditionalLikelihood() { return postOrder; }
-
-        std::string tabularHeader();
-        std::string tabularOut(int i);
-        std::string treeHeader();
-        std::string treeOut(int i);
-        std::string tipsHeader();
-        std::string ancestralHeader();
-        std::tuple<std::string, std::string> reconstructionOut(int i);
-        std::string branchHeader();
-        std::string branchOut(int i);
-    protected:
-        double oldLikelihood;
-        double currentLikelihood;
+        double                  lnLikelihood() override {return currentLikelihood; }                                    //
+        double                  lnPrior() override;                                                                     //
+        std::vector<double>     getTunableParameterRecord() override;                                                   //
+        std::vector<double>     getTunableParameters() override;                                                        //
+        void                    accept() override;                                                                      //
+        void                    printAcceptanceRates() override;                                                        //
+        void                    printTabular(int i) override;                                                           //
+        void                    regenerateLikelihood() override;                                                        //
+        void                    reject() override;                                                                      //
+        void                    setTunableParameters(const std::vector<double> & v) override;                           //
+        void                    tuneMoves() override;                                                                   //
+        void                    writeLogData(int i) override;                                                           //
+        void                    writeLogHeaders() override;                                                             //
     private:
-        int stateSpace;
-        int numChar;
-        int numNodes;
-        bool* activeTP;
-        bool* activeCL;
-        double* rescaling;
-
-        tf::Executor executor;
-
-        RJMatrix* rateMatrix;
-        Alignment* aln;
-        ConditionalLikelihood* postOrder;
-        TransitionProbability* transProb;
-        TreeParameter* tree;
+        Alignment*              aln;                                                                                    //
+        bool*                   activeCL;                                                                               //
+        bool*                   activeTP;                                                                               //
+        ConditionalLikelihood*  postOrder;                                                                              //
+        double                  currentLikelihood;                                                                      //
+        double                  oldLikelihood;                                                                          //
+        double*                 rescaling;                                                                              //
+        int                     numChar;                                                                                //
+        int                     numNodes;                                                                               //
+        int                     stateSpace;                                                                             //
+        RJMatrix*               rateMatrix;                                                                             //
+        std::string             analysisLog;                                                                            //
+        std::string             treeLog;                                                                                //
+        std::string             tipsLog;                                                                                //
+        std::string             ancestralLog;                                                                           //
+        std::string             branchLog;                                                                              //
+        tf::Executor&           executor;                                                                               //
+        TransitionProbability*  transProb;                                                                              //
+        TreeParameter*          tree;                                                                                   //
 };
 
 #endif

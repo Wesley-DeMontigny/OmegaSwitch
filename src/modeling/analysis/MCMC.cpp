@@ -74,21 +74,11 @@ double MCMC::GibbsIteration(double currentLnPosterior){
         double lnPosteriorRatio = newLnPosterior - currentLnPosterior;
         double lnR = lnProposalRatio + lnPosteriorRatio;
 
-        #if LOGGING==1
-        std::cout << "Evalulating proposal with acceptance ratio of " << lnR << std::endl;
-        #endif
-
         if(std::log(rng.uniformRv()) < lnR){
-            #if LOGGING==1
-            std::cout << "Accepted proposal!" << std::endl;
-            #endif
             model->accept();
             currentLnPosterior = newLnPosterior;
         }
         else{
-            #if LOGGING==1
-            std::cout << "Rejected proposal!" << std::endl;
-            #endif
             model->reject();
         }
     }

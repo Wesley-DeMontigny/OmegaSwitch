@@ -597,7 +597,7 @@ std::array<double, 3> RJDPPMatrix::dNdS(int c){
         }
     }
 
-    for(int i = 0; i < 5; i++){
+    for(int i = 0; i < 3; i++){
         dNdS[i] /= dS[i];
     }
 

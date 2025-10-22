@@ -330,10 +330,6 @@ std::vector<double> BayesianOptimizer::maximizeAcquisition(){
 
     double currentMaxObjective = samples[0].score;
 
-    #if LOGGING==1
-    std::cout << "Maximizing acquisition function..." << std::endl;
-    #endif
-
     std::vector<ParamScorePair> parameterScorePairs;
     for(int i = 0; i < numLHCSamples; i++){
         
@@ -423,9 +419,6 @@ void BayesianOptimizer::updateGaussianProcess() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
     // Initialize simplex using latin hypercube sampling
-    #if LOGGING==1
-    std::cout << "Using latin hypercube sampling to get initial hyperparameter candidates..." << std::endl;
-    #endif
     std::vector<ParamScorePair> hyperparamPoints;
 
     int numLHCSamples = 1000;
@@ -553,13 +546,6 @@ void BayesianOptimizer::updateGaussianProcess() {
             }
         }
 
-        #if LOGGING==1
-        std::cout << "Step Vector: " << std::endl;
-        for(int i = 0; i < numParams; i++){
-            std::cout << "\t" << i << ": " << q[i] << std::endl;
-        }
-        #endif
-
         //q now contains a valid step in the negative direction. Now we do a Line Search to find the step size that will satisfy Armijo's condition
         double epsilon = 1.0;
         double tempLogL = currentValue.score;
@@ -589,9 +575,6 @@ void BayesianOptimizer::updateGaussianProcess() {
             epsilon *= 0.5;  // Shrink step size
 
             if (epsilon < 1e-10) {
-                #if LOGGING == 1
-                std::cout << "Warning: Line search failed to find sufficient decrease!" << std::endl;
-                #endif
                 success = false;
                 break;
             }
@@ -606,22 +589,12 @@ void BayesianOptimizer::updateGaussianProcess() {
             updateCholesky();
             tempLogL = -1.0*marginalLogLikelihood() - logPrior();
             if(tempLogL >= currentValue.score){
-                #if LOGGING == 1
-                std::cout << "Rejecting L-BFGS Step!" << std::endl;
-                #endif
                 newHyperparams = currentValue.params;
                 hyperparams = newHyperparams;
                 updateCholesky();
                 tempLogL = currentValue.score;
             }
         }
-
-        #if LOGGING==1
-        std::cout << "Step-taken (" << tempLogL << "): " << std::endl;
-        for(int i = 0; i < numParams; i++){
-            std::cout << "\t" << i << ": " << newHyperparams[i] - currentValue.params[i] << std::endl;
-        }
-        #endif
 
         currentValue.score = tempLogL;
         currentValue.params = newHyperparams;

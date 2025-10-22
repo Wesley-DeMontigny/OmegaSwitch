@@ -197,136 +197,86 @@ double RJMatrix::updateR() {
 
 /**
  * @brief 
- * This is implemented as a pretty ugly function right now but its the easiest way to think about it.
  */
 double RJMatrix::updateActiveOmegas() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
+
     double splitAlpha = 5.0;
     double hastings = 0.0;
     this->dirty();
 
-    if (currentActiveOmegas == 1) { // 1 2 split
-        hastings = std::log(0.5);
-        currentActiveOmegas = 2;
-        double tempO = currentParams[2];
+    double total = MatrixHelper::possibleSplit5[currentActiveOmegas-1] + MatrixHelper::possibleMerge5[currentActiveOmegas - 1];
+    double splitProbs = (double)(MatrixHelper::possibleSplit5[currentActiveOmegas-1]) / total;
+    double randomMove = rng.uniformRv() * total;
+
+    if(randomMove < splitProbs){ // Perform a split
+        double forwardProb = -std::log(total);
+        double nextTotal = MatrixHelper::possibleSplit5[currentActiveOmegas] + MatrixHelper::possibleMerge5[currentActiveOmegas];
+        double reverseProb = -std::log(nextTotal);
+        hastings += reverseProb - forwardProb;
+
+        int randomSplit = (int)(rng.uniformRv() * currentActiveOmegas);
+
         double u = Probability::Beta::rv(&rng, splitAlpha, splitAlpha);
-        currentParams[2] = tempO * u;
-        currentParams[3] = tempO * (1.0 - u);
+        
+        for(int j = currentActiveOmegas; j > randomSplit + 1; j--){
+            currentParams[j + 2] = currentParams[j + 1];
+        }
 
-        currentParamPriors[2] = Probability::Exponential::lnPdf(omegaLambda, currentParams[1+1]);
-        currentParamPriors[3] = Probability::Exponential::lnPdf(omegaLambda, currentParams[2+1]);
+        double tempO = currentParams[randomSplit + 2];
 
-        currentParams[1] = Probability::Exponential::rv(&rng, rLambda);
-        currentParamPriors[1] = Probability::Exponential::lnPdf(rLambda, currentParams[1]);
+        currentParams[randomSplit + 2] = tempO * u;
+        currentParams[randomSplit + 3] = tempO * (1.0 - u);
 
         hastings += std::log(tempO);
-        hastings -= Probability::Beta::lnPdf(splitAlpha, splitAlpha, u) + currentParamPriors[1];
-    }
-    else if (currentActiveOmegas == 2) { // 2 1 merge or 2 3 split
-        if (rng.uniformRv() > 0.5) { // 2 3 split
-            currentActiveOmegas = 3;
-            double tempO = currentParams[3];
-            double u = Probability::Beta::rv(&rng, splitAlpha, splitAlpha);
-            currentParams[3]= tempO * u;
-            currentParams[4]= tempO * (1.0 - u);
+        hastings -= Probability::Beta::lnPdf(splitAlpha, splitAlpha, u);
 
-            currentParamPriors[3] = Probability::Exponential::lnPdf(omegaLambda, currentParams[2+1]);
-            currentParamPriors[4] = Probability::Exponential::lnPdf(omegaLambda, currentParams[3+1]);
+        currentActiveOmegas++;
 
-            hastings += std::log(tempO);
-            hastings -= Probability::Beta::lnPdf(splitAlpha, splitAlpha, u);
-        } 
-        else { // 2 1 merge
-            currentActiveOmegas = 1;
-            double o1 = currentParams[2];
-            double o2 = currentParams[3];
-            double total = o1 + o2;
-            double u = o1 / total;
+        if(currentActiveOmegas == 2){         
+            double newR = Probability::Exponential::rv(&rng, rLambda);
+            currentParamPriors[1] = Probability::Exponential::lnPdf(rLambda, newR);
+            hastings -= currentParamPriors[1];
 
-            currentParams[2]= total;
-            currentParamPriors[2] = Probability::Exponential::lnPdf(omegaLambda, currentParams[1+1]);
-
-            hastings = std::log(2.0);
-            hastings -= std::log(total);
-            hastings += Probability::Beta::lnPdf(splitAlpha, splitAlpha, u) + Probability::Exponential::lnPdf(rLambda, currentParams[1]);
+            currentParams[1] = newR;
         }
     }
-    else if (currentActiveOmegas == 3) { // 3 2 merge or 3 4 split
-        if (rng.uniformRv() > 0.5) { // 3 4 split
-            currentActiveOmegas = 4;
-            double tempO = currentParams[4];
-            double u = Probability::Beta::rv(&rng, splitAlpha, splitAlpha);
-            currentParams[4] = tempO * u;
-            currentParams[5] = tempO * (1.0 - u);
+    else{ // Perform a merge
+        double forwardProb = -std::log(total);
+        double nextTotal = MatrixHelper::possibleSplit5[currentActiveOmegas - 2] + MatrixHelper::possibleMerge5[currentActiveOmegas - 2];
+        double reverseProb = -std::log(nextTotal);
+        hastings += reverseProb - forwardProb;
 
-            currentParamPriors[4] = Probability::Exponential::lnPdf(omegaLambda, currentParams[3+1]);
-            currentParamPriors[5] = Probability::Exponential::lnPdf(omegaLambda, currentParams[4+1]);
+        int randomMerge = (int)(rng.uniformRv() * (currentActiveOmegas - 1));
 
-            hastings += std::log(tempO);
-            hastings -= Probability::Beta::lnPdf(splitAlpha, splitAlpha, u);
+        double o1 = currentParams[randomMerge + 2];
+        double o2 = currentParams[randomMerge + 3];
+        double total = o1 + o2;
+        double u = o1 / total;
+
+        double sum = currentParams[randomMerge + 2] + currentParams[randomMerge + 3];
+        currentParams[randomMerge + 2] = sum;
+
+        // We need to shift elements down depending on the random merge
+        for(int j = randomMerge + 1; j < currentActiveOmegas-1; j++){
+            currentParams[j + 2] = currentParams[j + 3];
         }
-        else { // 3 2 merge
-            currentActiveOmegas = 2;
-            double o2 = currentParams[3];
-            double o3 = currentParams[4];
-            double total = o2 + o3;
-            double u = o2 / total;
 
-            currentParams[3] = total;
-            currentParamPriors[3] = Probability::Exponential::lnPdf(omegaLambda, currentParams[2+1]);
-
-            hastings -= std::log(total);
-            hastings += Probability::Beta::lnPdf(splitAlpha, splitAlpha, u);
-        }
-    }
-    else if (currentActiveOmegas == 4) { // 4 3 merge or 4 5 split
-        if (rng.uniformRv() > 0.5) { // 4 5 split
-            currentActiveOmegas = 5;
-            double tempO = currentParams[5];
-            double u = Probability::Beta::rv(&rng, splitAlpha, splitAlpha);
-            currentParams[5] = tempO * u;
-            currentParams[6] = tempO * (1.0 - u);
-
-            currentParamPriors[5] = Probability::Exponential::lnPdf(omegaLambda, currentParams[4+1]);
-            currentParamPriors[6] = Probability::Exponential::lnPdf(omegaLambda, currentParams[5+1]);
-
-            hastings = std::log(2.0);
-            hastings += std::log(tempO);
-            hastings -= Probability::Beta::lnPdf(splitAlpha, splitAlpha, u);
-        } 
-        else { // 4 3 merge
-            currentActiveOmegas = 3;
-            double o3 = currentParams[4];
-            double o4 = currentParams[5];
-            double total = o3 + o4;
-            double u = o3 / total;
-
-            currentParams[4] = total;
-            currentParamPriors[4] = Probability::Exponential::lnPdf(omegaLambda, currentParams[3+1]);
-
-            hastings -= std::log(total);
-            hastings += Probability::Beta::lnPdf(splitAlpha, splitAlpha, u);
-        }
-    }
-    else { // 5 4 merge
-        currentActiveOmegas = 4;
-        double o4 = currentParams[5];
-        double o5 = currentParams[6];
-        double total = o4 + o5;
-        double u = o4 / total;
-
-        currentParams[5] = total;
-        currentParamPriors[5] = Probability::Exponential::lnPdf(omegaLambda, currentParams[4+1]);
-
-        hastings = std::log(0.5);
-        hastings -= std::log(total);
         hastings += Probability::Beta::lnPdf(splitAlpha, splitAlpha, u);
+        hastings -= std::log(sum);
+
+        currentActiveOmegas--;
+
+        if(currentActiveOmegas == 1){
+            hastings += Probability::Exponential::lnPdf(rLambda, currentParams[1]);
+        }
     }
 
     rebuildQMatrix();
 
     return hastings;
 }
+
 
 
 double RJMatrix::updateStationary() {

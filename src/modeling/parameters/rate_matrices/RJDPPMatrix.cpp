@@ -299,83 +299,82 @@ double RJDPPMatrix::updateOmega() {
 
 double RJDPPMatrix::updateActiveOmegas() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
+
     double splitAlpha = 5.0;
     double hastings = 0.0;
     this->dirty();
 
-    if (currentActiveOmegas == 1) { // 1 2 split
-        hastings = std::log(0.5);
-        currentActiveOmegas = 2;
+    double total = MatrixHelper::possibleSplit3[currentActiveOmegas-1] + MatrixHelper::possibleMerge3[currentActiveOmegas - 1];
+    double splitProbs = (double)(MatrixHelper::possibleSplit3[currentActiveOmegas-1]) / total;
+    double randomMove = rng.uniformRv();
+
+    if(randomMove < splitProbs){ // Perform a split
+        double forwardProb = -std::log(total);
+        double nextTotal = MatrixHelper::possibleSplit3[currentActiveOmegas] + MatrixHelper::possibleMerge3[currentActiveOmegas];
+        double reverseProb = -std::log(nextTotal);
+        hastings += reverseProb - forwardProb;
+
+        int randomSplit = (int)(rng.uniformRv() * currentActiveOmegas);
 
         for (int i = 0; i < currentCategories.size(); i++) {
             double u = Probability::Beta::rv(&rng, splitAlpha, splitAlpha);
-            double tempO = currentCategories[i].omegas[0];
+            
+            // If we select a middle index to split we need to shift everything over
+            for(int j = currentActiveOmegas; j > randomSplit + 1; j--){
+                currentCategories[i].omegas[j] = currentCategories[i].omegas[j-1];
+            }
 
-            currentCategories[i].omegas[0] = tempO * u;
-            currentCategories[i].omegas[1] = tempO * (1.0 - u);
+            double tempO = currentCategories[i].omegas[randomSplit];
+
+            currentCategories[i].omegas[randomSplit] = tempO * u;
+            currentCategories[i].omegas[randomSplit + 1] = tempO * (1.0 - u);
             currentCategories[i].dirty = true;
 
             hastings += std::log(tempO);
             hastings -= Probability::Beta::lnPdf(splitAlpha, splitAlpha, u);
         }
-        
-        double newR = Probability::Exponential::rv(&rng, rLambda);
-        currentParamPriors[1] = Probability::Exponential::lnPdf(rLambda, newR);
-        hastings -= currentParamPriors[1];
 
-        currentParams[1] = newR;
-    }
-    else if (currentActiveOmegas == 2) { // 2 1 merge or 2 3 split
-        hastings = std::log(2.0);
+        currentActiveOmegas++;
 
-        if (rng.uniformRv() > 0.5) { // 2 3 split
-            currentActiveOmegas = 3;
+        if(currentActiveOmegas == 2){         
+            double newR = Probability::Exponential::rv(&rng, rLambda);
+            currentParamPriors[1] = Probability::Exponential::lnPdf(rLambda, newR);
+            hastings -= currentParamPriors[1];
 
-            for (int i = 0; i < currentCategories.size(); i++) {
-                double u = Probability::Beta::rv(&rng, splitAlpha, splitAlpha);
-                double tempO = currentCategories[i].omegas[1];
-
-                currentCategories[i].omegas[1] = tempO * u;
-                currentCategories[i].omegas[2] = tempO * (1.0 - u);
-                currentCategories[i].dirty = true;
-
-                hastings += std::log(tempO);
-                hastings -= Probability::Beta::lnPdf(splitAlpha, splitAlpha, u);
-            }
-        } else { // 2 1 merge
-            currentActiveOmegas = 1;
-            for(int i = 0; i < currentCategories.size(); i++){
-                double o1 = currentCategories[i].omegas[0];
-                double o2 = currentCategories[i].omegas[1];
-                double total = o1 + o2;
-                double u = o1 / total;
-
-                double sum = currentCategories[i].omegas[0] + currentCategories[i].omegas[1];
-                currentCategories[i].omegas[0] = sum;
-                currentCategories[i].dirty = true;
-
-                hastings += Probability::Beta::lnPdf(splitAlpha, splitAlpha, u);
-                hastings -= std::log(sum);
-            }
-
-            hastings += Probability::Exponential::lnPdf(rLambda, currentParams[1]);
+            currentParams[1] = newR;
         }
     }
-    else if (currentActiveOmegas == 3) { // 3 2 merge
-        currentActiveOmegas = 2;
-        hastings = std::log(0.5);
-        for(int i = 0; i < currentCategories.size(); i++){
-            double o2 = currentCategories[i].omegas[1];
-            double o3 = currentCategories[i].omegas[2];
-            double total = o2 + o3;
-            double u = o2 / total;
+    else{ // Perform a merge
+        double forwardProb = -std::log(total);
+        double nextTotal = MatrixHelper::possibleSplit3[currentActiveOmegas - 2] + MatrixHelper::possibleMerge3[currentActiveOmegas - 2];
+        double reverseProb = -std::log(nextTotal);
+        hastings += reverseProb - forwardProb;
 
-            double sum = currentCategories[i].omegas[1] + currentCategories[i].omegas[2];
-            currentCategories[i].omegas[1] = sum;
+        int randomMerge = (int)(rng.uniformRv() * (currentActiveOmegas - 1));
+        
+        for(int i = 0; i < currentCategories.size(); i++){
+            double o1 = currentCategories[i].omegas[randomMerge];
+            double o2 = currentCategories[i].omegas[randomMerge + 1];
+            double total = o1 + o2;
+            double u = o1 / total;
+
+            double sum = currentCategories[i].omegas[randomMerge] + currentCategories[i].omegas[randomMerge + 1];
+            currentCategories[i].omegas[randomMerge] = sum;
             currentCategories[i].dirty = true;
+
+            // We need to shift elements down depending on the random merge
+            for(int j = randomMerge + 1; j < currentActiveOmegas-1; j++){
+                currentCategories[i].omegas[j] = currentCategories[i].omegas[j + 1];
+            }
 
             hastings += Probability::Beta::lnPdf(splitAlpha, splitAlpha, u);
             hastings -= std::log(sum);
+        }
+
+        currentActiveOmegas--;
+
+        if(currentActiveOmegas == 1){
+            hastings += Probability::Exponential::lnPdf(rLambda, currentParams[1]);
         }
     }
 

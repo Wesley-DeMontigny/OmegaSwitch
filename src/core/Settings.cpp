@@ -19,19 +19,20 @@ Settings::Settings(int argc,  char* argv[]) {
     }
     #if TEST_RUN==1
     settings.push_back("-treeOut");
-    settings.push_back("/workspaces/Varying_Selection_DPP/res/trees.trees");
+    settings.push_back("/workspaces/Varying_Selection_DPP/testing/trees.trees");
     settings.push_back("-mcmcOut");
-    settings.push_back("/workspaces/Varying_Selection_DPP/res/analysis.log");
+    settings.push_back("/workspaces/Varying_Selection_DPP/testing/analysis.log");
     settings.push_back("-dppOut");
-    settings.push_back("/workspaces/Varying_Selection_DPP/res/dpp.log");
+    settings.push_back("/workspaces/Varying_Selection_DPP/testing/dpp.log");
     settings.push_back("-tipsOut");
-    settings.push_back("/workspaces/Varying_Selection_DPP/res/tips.log");
+    settings.push_back("/workspaces/Varying_Selection_DPP/testing/tips.log");
     settings.push_back("-branchOut");
-    settings.push_back("/workspaces/Varying_Selection_DPP/res/branches.log");
+    settings.push_back("/workspaces/Varying_Selection_DPP/testing/branches.log");
     settings.push_back("-simulateM0");
     settings.push_back("-simulationOutput");
-    settings.push_back("/workspaces/Varying_Selection_DPP/res/sim.log");
+    settings.push_back("/workspaces/Varying_Selection_DPP/testing/sim.log");
     numSimulations = 1;
+    burnInIterations = 1;
     settings.push_back("-RJDPP");
     #endif
     if (settings.size() == 0) {
@@ -272,9 +273,9 @@ void Settings::usage() {
 
     std::cout << "Model Parameters:" << std::endl;
     std::cout << "   * -treeLambda        : Rate parameter for the tree length exponential prior." << std::endl;
-    std::cout << "   * -omegaLambda       : Rate parameter for the nonsynonymous mutation rate's Gamma prior." << std::endl;
-    std::cout << "   * -kLambda           : Rate parameter for the transition/transversion rate's Gamma prior." << std::endl;
-    std::cout << "   * -rLambda           : Rate parameter for the matrix-swapping rate's Gamma prior." << std::endl;
+    std::cout << "   * -omegaLambda       : Rate parameter for the nonsynonymous mutation rate's exponential prior." << std::endl;
+    std::cout << "   * -kLambda           : Rate parameter for the transition/transversion rate's exponential prior." << std::endl;
+    std::cout << "   * -rLambda           : Rate parameter for the matrix-swapping rate's exponential prior." << std::endl;
     std::cout << "   * -expectedCat       : The number of expected categories for the DPP." << std::endl;
     std::cout << std::endl;
     

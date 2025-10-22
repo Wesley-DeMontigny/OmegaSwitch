@@ -291,6 +291,8 @@ double RJDPPMatrix::updateOmega() {
     currentCategories[randomCategory].omegas[randomOmega] = newV;
     hastings = std::log(scale);
 
+    regenerateCatPrior();
+
     return hastings;
 }
 

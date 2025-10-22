@@ -395,7 +395,6 @@ double RJDPPModel::updateDPP(){
 
         int numCurrentCats = rateMatrix->getNumCategories();
         int numTestableCats = numCurrentCats + numAux;
-        std::vector<double> conditionalL;
         std::vector<Category> currentCategories = rateMatrix->getCategories();
         std::vector<std::array<double, 3>> newOmegas;
 
@@ -602,7 +601,7 @@ double RJDPPModel::updateDPP(){
         if(assigned == false){
             std::cout << randomSite << " was not assigned to any category.\n";
             std::cout << "Log Likelihoods: \n";
-            for(double& a : conditionalL){
+            for(double& a : likelihoodVec){
                 std::cout << a << "\n";
             }
             std::cout << std::flush;

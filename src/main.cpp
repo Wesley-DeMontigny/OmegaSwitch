@@ -434,6 +434,7 @@ int main(int argc, char* argv[]) {
                     activeOmegas = 2;
                 }
 
+                rateMatrix.setActiveOmegas(activeOmegas);
                 std::vector<double> stationary = rateMatrix.getStationary(activeOmegas);
                 std::vector<double> rawStationary = rateMatrix.getRawStationary();
                 std::vector<Category> categories = rateMatrix.getCategories();

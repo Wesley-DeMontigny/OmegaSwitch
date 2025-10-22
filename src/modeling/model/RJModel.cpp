@@ -408,9 +408,10 @@ void RJModel::printTabular(int i){
 
 void RJModel::writeLogHeaders(){
     if(analysisLog != ""){
-        std::string tabHeader = "Iteration\tPosterior\tLikelihood\tPrior\tOmegaCount\tK\tOmega\tOmegaIncrement1\tOmegaIncrement2\tOmegaIncrement3\tOmegaIncrement4\tR\n";
+        std::string tabHeader = "Iteration\tPosterior\tLikelihood\tPrior\tOmegaCount\tK\tOmega\tOmegaIncrement1\tOmegaIncrement2\tOmegaIncrement3\tOmegaIncrement4\tR";
         for(int i = 0; i < 61; i++)
             tabHeader += "\tPi[" + std::to_string(i) + "]";
+        tabHeader += "\n";
         
         std::ofstream outFile(analysisLog, std::ios::out);
         outFile << tabHeader;

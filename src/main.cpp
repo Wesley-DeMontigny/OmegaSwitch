@@ -233,8 +233,8 @@ int main(int argc, char* argv[]) {
         inference(settings, aln, treeParam, false, executor);
     }
     else{
-        int numSites = 100;
-        int numTaxa = 50;
+        int numSites = 200;
+        int numTaxa = 25;
         std::string mcmcOutput = settings.mcmcOutput;
         std::string tipsOutput = settings.tipsOutput;
         std::string dppOutput = settings.dppOutput;

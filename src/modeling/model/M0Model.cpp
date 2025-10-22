@@ -376,10 +376,9 @@ void M0Model::writeLogHeaders(){
         std::string tabHeader = "Iteration\tPosterior\tLikelihood\tPrior\tK\tOmega";
         for(int i = 0; i < 61; i++)
             tabHeader += "\tPi[" + std::to_string(i) + "]";
-
-
+        tabHeader += "\n";
         std::ofstream outFile(analysisLog, std::ios::out);
-        outFile << tabHeader << "\n";
+        outFile << tabHeader;
     }
 
     if(treeLog != ""){

@@ -687,9 +687,10 @@ void RJDPPModel::printTabular(int i){
 
 void RJDPPModel::writeLogHeaders(){
     if(analysisLog != ""){
-        std::string tabHeader = "Iteration\tPosterior\tLikelihood\tPrior\tOmegaCount\tK\tR\n";
+        std::string tabHeader = "Iteration\tPosterior\tLikelihood\tPrior\tOmegaCount\tK\tR";
         for(int i = 0; i < 61; i++)
             tabHeader += "\tPi[" + std::to_string(i) + "]";
+        tabHeader += "\n";
         
         std::ofstream outFile(analysisLog, std::ios::out);
         outFile << tabHeader;
@@ -706,6 +707,7 @@ void RJDPPModel::writeLogHeaders(){
         for(int i = 0; i < numChar; i++)
             dppHeader += "\tOmega[" + std::to_string(i) + "]" + "\tOmegaIncrement1[" + std::to_string(i) + "]\tOmegaIncrement2[" + std::to_string(i) + "]";
         dppHeader += "\n";
+
         std::ofstream outFile(dppLog, std::ios::out);
         outFile << dppHeader;
     }

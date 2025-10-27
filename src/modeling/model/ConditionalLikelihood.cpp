@@ -19,24 +19,22 @@ ConditionalLikelihood::ConditionalLikelihood(Alignment* aln, int nN, int nR, int
         for(int r = 0; r < numRates; r++){
             double* p = (*this)(index, 0, r);
             for(int i = 0; i < numChar; i++){
-                unsigned long long int state = aln->getMatrix()[index][i];
+                std::bitset<61> state = aln->getMatrix()[index][i];
 
-                unsigned long long int mask = 1;
                 bool assigned = false;
                 for(int j = 0; j < 61; j++) {
-                    if((mask & state) != 0){
+                    if(state[j] == 1){
                         for(int u = 0; u < unseenRates; u++){
                             *(p + (61 * u)) = 1.0;
                         }
                         assigned = true;
                     }
-                    mask <<= 1;
                     p++;
                 }
                 p += 61 * (unseenRates-1);
 
                 if(assigned == false){
-                    Msg::error("Never assigned a conditional value at (" + std::to_string(index) + ", " + std::to_string(i) + ")! This has state value " + std::to_string(state));
+                    Msg::error("Never assigned a conditional value at (" + std::to_string(index) + ", " + std::to_string(i) + ")!");
                 }
             }
         }

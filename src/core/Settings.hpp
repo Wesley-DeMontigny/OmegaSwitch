@@ -32,7 +32,7 @@ struct Settings {
     double                  rLambda = 3.0;                  // The rate parameter for the evolutionary regime swapping exponential prior
     double                  rWeight = 1.0;                  // Weight associated with updating the rate of swapping evolutionary rates
     double                  stationaryWeight = 2.0;         // Weight associated with updating the stationary distribution of the rate matrix
-    double                  treeLengthLambda = 5.0;         // The rate parameter associated with the branch length prior
+    double                  treeLengthLambda = 3.0;         // The rate parameter associated with the branch length prior
     double                  treeWeight = 2.0;               // Weight associated with updating the tree topology or branch lengths
     int                     bayesOpt = 0;                   // How many iterations of Bayesian optimization to perform on the tunable parameters
     int                     bayesOptFrequency = 0;          // How many MCMC iterations a single iteration of Bayesian optimization uses

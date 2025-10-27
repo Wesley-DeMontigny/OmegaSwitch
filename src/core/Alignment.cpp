@@ -44,21 +44,21 @@ Alignment::Alignment(std::string fn) {
  */
 Alignment::Alignment(int* siteMatrix, int nC, int nT) : numChar(nC), numTaxa(nT) {
 
-    matrix = new unsigned long long int*[numTaxa];
+    matrix = new std::bitset<61>*[numTaxa];
 
-    matrix[0] = new unsigned long long int[numTaxa*numChar];
+    matrix[0] = new std::bitset<61>[numTaxa*numChar];
     for(int i = 1; i < numTaxa; i++)
         matrix[i] = matrix[i-1] + numChar;
     for(int i = 0; i < numTaxa; i++)
         for(int j = 0; j < numChar; j++)
-            matrix[i][j] = 0;
+            matrix[i][j] = std::bitset<61>{};
 
     for(int i = 0; i < numTaxa; i++){
         for(int j = 0; j < numChar; j++){
             int charType = siteMatrix[j*numTaxa +i] % 61;
-            if(charType < 0 || charType > 61)
+            if(charType < 0 || charType >= 61)
                 Msg::error("Invalid character state from simulation!");
-            matrix[i][j] = 1ULL << charType;
+            matrix[i][j][charType] = 1;
         }
     }
 
@@ -87,14 +87,14 @@ void Alignment::readCodonData(NxsCharactersBlock* charBlock){
     numChar = (int)numChar/3;
     CodonRecodingStruct codonDict = getCodonRecodingStruct(NxsGeneticCodesEnum::NXS_GCODE_STANDARD); //Hard code this for now
 
-    matrix = new unsigned long long int*[numTaxa];
+    matrix = new std::bitset<61>*[numTaxa];
 
-    matrix[0] = new unsigned long long int[numTaxa*numChar];
+    matrix[0] = new std::bitset<61>[numTaxa*numChar];
     for(int i = 1; i < numTaxa; i++)
         matrix[i] = matrix[i-1] + numChar;
     for(int i = 0; i < numTaxa; i++)
         for(int j = 0; j < numChar; j++)
-            matrix[i][j] = 0;
+            matrix[i][j] = std::bitset<61>{};
 
     char* state = new char[4];
 
@@ -107,12 +107,12 @@ void Alignment::readCodonData(NxsCharactersBlock* charBlock){
             state[3] = '\0';
             for(int k = 0, len = 61; k < len; k++){
                 if(codonDict.codonStrings[k] == state){
-                    matrix[i][j] = 1ULL << k;
+                    matrix[i][j][k] = 1;
                     break;
                 }
 
-                if(k == len-1) { // We did not find something here...
-                    matrix[i][j] = (1ULL << 61) - 1;
+                if(k == len-1) { // We did not find something here - anything could have emitted it
+                    matrix[i][j].set();
                 }
             }
         }

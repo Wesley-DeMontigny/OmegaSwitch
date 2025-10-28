@@ -388,8 +388,9 @@ int main(int argc, char* argv[]) {
                             }
                         }
                         else{
-                            truedNdS[c*numTaxa + nIndex] = dNdS[(int)(i/61.0)];
-                            tipSites[c*numTaxa + nIndex] = sites[c*numNodes + nIndex];
+                            int state = sites[c*numNodes + nIndex];
+                            truedNdS[c*numTaxa + nIndex] = dNdS[(int)(state/61.0)];
+                            tipSites[c*numTaxa + nIndex] = state;
                         }
                     }
                 }
@@ -475,8 +476,9 @@ int main(int argc, char* argv[]) {
                             }
                         }
                         else{
-                            truedNdS[c*numTaxa + nIndex] = dNdSVec[cat][(int)(i/61.0)];
-                            tipSites[c*numTaxa + nIndex] = sites[c*numNodes + nIndex];
+                            int state = sites[c*numNodes + nIndex];
+                            truedNdS[c*numTaxa + nIndex] = dNdSVec[cat][(int)(state/61.0)];
+                            tipSites[c*numTaxa + nIndex] = state;
                         }
                     }
                 }

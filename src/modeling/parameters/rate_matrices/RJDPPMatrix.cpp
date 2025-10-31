@@ -1,17 +1,17 @@
-#include "RJDPPMatrix.hpp"
-#include "MatrixHelper.hpp"
 #include "core/Math.hpp"
 #include "core/Matrix.hpp"
-#include "core/RandomVariable.hpp"
 #include "core/Probability.hpp"
+#include "core/RandomVariable.hpp"
 #include "core/Settings.hpp"
-#include <cmath>
+#include "RJDPPMatrix.hpp"
 #include <algorithm>
+#include <cmath>
+#include <numeric>
 
 RJDPPMatrix::RJDPPMatrix(Settings& settings, int nC) : 
                                    currentQMatrix(183, 183, 0.0), oldQMatrix(183, 183, 0.0), currentStationary(61, -1), oldStationary(61, -1), 
                                    kLambda(settings.kLambda), rLambda(settings.rLambda), rDelta(0.5),  stationaryAlpha(30000), kDelta(0.5),
-                                   stationaryPriorAlpha(61, 2.0), numChar(nC), omegaLambda(settings.omegaLambda), assignments(nC, 0) {
+                                   stationaryPriorAlpha(61, 2.0), numChar(nC), omegaLambda(settings.omegaLambda), assignments(nC, 0), randomStates(61, 0.0) {
 
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
@@ -66,8 +66,7 @@ RJDPPMatrix::RJDPPMatrix(Settings& settings, int nC) :
     
     oldQMatrix = currentQMatrix.copy();
 
-    for(int i = 0; i < 61; i++)
-        randomStates.push_back(i);
+    std::iota(randomStates.begin(), randomStates.end(), 0);
 
     dirty();
 }
@@ -100,20 +99,20 @@ void RJDPPMatrix::accept() {
     oldActiveOmegas = currentActiveOmegas;
     oldQMatrix = currentQMatrix.copy();
 
-    if(moveChoice == 0){
+    if(moveChoice == MatrixMoves::K_MOVE){
         kAcceptCount += 1;
     }
-    else if(moveChoice == 1){
+    else if(moveChoice == MatrixMoves::STATIONARY_MOVE){
         stationaryAcceptCount += 1;
     }
-    else if(moveChoice == 2){
+    else if(moveChoice == MatrixMoves::R_MOVE){
         rAcceptCount += 1;
     }
-    else if(moveChoice == 3){
+    else if(moveChoice == MatrixMoves::OMEGA_MOVE){
         omegaAcceptCount += 1;
     }
 
-    moveChoice = -1;
+    moveChoice = MatrixMoves::NO_MOVE;
 }
 
 void RJDPPMatrix::reject() {
@@ -128,7 +127,7 @@ void RJDPPMatrix::reject() {
     currentActiveOmegas = oldActiveOmegas;
     currentQMatrix = oldQMatrix.copy();
 
-    moveChoice = -1;
+    moveChoice = MatrixMoves::NO_MOVE;
 }
 
 double RJDPPMatrix::lnPrior() {
@@ -156,7 +155,7 @@ double RJDPPMatrix::updateK() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
     double hastings = 0.0;
 
-    moveChoice = 0;
+    moveChoice = MatrixMoves::K_MOVE;
     kCount += 1;
 
     double currentV = currentParams[0];
@@ -179,7 +178,7 @@ double RJDPPMatrix::updateR() {
     double hastings = 0.0;
     this->dirty();
 
-    moveChoice = 2;
+    moveChoice = MatrixMoves::R_MOVE;
     rCount += 1;
 
     double currentV = currentParams[1];
@@ -200,7 +199,7 @@ double RJDPPMatrix::updateStationary() {
     double hastings = 0.0;
 
     int numElements = 30;
-    moveChoice = 1;
+    moveChoice = MatrixMoves::STATIONARY_MOVE;
     stationaryCount += 1;
 
     std::vector<int> drawSet(randomStates);
@@ -280,7 +279,7 @@ double RJDPPMatrix::updateOmega() {
     int randomCategory = (int)(rng.uniformRv() * currentCategories.size());
     currentCategories[randomCategory].dirty = true;
 
-    moveChoice = 3;
+    moveChoice = MatrixMoves::OMEGA_MOVE;
     omegaCount += 1;
 
     int randomOmega = (int)(rng.uniformRv() * currentActiveOmegas);
@@ -299,6 +298,8 @@ double RJDPPMatrix::updateOmega() {
 
 double RJDPPMatrix::updateActiveOmegas() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
+
+    moveChoice = MatrixMoves::RJ_MOVE;
 
     double splitAlpha = 5.0;
     double hastings = 0.0;
@@ -384,12 +385,12 @@ double RJDPPMatrix::updateActiveOmegas() {
 }
 
 
-double RJDPPMatrix::expectedCategories(double a, int members){
+double RJDPPMatrix::expectedCategories(double a, int members) const {
     return a * std::log(1 + (members/a));
 }
 
 // From John's code
-double RJDPPMatrix::calculateAlpha(double expectedCat, int members) {
+double RJDPPMatrix::calculateAlpha(double expectedCat, int members) const {
 
     if (expectedCat > members)
         Msg::error("The expected number of tables cannot be larger than the number of patrons (" + std::to_string(members) + "<" + std::to_string(expectedCat) + ")");
@@ -481,11 +482,11 @@ void RJDPPMatrix::popCategories(int n){
     }
 }
 
-Matrix<double> RJDPPMatrix::Q(int c) {
+Matrix<double> RJDPPMatrix::Q(int c) const {
     return Q(currentCategories[c].omegas);
 }
 
-Matrix<double> RJDPPMatrix::Q(const std::array<double, 3>& omegas) {
+Matrix<double> RJDPPMatrix::Q(const std::array<double, 3>& omegas) const {
     Matrix<double> returnMatrix(currentQMatrix.copy());
 
     int stateSpace = currentQMatrix.dim1();
@@ -557,7 +558,7 @@ std::vector<double> RJDPPMatrix::getStationary(int omegaCount){
     return returnStationary;
 }
 
-std::array<double, 3> RJDPPMatrix::dNdS(int c){
+std::array<double, 3> RJDPPMatrix::dNdS(int c) const {
     Matrix<double> tempMatrix(183, 183, 0.0);
     std::array<double, 3> dNdS = {0,0,0}; // We start out with dN and then divide by dS
     std::array<double, 3> dS = {0,0,0};
@@ -604,19 +605,19 @@ std::array<double, 3> RJDPPMatrix::dNdS(int c){
     return dNdS;
 }
 
-double RJDPPMatrix::getOmegaRate(){
+double RJDPPMatrix::getOmegaRate() const {
     return (double)omegaAcceptCount/(double)omegaCount;
 }
 
-double RJDPPMatrix::getStationaryRate(){
+double RJDPPMatrix::getStationaryRate() const {
     return (double)stationaryAcceptCount/(double)stationaryCount;
 }
 
-double RJDPPMatrix::getRRate(){
+double RJDPPMatrix::getRRate() const {
     return (double)rAcceptCount/(double)rCount;
 }
 
-double RJDPPMatrix::getKRate(){
+double RJDPPMatrix::getKRate() const {
     return (double)kAcceptCount/(double)kCount;
 }
 

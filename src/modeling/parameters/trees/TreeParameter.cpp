@@ -1,19 +1,19 @@
-#include "TreeParameter.hpp"
-#include "core/RandomVariable.hpp"
-#include "TreeObject.hpp"
-#include "core/Probability.hpp"
 #include "core/Alignment.hpp"
+#include "core/Probability.hpp"
+#include "core/RandomVariable.hpp"
 #include "Node.hpp"
+#include "TreeObject.hpp"
+#include "TreeParameter.hpp"
 #include <cmath>
 
-TreeParameter::TreeParameter(Alignment* aln, std::string newick, double l) : lambda(l), currentPrior(0.0), oldPrior(0.0), 
-                                                         branchDelta(0.5), moveChoice(-1), branchCount(0), branchAcceptCount(0), 
-                                                         treeCount(0), treeAcceptCount(0), treeAlpha(10000) {
+TreeParameter::TreeParameter(Alignment& aln, std::string& newick, double l) : lambda(l), currentPrior(0.0), oldPrior(0.0), 
+                                                         branchDelta(0.5), moveChoice(TreeMoves::NO_MOVE), branchCount(0), 
+                                                         branchAcceptCount(0), treeCount(0), treeAcceptCount(0), treeAlpha(10000) {
     fixedTree = newick != "";
     if(!fixedTree)
         trees[0] = new TreeObject(aln, false);
     else
-        trees[0] = new TreeObject(newick, aln->getTaxaNames());
+        trees[0] = new TreeObject(newick, aln.getTaxaNames());
 
     if(!fixedTree){
         RandomVariable& rng = RandomVariable::randomVariableInstance();
@@ -38,8 +38,8 @@ TreeParameter::TreeParameter(Alignment* aln, std::string newick, double l) : lam
     dirty();
 }
 
-TreeParameter::TreeParameter(TreeObject& tree, double lambda) : lambda(lambda), currentPrior(0.0), oldPrior(0.0), 
-                                                                branchDelta(0.5), moveChoice(-1), branchCount(0), branchAcceptCount(0), 
+TreeParameter::TreeParameter(TreeObject& tree, double lambda) : lambda(lambda), currentPrior(0.0), oldPrior(0.0), branchDelta(0.5), 
+                                                                moveChoice(TreeMoves::NO_MOVE), branchCount(0), branchAcceptCount(0), 
                                                                 treeCount(0), treeAcceptCount(0), treeAlpha(10000), fixedTree(true) {
 
     trees[0] = new TreeObject(tree);
@@ -74,21 +74,21 @@ void TreeParameter::accept(){
     *trees[1] = *trees[0];
     oldPrior = currentPrior;
 
-    if(moveChoice == 0){
+    if(moveChoice == TreeMoves::BRANCH_MOVE){
         branchAcceptCount += 1;
     }
-    else if(moveChoice == 1){
+    else if(moveChoice == TreeMoves::TREE_MOVE){
         treeAcceptCount += 1;
     }
 
-    moveChoice = -1;
+    moveChoice = TreeMoves::NO_MOVE;
 }
 
 void TreeParameter::reject(){
     *trees[0] = *trees[1];
     currentPrior = oldPrior;
 
-    moveChoice = -1;
+    moveChoice = TreeMoves::NO_MOVE;
 }
 
 
@@ -99,8 +99,8 @@ double TreeParameter::update() {
     double hastings = 0.0;
     
     if(randomMove < 0.75){
-        if(!fixedTree){
-            moveChoice = 0;
+        if(!fixedTree){ // This is technically the LOCAL Move, which simultaneously updates topology and branch lengths
+            moveChoice = TreeMoves::BRANCH_MOVE;
             branchCount += 1;
             TreeObject* tree = trees[0];
             std::vector<Node*> nodes = tree->getPostOrderSeq();
@@ -113,11 +113,11 @@ double TreeParameter::update() {
             while(u == root || u->getIsTip() == true);
             Node* v = u->getAncestor();
 
-            std::set<Node*> neighbors1 = u->getNeighbors();
+            std::set<Node*> neighbors1 = u->getNeighborRef();
             neighbors1.erase(v);//Exclude v
             Node* a = Node::chooseNodeFromSet(neighbors1);
 
-            std::set<Node*> neighbors2 = v->getNeighbors();
+            std::set<Node*> neighbors2 = v->getNeighborRef();
             neighbors2.erase(u);//Don't select u
             Node* c = Node::chooseNodeFromSet(neighbors2);
 
@@ -172,7 +172,6 @@ double TreeParameter::update() {
                 }
             }
 
-
             u->setNeedsTPUpdate(true);
             v->setNeedsTPUpdate(true);
             a->setNeedsTPUpdate(true);
@@ -197,7 +196,7 @@ double TreeParameter::update() {
             hastings = 3 * std::log(scale);
         }
         else {
-            moveChoice = 0;
+            moveChoice = TreeMoves::BRANCH_MOVE;
             branchCount += 1;
             std::vector<Node*> nodes = trees[0]->getPostOrderSeq();
             Node* root = trees[0]->getRoot();
@@ -230,9 +229,9 @@ double TreeParameter::update() {
         }
     }
     else {
-        moveChoice = 1;
+        moveChoice = TreeMoves::TREE_MOVE;
         treeCount += 1;
-        std::map<Node*, double> branchMapping = trees[0]->getBranchLengthMapping();
+        std::unordered_map<Node*, double> branchMapping = trees[0]->getBranchLengthMapping();
         trees[0]->updateAll();
         this->dirty();
 
@@ -278,11 +277,11 @@ double TreeParameter::update() {
     return hastings;
 }
 
-double TreeParameter::getBranchRate(){
+double TreeParameter::getBranchRate() const {
     return (double)branchAcceptCount/(double)branchCount;
 }
 
-double TreeParameter::getTreeRate(){
+double TreeParameter::getTreeRate() const {
     return (double)treeAcceptCount/(double)treeCount;
 }
 

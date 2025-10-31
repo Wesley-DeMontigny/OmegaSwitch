@@ -12,6 +12,10 @@ class RandomVariable;
 class RJMatrix;
 class Settings;
 
+/**
+ * @brief 
+ * 
+ */
 class RJModel : public Model {
     public:
                                 RJModel(void) = delete;
@@ -20,8 +24,8 @@ class RJModel : public Model {
 
         double                  lnLikelihood() override {return currentLikelihood; }                                    //
         double                  lnPrior() override;                                                                     //
-        std::vector<double>     getTunableParameterRecord() override;                                                   //
-        std::vector<double>     getTunableParameters() override;                                                        //
+        std::vector<double>     getTunableParameterRecord() const override;                                             //
+        std::vector<double>     getTunableParameters() const override;                                                  //
         void                    accept() override;                                                                      //
         void                    printAcceptanceRates() override;                                                        //
         void                    printTabular(int i) override;                                                           //

@@ -1,15 +1,15 @@
-#include "M0Matrix.hpp"
-#include "MatrixHelper.hpp"
-#include "core/RandomVariable.hpp"
 #include "core/Probability.hpp"
+#include "core/RandomVariable.hpp"
 #include "core/Settings.hpp"
-#include <cmath>
+#include "M0Matrix.hpp"
 #include <algorithm>
+#include <cmath>
+#include <numeric>
 
 M0Matrix::M0Matrix(Settings& settings) : 
                                    currentQMatrix(61, 61, 0.0), oldQMatrix(61, 61, 0.0), currentStationary(61, -1), oldStationary(61, -1), 
                                    kLambda(settings.kLambda), omegaLambda(settings.omegaLambda), stationaryAlpha(30000), kDelta(0.5),
-                                   omegaDelta(0.5), stationaryPriorAlpha(61, 2.0) {
+                                   omegaDelta(0.5), stationaryPriorAlpha(61, 2.0), randomStates(61, 0.0) {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
@@ -32,8 +32,7 @@ M0Matrix::M0Matrix(Settings& settings) :
 
     oldQMatrix = currentQMatrix.copy();
 
-    for(int i = 0; i < 61; i++)
-        randomStates.push_back(i);
+    std::iota(randomStates.begin(), randomStates.end(), 0);
 
     dirty();
 }
@@ -63,17 +62,17 @@ void M0Matrix::accept() {
 
     oldQMatrix = currentQMatrix.copy();
 
-    if(moveChoice == 0){
+    if(moveChoice == MatrixMoves::K_MOVE){
         kAcceptCount += 1;
     }
-    else if(moveChoice == 1){
+    else if(moveChoice == MatrixMoves::STATIONARY_MOVE){
         stationaryAcceptCount += 1;
     }
-    else if(moveChoice == 2){
+    else if(moveChoice == MatrixMoves::OMEGA_MOVE){
         omegaAcceptCount += 1;
     }
 
-    moveChoice = -1;
+    moveChoice = MatrixMoves::NO_MOVE;
 }
 
 void M0Matrix::reject() {
@@ -86,7 +85,7 @@ void M0Matrix::reject() {
 
     currentQMatrix = oldQMatrix.copy();
 
-    moveChoice = -1;
+    moveChoice = MatrixMoves::NO_MOVE;
 }
 
 double M0Matrix::lnPrior() {
@@ -97,7 +96,7 @@ double M0Matrix::updateK() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
     double hastings = 0.0;
 
-    moveChoice = 0;
+    moveChoice = MatrixMoves::K_MOVE;
     kCount += 1;
 
     double currentV = currentParams[0];
@@ -120,7 +119,7 @@ double M0Matrix::updateOmega() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
     double hastings = 0.0;
 
-    moveChoice = 2;
+    moveChoice = MatrixMoves::OMEGA_MOVE;
     omegaCount += 1;
 
     double currentV = currentParams[1];
@@ -145,7 +144,7 @@ double M0Matrix::updateStationary() {
     double hastings = 0.0;
 
     int numElements = 30;
-    moveChoice = 1;
+    moveChoice = MatrixMoves::STATIONARY_MOVE;
     stationaryCount += 1;
 
     std::vector<int> drawSet(randomStates);
@@ -216,7 +215,7 @@ double M0Matrix::updateStationary() {
     return hastings;
 }
 
-Matrix<double> M0Matrix::Q() {
+Matrix<double> M0Matrix::Q() const {
     Matrix<double> returnMatrix(currentQMatrix.copy());
 
     double scaler= 0.0;
@@ -243,7 +242,7 @@ std::vector<double> M0Matrix::getStationary(){
     return currentStationary;
 }
 
-double M0Matrix::dNdS(){
+double M0Matrix::dNdS() const {
         Matrix<double> tempMatrix(currentQMatrix.copy());
 
     for(auto coord : MatrixHelper::validPairs){
@@ -266,15 +265,15 @@ double M0Matrix::dNdS(){
     return dN1/dS1;
 }
 
-double M0Matrix::getOmegaRate(){
+double M0Matrix::getOmegaRate() const {
     return (double)omegaAcceptCount/(double)omegaCount;
 }
 
-double M0Matrix::getStationaryRate(){
+double M0Matrix::getStationaryRate() const {
     return (double)stationaryAcceptCount/(double)stationaryCount;
 }
 
-double M0Matrix::getKRate(){
+double M0Matrix::getKRate() const {
     return (double)kAcceptCount/(double)kCount;
 }
 

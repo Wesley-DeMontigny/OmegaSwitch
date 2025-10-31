@@ -1,22 +1,22 @@
-#include "core/RandomVariable.hpp"
 #include "core/Alignment.hpp"
-#include "core/Settings.hpp"
-#include "core/Probability.hpp"
 #include "core/Matrix.hpp"
-#include "ncl/nxscharactersblock.h"
-#include "modeling/analysis/Move.hpp"
+#include "core/Probability.hpp"
+#include "core/RandomVariable.hpp"
+#include "core/Settings.hpp"
 #include "modeling/analysis/MCMC.hpp"
+#include "modeling/analysis/Move.hpp"
+#include "modeling/model/M0Model.hpp"
+#include "modeling/model/Model.hpp"
+#include "modeling/model/RJDPPModel.hpp"
+#include "modeling/model/RJModel.hpp"
+#include "modeling/model/TransitionProbability.hpp"
+#include "modeling/parameters/rate_matrices/M0Matrix.hpp"
+#include "modeling/parameters/rate_matrices/RJDPPMatrix.hpp"
+#include "modeling/parameters/rate_matrices/RJMatrix.hpp"
+#include "modeling/parameters/trees/Node.hpp"
 #include "modeling/parameters/trees/TreeObject.hpp"
 #include "modeling/parameters/trees/TreeParameter.hpp"
-#include "modeling/parameters/rate_matrices/M0Matrix.hpp"
-#include "modeling/parameters/rate_matrices/RJMatrix.hpp"
-#include "modeling/parameters/rate_matrices/RJDPPMatrix.hpp"
-#include "modeling/model/TransitionProbability.hpp"
-#include "modeling/model/Model.hpp"
-#include "modeling/model/M0Model.hpp"
-#include "modeling/model/RJModel.hpp"
-#include "modeling/model/RJDPPModel.hpp"
-#include "modeling/parameters/trees/Node.hpp"
+#include "ncl/nxscharactersblock.h"
 #include <algorithm>
 #include <chrono>
 #include <taskflow/taskflow.hpp>
@@ -229,7 +229,7 @@ int main(int argc, char* argv[]) {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
     if(settings.simulateM0 == false && settings.simulateRJ == false && settings.simulateRJDPP == false){
         Alignment aln(settings.nexusInput);
-        TreeParameter treeParam(&aln, settings.fixedTree, settings.treeLengthLambda);
+        TreeParameter treeParam(aln, settings.fixedTree, settings.treeLengthLambda);
         inference(settings, aln, treeParam, false, executor);
     }
     else{
@@ -300,7 +300,7 @@ int main(int argc, char* argv[]) {
                         }
                         int ancestralState = sites[c*numNodes + nIndex];
                         if(n->getIsTip() == false){
-                            for(Node* d : n->getNeighbors()){
+                            for(Node* d : n->getNeighborRef()){
                                 if(d != n->getAncestor()){
                                     int dIndex = d->getIndex();
                                     const Matrix<double>& P = transProb(0, 0, dIndex);
@@ -379,7 +379,7 @@ int main(int argc, char* argv[]) {
                         }
                         int ancestralState = sites[c*numNodes + nIndex];
                         if(n->getIsTip() == false){
-                            for(Node* d : n->getNeighbors()){
+                            for(Node* d : n->getNeighborRef()){
                                 if(d != n->getAncestor()){
                                     int dIndex = d->getIndex();
                                     const Matrix<double>& P = transProb(0, 0, dIndex);
@@ -467,7 +467,7 @@ int main(int argc, char* argv[]) {
                         }
                         int ancestralState = sites[c*numNodes + nIndex];
                         if(n->getIsTip() == false){
-                            for(Node* d : n->getNeighbors()){
+                            for(Node* d : n->getNeighborRef()){
                                 if(d != n->getAncestor()){
                                     int dIndex = d->getIndex();
                                     const Matrix<double>& P = transProb(0, cat, dIndex);

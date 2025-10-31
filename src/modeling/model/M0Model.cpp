@@ -193,7 +193,7 @@ void M0Model::regenerateLikelihood(){
                     double* pNN = (*postOrder)(nIndex, activeCL[nIndex], 0) + start * stateSpace;
                     std::fill(pNN, pNN + (currentChunkSize * stateSpace), 1.0);
 
-                    std::set<Node*>& nNeighbors = n->getNeighbors();
+                    std::set<Node*>& nNeighbors = n->getNeighborRef();
                     for(Node* d : nNeighbors){
                         if(d != n->getAncestor()){
                             int dIndex = d->getIndex();
@@ -314,7 +314,7 @@ void M0Model::tuneMoves(){
     rateMatrix->tune();
 }
 
-std::vector<double> M0Model::getTunableParameterRecord(){
+std::vector<double> M0Model::getTunableParameterRecord() const {
     std::vector<double> record = {
         rateMatrix->getK(), rateMatrix->getOmega()
     };
@@ -326,7 +326,7 @@ std::vector<double> M0Model::getTunableParameterRecord(){
     return record;
 }
 
-std::vector<double> M0Model::getTunableParameters(){
+std::vector<double> M0Model::getTunableParameters() const {
     std::vector<double> returnVec(5, 0.0);
     returnVec[0] = tree->branchDelta;
     returnVec[1] = tree->treeAlpha;

@@ -149,7 +149,7 @@ void RJDPPModel::regenerateLikelihood(){
         activeT->updateAll();
         transProb->allocateQ(numCats);
         for(int i = 0; i < numCats; i++){
-            rateTaskflow.emplace([this, i](){
+            rateTaskflow.emplace([this, &i](){
                 transProb->updateQ(rateMatrix->Q(i), i);
             });
         }
@@ -222,7 +222,7 @@ void RJDPPModel::regenerateLikelihood(){
                     double* pNN = (*postOrder)(nIndex, activeCL[nIndex], 0) + start * stateSpace;
                     std::fill(pNN, pNN + (currentChunkSize * stateSpace), 1.0);
 
-                    std::set<Node*>& nNeighbors = n->getNeighbors();
+                    std::set<Node*>& nNeighbors = n->getNeighborRef();
                     for(Node* d : nNeighbors){
                         if(d != n->getAncestor()){
                             int dIndex = d->getIndex();
@@ -445,7 +445,7 @@ double RJDPPModel::updateDPP(){
             auto pNN = tempCLBuffer + nIndex * nodeSpacer;
             if(!n->getIsTip()){
                 std::fill(pNN, pNN + activeNodeSpacer, 1.0);
-                std::set<Node*>& nNeighbors = n->getNeighbors();
+                std::set<Node*>& nNeighbors = n->getNeighborRef();
 
                 for(Node* d : nNeighbors){
                     if(d != n->getAncestor()){
@@ -626,7 +626,7 @@ void RJDPPModel::tuneMoves(){
 }
 
 
-std::vector<double> RJDPPModel::getTunableParameterRecord(){
+std::vector<double> RJDPPModel::getTunableParameterRecord() const {
     std::vector<double> record = {
         rateMatrix->getK(), rateMatrix->getR()
     };
@@ -638,7 +638,7 @@ std::vector<double> RJDPPModel::getTunableParameterRecord(){
     return record;
 }
 
-std::vector<double> RJDPPModel::getTunableParameters(){
+std::vector<double> RJDPPModel::getTunableParameters() const {
     std::vector<double> returnVec(5, 0.0);
     returnVec[0] = tree->branchDelta;
     returnVec[1] = tree->treeAlpha;
@@ -916,7 +916,7 @@ void RJDPPModel::writeLogData(int i) {
 
         for(Node* n : preOrderSeq){
             if(n->getIsTip() == false){
-                for(Node* d : n->getNeighbors()){
+                for(Node* d : n->getNeighborRef()){
                     if(d != n->getAncestor()){
                         taskMap.at(n->getIndex()).precede(taskMap.at(d->getIndex()));
                     }

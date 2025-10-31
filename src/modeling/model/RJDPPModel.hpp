@@ -11,6 +11,10 @@ class RandomVariable;
 class RJDPPMatrix;
 class Settings;
 
+/**
+ * @brief 
+ * 
+ */
 class RJDPPModel : public Model {
     public:
         RJDPPModel(void) = delete;
@@ -20,8 +24,8 @@ class RJDPPModel : public Model {
         double                  lnLikelihood() override {return currentLikelihood; }                                    //
         double                  lnPrior() override;                                                                     //
         double updateDPP();
-        std::vector<double>     getTunableParameterRecord() override;                                                   //
-        std::vector<double>     getTunableParameters() override;                                                        //
+        std::vector<double>     getTunableParameterRecord() const override;                                             //
+        std::vector<double>     getTunableParameters() const override;                                                  //
         void                    accept() override;                                                                      //
         void                    printAcceptanceRates() override;                                                        //
         void                    printTabular(int i) override;                                                           //

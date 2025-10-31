@@ -12,8 +12,8 @@ class Model{
     public:
         virtual double                  lnLikelihood() = 0;                                     //
         virtual double                  lnPrior() = 0;                                          //
-        virtual std::vector<double>     getTunableParameterRecord() = 0;                        //
-        virtual std::vector<double>     getTunableParameters() = 0;                             //
+        virtual std::vector<double>     getTunableParameterRecord() const = 0;                  //
+        virtual std::vector<double>     getTunableParameters() const = 0;                       //
         virtual void                    accept() = 0;                                           //
         virtual void                    printAcceptanceRates() = 0;                             //
         virtual void                    printTabular(int i) = 0;                                //

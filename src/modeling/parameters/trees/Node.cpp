@@ -1,5 +1,5 @@
-#include "Node.hpp"
 #include "core/RandomVariable.hpp"
+#include "Node.hpp"
 
 /**
  * @brief Default constructor

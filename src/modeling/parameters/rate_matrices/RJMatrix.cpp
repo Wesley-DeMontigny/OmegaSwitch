@@ -1,15 +1,15 @@
-#include "RJMatrix.hpp"
-#include "MatrixHelper.hpp"
-#include "core/RandomVariable.hpp"
 #include "core/Probability.hpp"
+#include "core/RandomVariable.hpp"
 #include "core/Settings.hpp"
-#include <cmath>
+#include "RJMatrix.hpp"
 #include <algorithm>
+#include <cmath>
+#include <numeric>
 
 RJMatrix::RJMatrix(Settings& settings) : 
                                    currentQMatrix(305, 305, 0.0), oldQMatrix(305, 305, 0.0), currentStationary(61, -1), oldStationary(61, -1), 
                                    kLambda(settings.kLambda), rLambda(settings.rLambda), omegaLambda(settings.omegaLambda), rDelta(0.5),  
-                                   stationaryAlpha(30000), kDelta(0.5), omegaDelta(0.5), stationaryPriorAlpha(61, 2.0) {
+                                   stationaryAlpha(30000), kDelta(0.5), omegaDelta(0.5), stationaryPriorAlpha(61, 2.0), randomStates(61, 0.0) {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
@@ -37,8 +37,7 @@ RJMatrix::RJMatrix(Settings& settings) :
     
     oldQMatrix = currentQMatrix.copy();
 
-    for(int i = 0; i < 61; i++)
-        randomStates.push_back(i);
+    std::iota(randomStates.begin(), randomStates.end(), 0);
 
     dirty();
 }
@@ -83,20 +82,20 @@ void RJMatrix::accept() {
 
     oldQMatrix = currentQMatrix.copy();
 
-    if(moveChoice == 0){
+    if(moveChoice == MatrixMoves::K_MOVE){
         kAcceptCount += 1;
     }
-    else if(moveChoice == 1){
+    else if(moveChoice == MatrixMoves::STATIONARY_MOVE){
         stationaryAcceptCount += 1;
     }
-    else if(moveChoice == 2){
+    else if(moveChoice == MatrixMoves::OMEGA_MOVE){
         omegaAcceptCount += 1;
     }
-    else if(moveChoice == 3){
+    else if(moveChoice == MatrixMoves::R_MOVE){
         rAcceptCount += 1;
     }
 
-    moveChoice = -1;
+    moveChoice = MatrixMoves::NO_MOVE;
 }
 
 void RJMatrix::reject() {
@@ -111,7 +110,7 @@ void RJMatrix::reject() {
 
     currentQMatrix = oldQMatrix.copy();
 
-    moveChoice = -1;
+    moveChoice = MatrixMoves::NO_MOVE;
 }
 
 double RJMatrix::lnPrior() {
@@ -132,7 +131,7 @@ double RJMatrix::updateK() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
     double hastings = 0.0;
 
-    moveChoice = 0;
+    moveChoice = MatrixMoves::K_MOVE;
     kCount += 1;
 
     double currentV = currentParams[0];
@@ -156,7 +155,7 @@ double RJMatrix::updateOmega() {
     double hastings = 0.0;
     this->dirty();
 
-    moveChoice = 2;
+    moveChoice = MatrixMoves::OMEGA_MOVE;
     omegaCount += 1;
 
     int randomOmega = (int)(currentActiveOmegas * rng.uniformRv());
@@ -180,7 +179,7 @@ double RJMatrix::updateR() {
     double hastings = 0.0;
     this->dirty();
 
-    moveChoice = 3;
+    moveChoice = MatrixMoves::R_MOVE;
     rCount += 1;
 
     double currentV = currentParams[1];
@@ -200,6 +199,8 @@ double RJMatrix::updateR() {
  */
 double RJMatrix::updateActiveOmegas() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
+
+    moveChoice = MatrixMoves::RJ_MOVE;
 
     double splitAlpha = 5.0;
     double hastings = 0.0;
@@ -285,7 +286,7 @@ double RJMatrix::updateStationary() {
     double hastings = 0.0;
 
     int numElements = 30;
-    moveChoice = 1;
+    moveChoice = MatrixMoves::STATIONARY_MOVE;
     stationaryCount += 1;
 
     std::vector<int> drawSet(randomStates);
@@ -356,7 +357,7 @@ double RJMatrix::updateStationary() {
     return hastings;
 }
 
-Matrix<double> RJMatrix::Q() {
+Matrix<double> RJMatrix::Q() const {
     Matrix<double> returnMatrix(currentQMatrix.copy());
 
     int stateSpace = 61 * currentActiveOmegas;
@@ -426,7 +427,7 @@ Matrix<double> RJMatrix::Q() {
     return returnMatrix;
 }
 
-std::vector<double> RJMatrix::getStationary(){
+std::vector<double> RJMatrix::getStationary() const {
     std::vector<double> returnStationary;
 
     double factor = 1.0/(double)(currentActiveOmegas);
@@ -440,7 +441,7 @@ std::vector<double> RJMatrix::getStationary(){
     return returnStationary;
 }
 
-std::array<double, 5> RJMatrix::dNdS(){
+std::array<double, 5> RJMatrix::dNdS() const {
     Matrix<double> tempMatrix(305, 305, 0.0);
     std::array<double, 5> dNdS = {0,0,0,0,0}; // We start out with dN and then divide by dS
     std::array<double, 5> dS = {0,0,0,0,0};
@@ -490,19 +491,19 @@ std::array<double, 5> RJMatrix::dNdS(){
     return dNdS;
 }
 
-double RJMatrix::getOmegaRate(){
+double RJMatrix::getOmegaRate() const {
     return (double)omegaAcceptCount/(double)omegaCount;
 }
 
-double RJMatrix::getStationaryRate(){
+double RJMatrix::getStationaryRate() const {
     return (double)stationaryAcceptCount/(double)stationaryCount;
 }
 
-double RJMatrix::getRRate(){
+double RJMatrix::getRRate() const {
     return (double)rAcceptCount/(double)rCount;
 }
 
-double RJMatrix::getKRate(){
+double RJMatrix::getKRate() const {
     return (double)kAcceptCount/(double)kCount;
 }
 

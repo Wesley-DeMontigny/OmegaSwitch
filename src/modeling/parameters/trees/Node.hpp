@@ -2,7 +2,11 @@
 #define NODE_HPP
 #include <set>
 #include <string>
+#include <unordered_map>
 
+/**
+ * @brief The nodes a phylogenetic tree consists of
+ */
 class Node{
     public:
                             Node();
@@ -12,9 +16,9 @@ class Node{
         bool                getNeedsTPUpdate(){return needsTPUpdate;}
         int                 getIndex() const {return index;}
         int                 getOffset() const {return offset;}
-        Node*               getAncestor() {return ancestor;}
+        Node*               getAncestor() const {return ancestor;}
         static Node*        chooseNodeFromSet(std::set<Node*>& s);
-        std::set<Node*>&    getNeighbors() {return neighbors;}
+        std::set<Node*>&    getNeighborRef() {return neighbors;}
         std::string         getName() const {return name;}
         void                addNeighbor(Node* n) {neighbors.insert(n);}
         void                removeAllNeighbors() {neighbors.clear();}
@@ -36,5 +40,18 @@ class Node{
         std::set<Node*>     neighbors;
         std::string         name;
 };
+
+
+namespace std {
+    /**
+     * @brief Create a hash object so we can use unordered_maps with Node* keys
+     */
+    template <>
+    struct hash<Node*> {
+        std::size_t operator()(Node* k) const {
+            return std::hash<int>()(k->getIndex());
+        }
+    };
+}
 
 #endif

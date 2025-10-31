@@ -1,16 +1,11 @@
-#include "TreeObject.hpp"
+#include "core/Alignment.hpp"
+#include "core/Msg.hpp"
 #include "core/RandomVariable.hpp"
 #include "Node.hpp"
-#include "core/Msg.hpp"
-#include "core/Alignment.hpp"
-#include <iostream>
+#include "TreeObject.hpp"
 #include <cmath>
+#include <iostream>
 
-/*
-=======================================================================
-                    TREE CONSTRUCTORS/DESTRUCTORS
-=======================================================================
-*/
 
 TreeObject::TreeObject(int nt, bool rooted) : numTaxa(nt) {
 
@@ -86,9 +81,9 @@ TreeObject::TreeObject(int nt, bool rooted) : numTaxa(nt) {
 }
 
 //Generate a random tree and connect it to an alignment
-TreeObject::TreeObject(Alignment* aln, bool rooted) : TreeObject(aln->getNumTaxa(), rooted) {
+TreeObject::TreeObject(Alignment& aln, bool rooted) : TreeObject(aln.getNumTaxa(), rooted) {
 
-    std::vector<std::string> names = aln->getTaxaNames();
+    std::vector<std::string> names = aln.getTaxaNames();
     for(Node* n : postOrderSeq){
         if(n->getIsTip())
             n->setName(names[n->getIndex()]);
@@ -196,12 +191,6 @@ TreeObject& TreeObject::operator=(const TreeObject& rhs){
     return *this;
 }
 
-/*
-=======================================================================
-                        Other Functions
-=======================================================================
-*/
-
 Node* TreeObject::addNode(void) {
 
     Node* newNode = new Node;
@@ -231,7 +220,7 @@ void TreeObject::clone(const TreeObject& t){
         p->setNeedsTPUpdate(q->getNeedsTPUpdate());
 
         p->removeAllNeighbors();
-        std::set<Node*>& qNeighbors = q->getNeighbors();
+        std::set<Node*>& qNeighbors = q->getNeighborRef();
         for(Node* n : qNeighbors)
             p->addNeighbor(this->nodes[n->getOffset()]);
 
@@ -275,7 +264,7 @@ double TreeObject::getBranchLength(Node* n) const{
     return it->second;
 }
 
-std::vector<double> TreeObject::getBranchLengths(){
+std::vector<double> TreeObject::getBranchLengths() const {
     std::vector<double> returnVec;
     returnVec.reserve(branchLengths.size());
 
@@ -285,7 +274,7 @@ std::vector<double> TreeObject::getBranchLengths(){
     return returnVec;
 }
 
-std::map<Node*, double> TreeObject::getBranchLengthMapping(){
+std::unordered_map<Node*, double> TreeObject::getBranchLengthMapping() const {
     return branchLengths;
 }
 
@@ -295,7 +284,7 @@ std::string TreeObject::getNewick() const{
     return strm.str();
 }
 
-std::vector<Node*> TreeObject::getTips() {
+std::vector<Node*> TreeObject::getTips() const {
     std::vector<Node*> out;
     out.reserve(numTaxa);
 
@@ -348,7 +337,7 @@ void TreeObject::passDown(Node* p, std::vector<Node*>& vec) {
     if(p == nullptr)
         return;
     
-    std::set<Node*>& pNeighbors = p->getNeighbors();
+    std::set<Node*>& pNeighbors = p->getNeighborRef();
 
     for(Node* n : pNeighbors){
         if(n != p->getAncestor())
@@ -378,7 +367,7 @@ void TreeObject::showNode(Node* p, int indent) const{
         std::cout << " ";
 
     std::cout << p->getIndex() << " ( ";
-    std::set<Node*>& pNeighbors = p->getNeighbors();
+    std::set<Node*>& pNeighbors = p->getNeighborRef();
     for (Node* d : pNeighbors)
         {
         if (d == p->getAncestor())
@@ -421,7 +410,7 @@ void TreeObject::writeNode(Node* p, std::stringstream& strm) const{
     else
         strm << p->getName() << "[&index=" << p->getIndex() << "]";
 
-    std::set<Node*>& pDesc = p->getNeighbors();
+    std::set<Node*>& pDesc = p->getNeighborRef();
     bool foundFirst = false;
     for(Node* n : pDesc){
         if(n != p->getAncestor()){

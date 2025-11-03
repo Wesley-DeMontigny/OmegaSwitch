@@ -15,11 +15,9 @@ class TransitionProbability {
 	public:
                                         TransitionProbability(const int nn, const int ss);                                                      //
                                         ~TransitionProbability ();                                                                              //
-        const Matrix<double>&           operator()(int s, int r, int n) const {                                                                 //
-                                        return (s == 0) ? probs1[r][n] : probs2[r][n];
-                                        }
+        const Matrix<double>&           operator()(int s, int r, int n) const { return probs[s][r][n]; }
         int                             getNumStates(void) { return numStates; }                                                                //
-        int                             getNumMatrices(void) {return isComplex.size();}                                                         //
+        int                             getNumMatrices(void) {return isComplex[0].size();}                                                         //
         void                            accept(void);                                                                                           //
         void                            reject(void);                                                                                           //
         void                            setProbs(const int state, const int r, const int node, const double v);                                 //
@@ -30,19 +28,17 @@ class TransitionProbability {
         void                            allocateQ(int size);                                                                                    //
 
     private:
-        void                            tiProbsComplexEigens(const double v, Matrix<double> &P, ComplexRateEigen& rE, const int stateSubset);   //
-        void                            tiProbsComplexEigens(const double v, Matrix<double> &P, ComplexRateEigen& rE);                          //
-        void                            tiProbsEigens(const double v, Matrix<double> &P, RateEigen& rE, const int stateSubset);                 //
-        void                            tiProbsEigens(const double v, Matrix<double> &P, RateEigen& rE);                                        //
+        void                            computeProbs(const double v, Matrix<double> &P, ComplexRateEigen& rE, const int stateSubset);   //
+        void                            computeProbs(const double v, Matrix<double> &P, ComplexRateEigen& rE);                          //
+        void                            computeProbs(const double v, Matrix<double> &P, RateEigen& rE, const int stateSubset);                 //
+        void                            computeProbs(const double v, Matrix<double> &P, RateEigen& rE);                                        //
         
         EigenSystem*                    eigens;                                                                                                 //
         int                             numNodes;                                                                                               //
         int                             numStates;                                                                                              //
-        std::vector<bool>               isComplex;                                                                                              //
-        std::vector<bool>               isOldComplex;                                                                                           //
+        std::vector<bool>               isComplex[2];                                                                                              //                                                                                       //
         std::vector<ComplexRateEigen>   complexRateEigen;                                                                                       //
-        std::vector<Matrix<double>*>    probs1;                                                                                                 //
-        std::vector<Matrix<double>*>    probs2;                                                                                                 //
+        std::vector<Matrix<double>*>    probs[2];                                                                                                 //
         std::vector<RateEigen>          rateEigen;                                                                                              //
 };
 

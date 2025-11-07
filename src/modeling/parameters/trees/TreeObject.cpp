@@ -1,6 +1,7 @@
 #include "core/Alignment.hpp"
 #include "core/Msg.hpp"
 #include "core/RandomVariable.hpp"
+#include "core/Probability.hpp"
 #include "Node.hpp"
 #include "TreeObject.hpp"
 #include <cmath>
@@ -64,20 +65,15 @@ TreeObject::TreeObject(int nt, bool rooted) : numTaxa(nt) {
     // initialize the down pass sequence
     initPostOrder();
 
-    // Initialize branch lengths
-    for (int i=0, n=(int)postOrderSeq.size(); i<n; i++) {
-        Node* p = postOrderSeq[i];
-        if (p->getAncestor() != nullptr)
-                this->setBranchLength(p, rng.uniformRv());
-    }
-
     // index the interior nodes (the tip nodes are indexed, above)
     int intIdx = numTaxa;
-    for (int i=0, n=(int)postOrderSeq.size(); i<n; i++) {
+    for (int i=0, n=postOrderSeq.size(); i<n; i++) {
         Node* p = postOrderSeq[i];
         if (p->getIsTip() == false)
             p->setIndex(intIdx++);
     }
+
+    randomizeBranches();
 }
 
 //Generate a random tree and connect it to an alignment
@@ -109,7 +105,7 @@ TreeObject::TreeObject(std::string newick, std::vector<std::string> taxaNames){
                 p->addNeighbor(newNode);
                 newNode->addNeighbor(p);
                 newNode->setAncestor(p);
-                setBranchLength(newNode, 0.0);
+                setBranchProportion(newNode, 0.0);
             }
 
             p = newNode;
@@ -130,7 +126,8 @@ TreeObject::TreeObject(std::string newick, std::vector<std::string> taxaNames){
         else{
             if(readingBranchLength){
                 double x = atof(tok.c_str());
-                setBranchLength(p, x);
+                treeLength += x;
+                setBranchProportion(p, x);
             }
             else{
                 //We need to trim the white space at the beginning and end of the token
@@ -147,7 +144,7 @@ TreeObject::TreeObject(std::string newick, std::vector<std::string> taxaNames){
                     newNode->setAncestor(p);
                     newNode->setName(tok);
                     newNode->setIsTip(true);
-                    setBranchLength(newNode, 0.0);
+                    setBranchProportion(newNode, 0.0);
 
                     int taxonIndex = getTaxonIndex(tok, taxaNames);
                     if(taxonIndex == -1)
@@ -172,6 +169,8 @@ TreeObject::TreeObject(std::string newick, std::vector<std::string> taxaNames){
             n->setIndex(idx++);
         }
     }
+
+    randomizeBranches();
 }
 
 TreeObject::TreeObject(const TreeObject& t){
@@ -194,7 +193,7 @@ TreeObject& TreeObject::operator=(const TreeObject& rhs){
 Node* TreeObject::addNode(void) {
 
     Node* newNode = new Node;
-    newNode->setOffset((int)nodes.size());
+    newNode->setOffset(nodes.size());
     nodes.push_back(newNode);
     return newNode;
 }
@@ -205,7 +204,8 @@ void TreeObject::clone(const TreeObject& t){
         for(int i = 0; i < t.nodes.size(); i++)
             addNode();
     }
-    this->branchLengths.clear();
+    this->branchProportions.clear();
+    this->treeLength = t.treeLength;
 
     this->numTaxa = t.numTaxa;
     this->root = this->nodes[t.root->getOffset()];
@@ -226,9 +226,9 @@ void TreeObject::clone(const TreeObject& t){
 
         if(q->getAncestor() != nullptr){
             Node* ancestor = this->nodes[q->getAncestor()->getOffset()];
-            double bl = t.getBranchLength(q);
+            double bl = t.branchProportions.at(q);
             p->setAncestor(ancestor);
-            this->setBranchLength(p, bl);
+            this->setBranchProportion(p, bl);
         }
         else
             p->setAncestor(nullptr);
@@ -247,35 +247,55 @@ void TreeObject::deleteAllNodes(){
     nodes.clear();
 }
 
-void TreeObject::setBranchLength(Node* n, double length){
-    auto it = branchLengths.find(n);
+void TreeObject::randomizeBranches(){
+    RandomVariable& rng = RandomVariable::randomVariableInstance();
 
-    if(it == branchLengths.end())
-        branchLengths.insert(std::make_pair(n, length));
+    double gammaTotal = 0.0;
+    for (int i=0, n=postOrderSeq.size(); i<n; i++) {
+        Node* p = postOrderSeq[i];
+        if (p->getAncestor() != nullptr){
+            double newGamma = Probability::Gamma::rv(&rng, 1.0, 1.0);
+            gammaTotal += newGamma;
+            this->setBranchProportion(p, newGamma);
+        }
+    }
+
+    double total = 0.0;
+    for(auto& bP : branchProportions){
+        bP.second /= gammaTotal;
+        total += bP.second;
+    }
+}
+
+void TreeObject::setBranchProportion(Node* n, double p){
+    auto it = branchProportions.find(n);
+
+    if(it == branchProportions.end())
+        branchProportions.insert(std::make_pair(n, p));
     else
-        it->second = length;
+        it->second = p;
 }
 
 double TreeObject::getBranchLength(Node* n) const{
-    auto it = branchLengths.find(n);
+    auto it = branchProportions.find(n);
 
-    if(it == branchLengths.end())
+    if(it == branchProportions.end())
         Msg::error("Couldn't find branch length of pair");
-    return it->second;
+    return it->second * treeLength;
 }
 
-std::vector<double> TreeObject::getBranchLengths() const {
+std::vector<double> TreeObject::getBranchProportions() const {
     std::vector<double> returnVec;
-    returnVec.reserve(branchLengths.size());
+    returnVec.reserve(branchProportions.size());
 
-    for (auto s : branchLengths)
+    for(auto s : branchProportions)
         returnVec.push_back(s.second);
 
-    return returnVec;
+    return returnVec; 
 }
 
-std::unordered_map<Node*, double> TreeObject::getBranchLengthMapping() const {
-    return branchLengths;
+std::unordered_map<Node*, double> TreeObject::getBranchPropMapping() const {
+    return branchProportions;
 }
 
 std::string TreeObject::getNewick() const{

@@ -32,7 +32,8 @@ struct Settings {
     double                  rLambda = 3.0;                  // The rate parameter for the evolutionary regime swapping exponential prior
     double                  rWeight = 1.0;                  // Weight associated with updating the rate of swapping evolutionary rates
     double                  stationaryWeight = 2.0;         // Weight associated with updating the stationary distribution of the rate matrix
-    double                  treeLengthLambda = 3.0;         // The rate parameter associated with the branch length prior
+    double                  treeLengthMean = 6.0;           // The mean parameter associated with the tree length prior
+    double                  treeLengthSD = 1.0;             // The SD parameter associated with the tree length prior
     double                  treeWeight = 2.0;               // Weight associated with updating the tree topology or branch lengths
     int                     bayesOpt = 0;                   // How many iterations of Bayesian optimization to perform on the tunable parameters
     int                     bayesOptFrequency = 0;          // How many MCMC iterations a single iteration of Bayesian optimization uses
@@ -47,7 +48,7 @@ struct Settings {
     std::string             ancestralStatesOutput = "";     // The file to output all ancestral states to
     std::string             branchOutput = "";              // The file to output the branch length trace to
     std::string             dppOutput = "";                 // The file to output the DPP trace to
-    std::string             fixedTree = "";                 // The tree topology to enforce during MCMC
+    std::string             tree = "";                      // The tree topology to enforce during MCMC
     std::string             mcmcOutput = "";                // The file to output the general analysis trace to
     std::string             nexusInput = "";                // The nexus input file
     std::string             simulationOutput = "";          // The file to output the true simulated states to

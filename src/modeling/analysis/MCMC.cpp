@@ -10,6 +10,14 @@
 #include <iostream>
 #include <fstream>
 
+/**
+ * @brief Construct a new MCMC::MCMC object
+ * 
+ * @param m The model to sample from
+ * @param mv The collection of Metropolis-Hastings proposals to make on the parameters
+ * @param s The user settings
+ * @param dBO Whether Bayesian optimization is being used or not
+ */
 MCMC::MCMC(Model* m,  std::vector<Move>& mv, Settings& s, bool dBO) : 
     model(m), optim(6, s.bayesOptFrequency), disableBayesOpt(dBO), moves(mv), totalWeight(0.0) { 
     numIter = s.numIterations;
@@ -34,6 +42,9 @@ MCMC::MCMC(Model* m,  std::vector<Move>& mv, Settings& s, bool dBO) :
     model->accept();
 }
 
+/**
+ * @brief Perform a single Gibbs iteration using a randomly chosen move
+ */
 double MCMC::GibbsIteration(double currentLnPosterior){
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
@@ -91,6 +102,10 @@ double MCMC::GibbsIteration(double currentLnPosterior){
     return currentLnPosterior;
 }
 
+/**
+ * @brief Start a burn-in run to get the Markov chain to a reasonable region 
+ * of parameter space.
+ */
 void MCMC::burnin(){
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
@@ -153,6 +168,10 @@ void MCMC::burnin(){
     }
 }
 
+/**
+ * @brief Start the sampling run of the Markov chain
+ * 
+ */
 void MCMC::run(){
     double currentLnPosterior = model->lnLikelihood() + model->lnPrior();
 

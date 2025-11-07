@@ -21,22 +21,25 @@ class TreeObject {
                                             TreeObject(Alignment& aln, bool rooted);                                //
                                             TreeObject(const TreeObject& t);                                        //
                                             TreeObject(std::string newick, std::vector<std::string> taxaNames);     //
-                                            ~TreeObject(void);                                                      //
+                                            ~TreeObject();                                                          //
         TreeObject&                         operator=(const TreeObject& rhs);                                       //
 
         double                              getBranchLength(Node* n) const;                                         //
+        double                              getTreeLength() const {return treeLength;}                              //
         int                                 getNumNodes() const {return nodes.size();}                              //
         int                                 getNumTaxa() const {return numTaxa;}                                    //
         Node*                               getRoot() const {return root;}                                          //
-        std::unordered_map<Node*, double>   getBranchLengthMapping() const;                                         //
+        std::unordered_map<Node*, double>   getBranchPropMapping() const;                                           //
         std::string                         getNewick() const;                                                      //
-        std::vector<double>                 getBranchLengths() const;                                               //
+        std::vector<double>                 getBranchProportions() const;                                           //
         std::vector<Node*>                  getPostOrderSeq() const {return postOrderSeq;}                          //
         std::vector<Node*>                  getTips() const;                                                        //
-        void                                initPostOrder(void);                                                    //
+        void                                initPostOrder();                                                        //
         void                                print(std::string header) const;                                        //
-        void                                print(void) const;                                                      //
-        void                                setBranchLength(Node* n, double length);                                //
+        void                                print() const;                                                          //
+        void                                randomizeBranches();                                                    //
+        void                                setBranchProportion(Node* n, double p);                                 //
+        void                                setTreeLength(double length) {treeLength = length;};                    //
         void                                updateAll();                                                            //
         
     private:
@@ -51,7 +54,8 @@ class TreeObject {
 
         int                                 numTaxa;                                                                //
         Node*                               root;                                                                   //
-        std::unordered_map<Node*, double>   branchLengths;                                                          //
+        std::unordered_map<Node*, double>   branchProportions;                                                      //
+        double                              treeLength = 6.0;                                                       //
         std::vector<Node*>                  nodes;                                                                  //
         std::vector<Node*>                  postOrderSeq;                                                           //
 };

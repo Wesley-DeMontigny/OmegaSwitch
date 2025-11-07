@@ -6,14 +6,14 @@
 #include <iostream>
 
 /**
- * @brief 
- * 
+ * @brief An MCMC "move" or proposal that is called to update the parameters
+ * in a particular way.
  */
 struct Move {
-    double                      weight;                         //
-    int                         gibbsIterations;                //
-    std::function<double()>     action;                         //
-    std::function<bool()>       condition;                      //
+    double                      weight;                         // The weight of the proposal (how often to propose it)
+    int                         gibbsIterations;                // The number of Metropolis-Hastings proposals per Gibbs sampling iteration
+    std::function<double()>     action;                         // The funciton that calls the move
+    std::function<bool()>       condition;                      // The condition for including this move
 };
 
 #endif

@@ -10,7 +10,7 @@
 
 RJDPPMatrix::RJDPPMatrix(Settings& settings, int nC) : 
                                    currentQMatrix(183, 183, 0.0), oldQMatrix(183, 183, 0.0), currentStationary(61, -1), oldStationary(61, -1), 
-                                   kLambda(settings.kLambda), rLambda(settings.rLambda), rDelta(0.5),  stationaryAlpha(30000), kDelta(0.5),
+                                   kLambda(settings.kLambda), rLambda(settings.rLambda), rDelta(0.5),  stationaryAlpha(30000), kDelta(0.5), omegaDelta(0.5),
                                    stationaryPriorAlpha(61, 2.0), numChar(nC), omegaLambda(settings.omegaLambda), assignments(nC, 0), randomStates(61, 0.0) {
 
 
@@ -110,6 +110,10 @@ void RJDPPMatrix::accept() {
     }
     else if(moveChoice == MatrixMoves::OMEGA_MOVE){
         omegaAcceptCount += 1;
+    }
+
+    if(moveChoice == MatrixMoves::EXCHANGE_MOVE){
+        std::cout << "Accepted Exchange!" << std::endl;
     }
 
     moveChoice = MatrixMoves::NO_MOVE;
@@ -279,16 +283,58 @@ double RJDPPMatrix::updateOmega() {
     int randomCategory = (int)(rng.uniformRv() * currentCategories.size());
     currentCategories[randomCategory].dirty = true;
 
-    moveChoice = MatrixMoves::OMEGA_MOVE;
-    omegaCount += 1;
+    double randomMove = rng.uniformRv();
 
-    int randomOmega = (int)(rng.uniformRv() * currentActiveOmegas);
-    double currentV = currentCategories[randomCategory].omegas[randomOmega];
-    double scale = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
-    double newV = currentV * scale;
+    if(randomMove < 0.6 || currentActiveOmegas == 1){ // Scale Move
+        moveChoice = MatrixMoves::OMEGA_MOVE;
+        omegaCount += 1;
 
-    currentCategories[randomCategory].omegas[randomOmega] = newV;
-    hastings = std::log(scale);
+        int randomOmega = (int)(rng.uniformRv() * currentActiveOmegas);
+        double currentV = currentCategories[randomCategory].omegas[randomOmega];
+        double scale = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
+        double newV = currentV * scale;
+
+        currentCategories[randomCategory].omegas[randomOmega] = newV;
+        hastings = std::log(scale);
+    }
+    else if(randomMove < 0.9){ // Exchange Move
+        moveChoice = MatrixMoves::EXCHANGE_MOVE;
+
+        int randomOmega1 = (int)(currentActiveOmegas * rng.uniformRv());
+        int randomOmega2 = 0;
+
+        do {
+            randomOmega2 = (int)(currentActiveOmegas * rng.uniformRv());
+        }
+        while(randomOmega2 == randomOmega1);
+        
+        double forwardU = Probability::Beta::rv(&rng, 5.0, 5.0);
+        double originalO1 = currentCategories[randomCategory].omegas[randomOmega1];
+
+        currentCategories[randomCategory].omegas[randomOmega1] *= (1-forwardU);
+        currentCategories[randomCategory].omegas[randomOmega2] += forwardU * originalO1;
+
+        double reverseU = (originalO1 - currentCategories[randomCategory].omegas[randomOmega1]) / currentCategories[randomCategory].omegas[randomOmega2];
+
+        hastings = Probability::Beta::lnPdf(5.0, 5.0, reverseU) - Probability::Beta::lnPdf(5.0, 5.0, forwardU);
+        hastings += std::log(originalO1); // Add the Jacobain correction |(1-U, -O1), (U, O1)| = 01
+    }
+    else { // Re-Index Move
+        moveChoice = MatrixMoves::REINDEX_MOVE;
+
+        int randomOmega1 = (int)(currentActiveOmegas * rng.uniformRv());
+        int randomOmega2 = 0;
+
+        do {
+            randomOmega2 = (int)(currentActiveOmegas * rng.uniformRv());
+        }
+        while(randomOmega2 == randomOmega1);
+
+        double tempO = currentCategories[randomCategory].omegas[randomOmega1];
+
+        currentCategories[randomCategory].omegas[randomOmega1] = currentCategories[randomCategory].omegas[randomOmega2];
+        currentCategories[randomCategory].omegas[randomOmega2] = tempO;
+    }
 
     regenerateCatPrior();
 
@@ -298,13 +344,12 @@ double RJDPPMatrix::updateOmega() {
 
 double RJDPPMatrix::updateActiveOmegas() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
-
-    moveChoice = MatrixMoves::RJ_MOVE;
-
-    double splitAlpha = 5.0;
     double hastings = 0.0;
     this->dirty();
 
+    moveChoice = MatrixMoves::SPLIT_MERGE_MOVE;
+
+    double splitAlpha = 5.0;
     double total = MatrixHelper::possibleSplit3[currentActiveOmegas-1] + MatrixHelper::possibleMerge3[currentActiveOmegas - 1];
     double splitProbs = (double)(MatrixHelper::possibleSplit3[currentActiveOmegas-1]) / total;
     double randomMove = rng.uniformRv();

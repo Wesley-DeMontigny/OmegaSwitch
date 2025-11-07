@@ -348,7 +348,7 @@ std::vector<double> RJModel::getTunableParameterRecord() const {
     };
     for(double entry : rateMatrix->getRawStationary())
         record.push_back(entry);
-    for(double entry : tree->getTree()->getBranchLengths())
+    for(double entry : tree->getTree()->getBranchProportions())
         record.push_back(entry);
 
     return record;
@@ -356,8 +356,8 @@ std::vector<double> RJModel::getTunableParameterRecord() const {
 
 std::vector<double> RJModel::getTunableParameters() const {
     std::vector<double> returnVec(6, 0.0);
-    returnVec[0] = tree->branchDelta;
-    returnVec[1] = tree->treeAlpha;
+    returnVec[0] = tree->branchAlpha;
+    returnVec[1] = tree->treeDelta;
     returnVec[2] = rateMatrix->stationaryAlpha;
     returnVec[3] = rateMatrix->kDelta;
     returnVec[4] = rateMatrix->omegaDelta;
@@ -366,8 +366,8 @@ std::vector<double> RJModel::getTunableParameters() const {
 }
 
 void RJModel::setTunableParameters(const std::vector<double> & v){
-    tree->branchDelta = v[0];
-    tree->treeAlpha = v[1];
+    tree->branchAlpha = v[0];
+    tree->treeDelta = v[1];
     rateMatrix->stationaryAlpha = v[2];
     rateMatrix->kDelta = v[3];
     rateMatrix->omegaDelta = v[4];
@@ -382,7 +382,7 @@ void RJModel::printAcceptanceRates() {
 
 void RJModel::printTabular(int i) {
     if(i == 0){
-        std::string returnString = "Iteration\tPosterior\tLikelihood\tPrior\tOmegaCount\tK\tOmega\tOmegaIncrement1\tOmegaIncrement2\tOmegaIncrement3\tOmegaIncrement4\tR";
+        std::string returnString = "Iteration\tPosterior\tLikelihood\tPrior\tTreeLength\tOmegaCount\tK\tOmega\tOmegaIncrement1\tOmegaIncrement2\tOmegaIncrement3\tOmegaIncrement4\tR";
         for(int i = 0; i < 61; i++)
             returnString += "\tPi[" + std::to_string(i) + "]";
             
@@ -391,7 +391,7 @@ void RJModel::printTabular(int i) {
     }
     else{
         std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" +
-                                std::to_string(currentLikelihood) + "\t" + std::to_string(lnPrior()) + "\t" +
+                                std::to_string(currentLikelihood) + "\t" + std::to_string(lnPrior()) + "\t" + std::to_string(tree->getTree()->getTreeLength()) + "\t" +
                                 std::to_string(rateMatrix->getActiveOmegas()) + "\t" +
                                 std::to_string(rateMatrix->getK()) + "\t" + std::to_string(rateMatrix->getOmega(0)) + "\t" +
                                 std::to_string(rateMatrix->getOmega(1)) + "\t" + std::to_string(rateMatrix->getOmega(2)) + "\t" +
@@ -408,7 +408,7 @@ void RJModel::printTabular(int i) {
 
 void RJModel::writeLogHeaders() {
     if(analysisLog != ""){
-        std::string tabHeader = "Iteration\tPosterior\tLikelihood\tPrior\tOmegaCount\tK\tOmega\tOmegaIncrement1\tOmegaIncrement2\tOmegaIncrement3\tOmegaIncrement4\tR";
+        std::string tabHeader = "Iteration\tPosterior\tLikelihood\tPrior\tTreeLength\tOmegaCount\tK\tOmega\tOmegaIncrement1\tOmegaIncrement2\tOmegaIncrement3\tOmegaIncrement4\tR";
         for(int i = 0; i < 61; i++)
             tabHeader += "\tPi[" + std::to_string(i) + "]";
         tabHeader += "\n";
@@ -477,7 +477,7 @@ void RJModel::writeLogHeaders() {
 void RJModel::writeLogData(int i) {
     if(analysisLog != ""){
         std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" +
-                                std::to_string(currentLikelihood) + "\t" + std::to_string(lnPrior()) + "\t" +
+                                std::to_string(currentLikelihood) + "\t" + std::to_string(lnPrior()) + "\t" + std::to_string(tree->getTree()->getTreeLength()) + "\t" +
                                 std::to_string(rateMatrix->getActiveOmegas()) + "\t" +
                                 std::to_string(rateMatrix->getK()) + "\t" + std::to_string(rateMatrix->getOmega(0)) + "\t" +
                                 std::to_string(rateMatrix->getOmega(1)) + "\t" + std::to_string(rateMatrix->getOmega(2)) + "\t" +

@@ -320,7 +320,7 @@ std::vector<double> M0Model::getTunableParameterRecord() const {
     };
     for(double entry : rateMatrix->getRawStationary())
         record.push_back(entry);
-    for(double entry : tree->getTree()->getBranchLengths())
+    for(double entry : tree->getTree()->getBranchProportions())
         record.push_back(entry);
 
     return record;
@@ -328,8 +328,8 @@ std::vector<double> M0Model::getTunableParameterRecord() const {
 
 std::vector<double> M0Model::getTunableParameters() const {
     std::vector<double> returnVec(5, 0.0);
-    returnVec[0] = tree->branchDelta;
-    returnVec[1] = tree->treeAlpha;
+    returnVec[0] = tree->branchAlpha;
+    returnVec[1] = tree->treeDelta;
     returnVec[2] = rateMatrix->stationaryAlpha;
     returnVec[3] = rateMatrix->kDelta;
     returnVec[4] = rateMatrix->omegaDelta;
@@ -337,8 +337,8 @@ std::vector<double> M0Model::getTunableParameters() const {
 }
 
 void M0Model::setTunableParameters(const std::vector<double> & v){
-    tree->branchDelta = v[0];
-    tree->treeAlpha = v[1];
+    tree->branchAlpha = v[0];
+    tree->treeDelta = v[1];
     rateMatrix->stationaryAlpha = v[2];
     rateMatrix->kDelta = v[3];
     rateMatrix->omegaDelta = v[4];
@@ -352,7 +352,7 @@ void M0Model::printAcceptanceRates(){
 
 void M0Model::printTabular(int i){
     if(i == 0){
-        std::string returnString = "Iteration\tPosterior\tLikelihood\tPrior\tK\tOmega";
+        std::string returnString = "Iteration\tPosterior\tLikelihood\tPrior\tTreeLength\tK\tOmega";
         for(int i = 0; i < 61; i++)
             returnString += "\tPi[" + std::to_string(i) + "]";
 
@@ -360,7 +360,7 @@ void M0Model::printTabular(int i){
     }
     else{
         std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" +
-                                std::to_string(currentLikelihood) + "\t" + std::to_string(lnPrior()) + "\t" +
+                                std::to_string(currentLikelihood) + "\t" + std::to_string(lnPrior()) + "\t" + std::to_string(tree->getTree()->getTreeLength()) + "\t" +
                                 std::to_string(rateMatrix->getK()) + "\t" + std::to_string(rateMatrix->getOmega());
         std::vector<double> stationary = rateMatrix->getRawStationary();
         for(double i : stationary){
@@ -373,7 +373,7 @@ void M0Model::printTabular(int i){
 
 void M0Model::writeLogHeaders(){
     if(analysisLog != ""){
-        std::string tabHeader = "Iteration\tPosterior\tLikelihood\tPrior\tK\tOmega";
+        std::string tabHeader = "Iteration\tPosterior\tLikelihood\tPrior\tTreeLength\tK\tOmega";
         for(int i = 0; i < 61; i++)
             tabHeader += "\tPi[" + std::to_string(i) + "]";
         tabHeader += "\n";
@@ -413,7 +413,7 @@ void M0Model::writeLogHeaders(){
 void M0Model::writeLogData(int i) {
     if(analysisLog != ""){
         std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" +
-                                std::to_string(currentLikelihood) + "\t" + std::to_string(lnPrior()) + "\t" +
+                                std::to_string(currentLikelihood) + "\t" + std::to_string(lnPrior()) + "\t" + std::to_string(tree->getTree()->getTreeLength()) + "\t" +
                                 std::to_string(rateMatrix->getK()) + "\t" + std::to_string(rateMatrix->getOmega());
         std::vector<double> stationary = rateMatrix->getRawStationary();
         for(double i : stationary){

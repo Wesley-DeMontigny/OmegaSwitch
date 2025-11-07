@@ -149,7 +149,7 @@ void RJDPPModel::regenerateLikelihood(){
         activeT->updateAll();
         transProb->allocateQ(numCats);
         for(int i = 0; i < numCats; i++){
-            rateTaskflow.emplace([this, &i](){
+            rateTaskflow.emplace([this, i](){
                 transProb->updateQ(rateMatrix->Q(i), i);
             });
         }
@@ -632,7 +632,7 @@ std::vector<double> RJDPPModel::getTunableParameterRecord() const {
     };
     for(double entry : rateMatrix->getRawStationary())
         record.push_back(entry);
-    for(double entry : tree->getTree()->getBranchLengths())
+    for(double entry : tree->getTree()->getBranchProportions())
         record.push_back(entry);
 
     return record;
@@ -640,8 +640,8 @@ std::vector<double> RJDPPModel::getTunableParameterRecord() const {
 
 std::vector<double> RJDPPModel::getTunableParameters() const {
     std::vector<double> returnVec(5, 0.0);
-    returnVec[0] = tree->branchDelta;
-    returnVec[1] = tree->treeAlpha;
+    returnVec[0] = tree->branchAlpha;
+    returnVec[1] = tree->treeDelta;
     returnVec[2] = rateMatrix->stationaryAlpha;
     returnVec[3] = rateMatrix->kDelta;
     returnVec[4] = rateMatrix->rDelta;
@@ -649,8 +649,8 @@ std::vector<double> RJDPPModel::getTunableParameters() const {
 }
 
 void RJDPPModel::setTunableParameters(const std::vector<double> & v){
-    tree->branchDelta = v[0];
-    tree->treeAlpha = v[1];
+    tree->branchAlpha= v[0];
+    tree->treeDelta = v[1];
     rateMatrix->stationaryAlpha = v[2];
     rateMatrix->kDelta = v[3];
     rateMatrix->rDelta = v[4];
@@ -664,7 +664,7 @@ void RJDPPModel::printAcceptanceRates(){
 
 void RJDPPModel::printTabular(int i){
     if(i == 0){
-        std::string returnString = "Iteration\tPosterior\tLikelihood\tPrior\tOmegaCount\tK\tR";
+        std::string returnString = "Iteration\tPosterior\tLikelihood\tPrior\tTreeLength\tOmegaCount\tK\tR";
         for(int i = 0; i < 61; i++)
             returnString += "\tPi[" + std::to_string(i) + "]";
             
@@ -673,7 +673,7 @@ void RJDPPModel::printTabular(int i){
     }
     else{
         std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" +
-                                std::to_string(currentLikelihood) + "\t" + std::to_string(lnPrior()) + "\t" +
+                                std::to_string(currentLikelihood) + "\t" + std::to_string(lnPrior()) + "\t" + std::to_string(tree->getTree()->getTreeLength()) + "\t" +
                                 std::to_string(rateMatrix->getActiveOmegas()) + "\t" +
                                 std::to_string(rateMatrix->getK()) + "\t" +std::to_string(rateMatrix->getR());
         std::vector<double> stationary = rateMatrix->getRawStationary();
@@ -687,7 +687,7 @@ void RJDPPModel::printTabular(int i){
 
 void RJDPPModel::writeLogHeaders(){
     if(analysisLog != ""){
-        std::string tabHeader = "Iteration\tPosterior\tLikelihood\tPrior\tOmegaCount\tK\tR";
+        std::string tabHeader = "Iteration\tPosterior\tLikelihood\tPrior\tTreeLength\tOmegaCount\tK\tR";
         for(int i = 0; i < 61; i++)
             tabHeader += "\tPi[" + std::to_string(i) + "]";
         tabHeader += "\n";
@@ -766,7 +766,7 @@ void RJDPPModel::writeLogHeaders(){
 void RJDPPModel::writeLogData(int i) {
     if(analysisLog != ""){
         std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" +
-                                std::to_string(currentLikelihood) + "\t" + std::to_string(lnPrior()) + "\t" +
+                                std::to_string(currentLikelihood) + "\t" + std::to_string(lnPrior()) + "\t" + std::to_string(tree->getTree()->getTreeLength()) + "\t" +
                                 std::to_string(rateMatrix->getActiveOmegas()) + "\t" +
                                 std::to_string(rateMatrix->getK()) + "\t" + std::to_string(rateMatrix->getR());
         std::vector<double> stationary = rateMatrix->getRawStationary();

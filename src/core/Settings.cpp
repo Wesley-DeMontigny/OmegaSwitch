@@ -32,7 +32,6 @@ Settings::Settings(int argc,  char* argv[]) {
     settings.push_back("-simulationOutput");
     settings.push_back("/workspaces/Varying_Selection_DPP/testing/sim.log");
     numSimulations = 1;
-    burnInIterations = 1;
     settings.push_back("-RJ");
     #endif
     if (settings.size() == 0) {
@@ -123,8 +122,10 @@ Settings::Settings(int argc,  char* argv[]) {
                 bayesOpt = stoi(settings[i]);
             else if (currentArg == "-bayesOptFreq")
                 bayesOptFrequency = stoi(settings[i]);
-            else if (currentArg == "-treeLambda")
-                treeLengthLambda = stod(settings[i]);
+            else if (currentArg == "-treeMean")
+                treeLengthMean = stod(settings[i]);
+            else if (currentArg == "-treeSD")
+                treeLengthSD = stod(settings[i]);
             else if (currentArg == "-omegaLambda")
                 omegaLambda = stod(settings[i]);
             else if (currentArg == "-kLambda")
@@ -145,8 +146,8 @@ Settings::Settings(int argc,  char* argv[]) {
                 treeWeight = stod(settings[i]);
             else if (currentArg == "-omegaWeight")
                 omegaWeight = stod(settings[i]);
-            else if (currentArg == "-fixedTree")
-                fixedTree = settings[i];
+            else if (currentArg == "-tree")
+                tree = settings[i];
             else if (currentArg == "-numSimulations")
                 numSimulations = stoi(settings[i]);
             else if (currentArg == "-simulationOutput")
@@ -159,9 +160,9 @@ Settings::Settings(int argc,  char* argv[]) {
         }
     }
 
-    if((nexusInput == "" || treeOutput == "" || mcmcOutput == "") && !simulating){
+    if((nexusInput == "" || treeOutput == "" || mcmcOutput == "" || tree == "") && !simulating){
         usage();
-        Msg::error("For non-simulation analyses, nexusInput, treeOut, mcmcOut are required arguments.");
+        Msg::error("For non-simulation analyses, nexusInput, treeOut, mcmcOut, and a topology are required arguments.");
     }
 
     if(simulating && nexusInput != ""){
@@ -169,7 +170,7 @@ Settings::Settings(int argc,  char* argv[]) {
         Msg::warning("Simulation analyses cannot use a nexus input. This file will be ignored!");
     }
 
-    if(simulating && fixedTree != ""){
+    if(simulating && tree != ""){
         usage();
         Msg::warning("Simulation analyses cannot use a provided tree. This file will be ignored!");
     }
@@ -202,7 +203,7 @@ void Settings::print(){
     std::cout << "   * -dppOut            : " << dppOutput << std::endl;
     std::cout << "   * -tipsOut           : " << tipsOutput << std::endl;
     std::cout << "   * -ancestralStatesOut: " << ancestralStatesOutput << std::endl;
-    std::cout << "   * -fixedTree         : " << fixedTree << std::endl;
+    std::cout << "   * -tree         : " << tree << std::endl;
     std::cout << "   * -simulationOutput  : " << simulationOutput << std::endl;
     std::cout << std::endl;
 
@@ -217,7 +218,8 @@ void Settings::print(){
     std::cout << std::endl;
     
     std::cout << "Model Parameters:" << std::endl;
-    std::cout << "   * -treeLambda        : " << treeLengthLambda << std::endl;
+    std::cout << "   * -treeMean          : " << treeLengthMean << std::endl;
+    std::cout << "   * -treeSD            : " << treeLengthSD << std::endl;
     std::cout << "   * -omegaLambda       : " << omegaLambda << std::endl;
     std::cout << "   * -kLambda           : " << kLambda << std::endl;
     std::cout << "   * -rLambda           : " << rLambda << std::endl;
@@ -256,7 +258,7 @@ void Settings::usage() {
     std::cout << "   * -dppOut            : The output file name for the DPP parameters." << std::endl;
     std::cout << "   * -tipsOut           : The output file name for the reconstructed tip dNdS ratios." << std::endl;
     std::cout << "   * -ancestralStatesOut: The output file name for the all ancestral dNdS ratios." << std::endl;
-    std::cout << "   * -fixedTree         : The NEWICK string corresponding to the fixed tree you wish to analyze." << std::endl;
+    std::cout << "   * -tree              : The NEWICK string corresponding to the fixed tree you wish to analyze." << std::endl;
     std::cout << "   * -simulationOutput  : The output file name for the true simulation parameters." << std::endl;
     std::cout << std::endl;
 
@@ -272,7 +274,8 @@ void Settings::usage() {
     std::cout << std::endl;
 
     std::cout << "Model Parameters:" << std::endl;
-    std::cout << "   * -treeLambda        : Rate parameter for the tree length exponential prior." << std::endl;
+    std::cout << "   * -treeMean          : Mean for the tree length prior." << std::endl;
+    std::cout << "   * -treeSD            : SD for the tree length prior." << std::endl;
     std::cout << "   * -omegaLambda       : Rate parameter for the nonsynonymous mutation rate's exponential prior." << std::endl;
     std::cout << "   * -kLambda           : Rate parameter for the transition/transversion rate's exponential prior." << std::endl;
     std::cout << "   * -rLambda           : Rate parameter for the matrix-swapping rate's exponential prior." << std::endl;

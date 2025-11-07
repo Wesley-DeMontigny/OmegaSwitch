@@ -9,8 +9,8 @@
  */
 enum TreeMoves{
     NO_MOVE = 1,
-    BRANCH_MOVE = 2,
-    TREE_MOVE = 3
+    BRANCH_PROPORTION_MOVE = 2,
+    TREE_LENGTH_MOVE = 3
 };
 
 /**
@@ -22,8 +22,8 @@ enum TreeMoves{
 class TreeParameter : public Parameter{
     public:
                             TreeParameter(void)=delete;
-                            TreeParameter(Alignment& aln, std::string& newick, double lambda);  // Construct a new tree from an alignment, a newick string, and a rate parameter for the exponential prior
-                            TreeParameter(TreeObject& tree, double lambda);                     // Construct a new tree from a pre-made tree object and a rate parameter for the exponential prior
+                            TreeParameter(Alignment& aln, std::string& newick, double p[2]);    // Construct a new tree from an alignment, a newick string, and the parameters for the prior
+                            TreeParameter(TreeObject& tree, double p[2]);                       // Construct a new tree from a pre-made tree object and a rate parameter for the exponential prior
                             ~TreeParameter();                                                   // Destructor
 
         double              getBranchRate() const;                                              // Get the acceptance rate for branch proposals
@@ -36,18 +36,17 @@ class TreeParameter : public Parameter{
         void                reject() override;                                                  // Reject changes proposed to the tree
         void                tune() override;                                                    // Tune proposals that update the tree
 
-        double              branchDelta;                                                        // The delta parameter for the scale branch move
-        double              treeAlpha;                                                          // The alpha parameter for the simplex move on branch lengths
+        double              treeDelta = 1.0;                                                    // The delta parameter for the scale branch move
+        double              branchAlpha = 1000.0;                                               // The alpha parameter for the simplex move on branch lengths
     private:
-        bool                fixedTree;                                                          // Whether the tree topology is fixed
-        double              currentPrior;                                                       // The current log prior probability
-        double              lambda;                                                             // The rate parameter for the exponential prior on branch lengths
-        double              oldPrior;                                                           // The old log prior probability
-        int                 branchAcceptCount;                                                  // The number of accepted branch scale moves
-        int                 branchCount;                                                        // The number of proposed branch scale moves
-        TreeMoves           moveChoice;                                                         // The last move proposed
-        int                 treeAcceptCount;                                                    // The number of accepted simplex moves on the whole tree
-        int                 treeCount;                                                          // The number of proposed simplex moves on the whole tree
+        double              currentPrior = 0.0;                                                 // The current log prior probability
+        double              priorParams[2];                                                     // The rate parameter for the exponential prior on branch lengths
+        double              oldPrior = 0.0;                                                     // The old log prior probability
+        int                 branchAcceptCount = 0;                                              // The number of accepted branch moves
+        int                 branchCount = 0;                                                    // The number of proposed branch moves
+        TreeMoves           moveChoice = TreeMoves::NO_MOVE;                                    // The last move proposed
+        int                 treeAcceptCount = 0;                                                // The number of accepted tree length moves
+        int                 treeCount = 0;                                                      // The number of proposed tree length moves
         TreeObject*         trees[2];                                                           // The active and inactive tree objects
 };
 

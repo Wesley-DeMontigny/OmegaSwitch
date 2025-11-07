@@ -47,7 +47,7 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
         });
         moves.emplace_back(Move{
             settings.omegaWeight,
-            3,
+            5,
             [&rateMatrix]() {return rateMatrix.updateOmega();},
             []() {return true;}
         });
@@ -98,7 +98,7 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
         });
         moves.emplace_back(Move{
             settings.omegaWeight,
-            3,
+            10,
             [&rateMatrix]() {return rateMatrix.updateOmega();},
             []() {return true;}
         });
@@ -155,7 +155,7 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
         });
         moves.emplace_back(Move{
             settings.omegaWeight,
-            3,
+            5,
             [&rateMatrix]() {return rateMatrix.updateOmega();},
             []() {return true;}
         });
@@ -226,10 +226,15 @@ int main(int argc, char* argv[]) {
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
+    double alphaLength = (settings.treeLengthMean * settings.treeLengthMean) / (settings.treeLengthSD * settings.treeLengthSD);
+    double betaLength = settings.treeLengthMean / (settings.treeLengthSD * settings.treeLengthSD);
+
+    double treeLengthParams[2] = {alphaLength, betaLength};
+
     RandomVariable& rng = RandomVariable::randomVariableInstance();
     if(settings.simulateM0 == false && settings.simulateRJ == false && settings.simulateRJDPP == false){
         Alignment aln(settings.nexusInput);
-        TreeParameter treeParam(aln, settings.fixedTree, settings.treeLengthLambda);
+        TreeParameter treeParam(aln, settings.tree, treeLengthParams);
         inference(settings, aln, treeParam, false, executor);
     }
     else{
@@ -255,16 +260,12 @@ int main(int argc, char* argv[]) {
             std::cout << "Starting simulation " << i << "..." << std::endl;
 
             TreeObject tree(numTaxa, true);
+            double treeLength = Probability::Gamma::rv(&rng, alphaLength, betaLength);
+            tree.setTreeLength(treeLength);
             std::vector<Node*> preOrderSeq = tree.getPostOrderSeq();
             std::reverse(preOrderSeq.begin(), preOrderSeq.end());
             Node* root = tree.getRoot();
             int numNodes = tree.getNumNodes();
-
-            for(Node* n : preOrderSeq) {
-                if(n != root) {
-                    tree.setBranchLength(n, Probability::Exponential::rv(&rng, settings.treeLengthLambda));
-                }
-            }
 
             int* sites = new int[numSites * numNodes];
             for(int c = 0; c < numSites * numNodes; c++){
@@ -317,7 +318,7 @@ int main(int argc, char* argv[]) {
                 std::cout << "Writing true parameters to file..." << std::endl;
                 std::ofstream fs;
                 fs.open(settings.simulationOutput + std::to_string(i), std::ofstream::out);
-                fs << "K\tOmega";
+                fs << "TreeLength\tK\tOmega";
                 for(int element = 0; element < 61; element++){
                     fs << "\tStationary[" << element << "]";
                 }
@@ -328,7 +329,7 @@ int main(int argc, char* argv[]) {
                     }
                 }
                 fs << std::endl;
-                fs << rateMatrix.getK() << "\t" << rateMatrix.getOmega();
+                fs << treeLength << "\t" << rateMatrix.getK() << "\t" << rateMatrix.getOmega();
                 for(int element = 0; element < 61; element++){
                     fs << "\t" << stationary[element];
                 }
@@ -397,7 +398,7 @@ int main(int argc, char* argv[]) {
                 std::cout << "Writing true parameters to file..." << std::endl;
                 std::ofstream fs;
                 fs.open(settings.simulationOutput + std::to_string(i), std::ofstream::out);
-                fs << "OmegaCount\tK\tOmega\tOmegaIncrement1\tOmegaIncrement2\tOmegaIncrement3\tOmegaIncrement4\tR";
+                fs << "TreeLength\tOmegaCount\tK\tOmega\tOmegaIncrement1\tOmegaIncrement2\tOmegaIncrement3\tOmegaIncrement4\tR";
                 for(int element = 0; element < 61; element++){
                     fs << "\tStationary[" << element << "]";
                 }
@@ -408,7 +409,7 @@ int main(int argc, char* argv[]) {
                     }
                 }
                 fs << std::endl;
-                fs << activeOmegas << "\t" << rateMatrix.getK() << "\t" << rateMatrix.getOmega(0) 
+                fs << treeLength << "\t" << activeOmegas << "\t" << rateMatrix.getK() << "\t" << rateMatrix.getOmega(0) 
                    << "\t" << rateMatrix.getOmega(1) << "\t" << rateMatrix.getOmega(2) << "\t" 
                    << rateMatrix.getOmega(3) << "\t" << rateMatrix.getOmega(4) << "\t" << rateMatrix.getR();
                 for(int element = 0; element < 61; element++){
@@ -485,7 +486,7 @@ int main(int argc, char* argv[]) {
                 std::cout << "Writing true parameters to file..." << std::endl;
                 std::ofstream fs;
                 fs.open(settings.simulationOutput + std::to_string(i), std::ofstream::out);
-                fs << "OmegaCount\tK\tR\tCategoryCount";
+                fs << "TreeLength\tOmegaCount\tK\tR\tCategoryCount";
                 for(int element = 0; element < 61; element++){
                     fs << "\tStationary[" << element << "]";
                 }
@@ -496,7 +497,7 @@ int main(int argc, char* argv[]) {
                     }
                 }
                 fs << std::endl;
-                fs << activeOmegas << "\t" << rateMatrix.getK() << "\t" << rateMatrix.getR() << "\t" << categories.size();
+                fs << treeLength << "\t" << activeOmegas << "\t" << rateMatrix.getK() << "\t" << rateMatrix.getR() << "\t" << categories.size();
                 for(int element = 0; element < 61; element++){
                     fs << "\t" << stationary[element];
                 }
@@ -518,7 +519,7 @@ int main(int argc, char* argv[]) {
 
             //Change the name I am logging to according to the number simulation it is
             if(!settings.sequentialTuningSim){
-                TreeParameter treeParam(tree, settings.treeLengthLambda);
+                TreeParameter treeParam(tree, treeLengthParams);
                 if(settings.treeOutput != "")
                     settings.treeOutput = treeOutput + std::to_string(i);
                 if(settings.mcmcOutput != "")
@@ -548,7 +549,7 @@ int main(int argc, char* argv[]) {
                 if(settings.branchOutput != "")
                     settings.branchOutput = branchOutput + std::to_string(i) + "_Bayes";
                 
-                TreeParameter treeParamA(tree, settings.treeLengthLambda);
+                TreeParameter treeParamA(tree, treeLengthParams);
                 inference(settings, aln, treeParamA, false, executor);
 
                 if(settings.treeOutput != "")
@@ -564,7 +565,7 @@ int main(int argc, char* argv[]) {
                 if(settings.branchOutput != "")
                     settings.branchOutput = branchOutput + std::to_string(i) + "_Classic";
                 
-                TreeParameter treeParamB(tree, settings.treeLengthLambda);
+                TreeParameter treeParamB(tree, treeLengthParams);
                 inference(settings, aln, treeParamB, true, executor);
             }
         }

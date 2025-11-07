@@ -13,7 +13,10 @@ namespace MatrixHelper {
         R_MOVE = 2,
         OMEGA_MOVE = 3,
         STATIONARY_MOVE = 4,
-        RJ_MOVE = 5
+        SPLIT_MERGE_MOVE = 5,
+        REINDEX_MOVE = 6,
+        BIRTH_DEATH_MOVE = 7,
+        EXCHANGE_MOVE = 8
     };
 
 

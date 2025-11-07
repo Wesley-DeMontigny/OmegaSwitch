@@ -183,7 +183,7 @@ double RJMatrix::updateOmega() {
         }
         while(randomOmega2 == randomOmega1);
         
-        double forwardU = Probability::Beta::rv(&rng, 5.0, 5.0);
+        double forwardU = Probability::Beta::rv(&rng, 1.0, 5.0);
         double originalO1 = currentParams[2 + randomOmega1];
 
         currentParams[2 + randomOmega1] *= (1-forwardU);
@@ -191,7 +191,7 @@ double RJMatrix::updateOmega() {
 
         double reverseU = (originalO1 - currentParams[2 + randomOmega1]) / currentParams[2 + randomOmega2];
 
-        hastings += Probability::Beta::lnPdf(5.0, 5.0, reverseU) - Probability::Beta::lnPdf(5.0, 5.0, forwardU);
+        hastings += Probability::Beta::lnPdf(1.0, 5.0, reverseU) - Probability::Beta::lnPdf(1.0, 5.0, forwardU);
         hastings += std::log(originalO1); // Add the Jacobain correction |(1-U, -O1), (U, O1)| = 01
     }
     else{ // Re-Indexing Move

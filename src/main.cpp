@@ -59,7 +59,7 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
         });
         moves.emplace_back(Move{
             settings.stationaryWeight,
-            5,
+            10,
             [&rateMatrix]() {return rateMatrix.updateStationary();},
             []() {return true;}
         });
@@ -110,13 +110,13 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
         });
         moves.emplace_back(Move{
             settings.stationaryWeight,
-            5,
+            10,
             [&rateMatrix]() {return rateMatrix.updateStationary();},
             []() {return true;}
         });
         moves.emplace_back(Move{
             settings.rjWeight,
-            3,
+            5,
             [&rateMatrix]() {return rateMatrix.updateActiveOmegas();},
             []() {return true;}
         });
@@ -126,12 +126,14 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
             [&rateMatrix]() {return rateMatrix.updateR();},
             [&rateMatrix]() {return rateMatrix.getActiveOmegas() > 1;}
         });
+        #ifndef SAMPLE_PRIOR
         moves.emplace_back(Move{
             settings.dppWeight,
             1,
             [&model]() {return model.updateDPP();},
             []() {return true;}
         });
+        #endif
 
         MCMC mcmc(&model, moves, settings, disableBayesOpt);
         
@@ -167,7 +169,7 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
         });
         moves.emplace_back(Move{
             settings.stationaryWeight,
-            5,
+            10,
             [&rateMatrix]() {return rateMatrix.updateStationary();},
             []() {return true;}
         });
@@ -345,20 +347,7 @@ int main(int argc, char* argv[]) {
             else if(settings.simulateRJ){
                 TransitionProbability transProb(numNodes, 305);
                 RJMatrix rateMatrix(settings);
-                double omegaDraw = rng.uniformRv();
-                int activeOmegas = 1;
-                if(omegaDraw > 0.85){
-                    activeOmegas = 5;
-                }
-                else if(omegaDraw > 0.70){
-                    activeOmegas = 4;
-                }
-                else if(omegaDraw > 0.50){
-                    activeOmegas = 3;
-                }
-                else if(omegaDraw > 0.25){
-                    activeOmegas = 2;
-                }
+                int activeOmegas = (int)(rng.uniformRv() * 5) + 1;
 
                 rateMatrix.setActiveOmegas(activeOmegas);
                 std::vector<double> stationary = rateMatrix.getStationary();
@@ -427,14 +416,7 @@ int main(int argc, char* argv[]) {
             else if(settings.simulateRJDPP){
                 TransitionProbability transProb(numNodes, 183);
                 RJDPPMatrix rateMatrix(settings, numSites);
-                double omegaDraw = rng.uniformRv();
-                int activeOmegas = 1;
-                if(omegaDraw > 0.8){
-                    activeOmegas = 3;
-                }
-                else if(omegaDraw > 0.5){
-                    activeOmegas = 2;
-                }
+                int activeOmegas = (int)(rng.uniformRv() * 3) + 1;
 
                 rateMatrix.setActiveOmegas(activeOmegas);
                 std::vector<double> stationary = rateMatrix.getStationary(activeOmegas);

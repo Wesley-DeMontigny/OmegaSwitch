@@ -48,7 +48,6 @@ class M0Model : public Model {
         M0Matrix*               rateMatrix;
         std::string             analysisLog;
         std::string             treeLog;
-        std::string             branchLog;
         tf::Executor&           executor;
         TransitionProbability*  transProb;
         TreeParameter*          tree;

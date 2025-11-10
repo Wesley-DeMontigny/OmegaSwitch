@@ -51,7 +51,6 @@ class RJModel : public Model {
         std::string             treeLog;                                                                                //
         std::string             tipsLog;                                                                                //
         std::string             ancestralLog;                                                                           //
-        std::string             branchLog;                                                                              //
         tf::Executor&           executor;                                                                               //
         TransitionProbability*  transProb;                                                                              //
         TreeParameter*          tree;                                                                                   //

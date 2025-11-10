@@ -28,11 +28,10 @@ Settings::Settings(int argc,  char* argv[]) {
     settings.push_back("/workspaces/Varying_Selection_DPP/testing/tips.log");
     settings.push_back("-branchOut");
     settings.push_back("/workspaces/Varying_Selection_DPP/testing/branches.log");
-    settings.push_back("-simulateRJ");
+    settings.push_back("-simulateM0");
     settings.push_back("-simulationOutput");
     settings.push_back("/workspaces/Varying_Selection_DPP/testing/sim.log");
-    numSimulations = 1;
-    settings.push_back("-RJ");
+    settings.push_back("-M0");
     #endif
     if (settings.size() == 0) {
         usage();

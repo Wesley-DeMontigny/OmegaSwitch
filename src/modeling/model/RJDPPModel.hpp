@@ -52,7 +52,6 @@ class RJDPPModel : public Model {
         RJDPPMatrix* rateMatrix;
         std::string             analysisLog;
         std::string             ancestralLog;
-        std::string             branchLog;
         std::string             dppLog;
         std::string             tipsLog;
         std::string             treeLog;

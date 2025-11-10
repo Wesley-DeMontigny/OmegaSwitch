@@ -8,7 +8,7 @@
 
 M0Matrix::M0Matrix(Settings& settings) : 
                                    currentQMatrix(61, 61, 0.0), oldQMatrix(61, 61, 0.0), currentStationary(61, -1), oldStationary(61, -1), 
-                                   kLambda(settings.kLambda), omegaLambda(settings.omegaLambda), stationaryAlpha(30000), kDelta(0.5),
+                                   kLambda(settings.kLambda), omegaLambda(settings.omegaLambda), stationaryAlpha(100000), kDelta(0.5),
                                    omegaDelta(0.5), stationaryPriorAlpha(61, 2.0), randomStates(61, 0.0) {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
@@ -38,17 +38,17 @@ M0Matrix::M0Matrix(Settings& settings) :
 }
 
 void M0Matrix::rebuildQMatrix() {
-    for (auto coord : MatrixHelper::validPairs) {
-        currentQMatrix(coord.first, coord.second) = currentStationary[coord.second];
-        currentQMatrix(coord.second, coord.first) = currentStationary[coord.first];
+    for (const auto& [c1, c2] : MatrixHelper::validPairs) {
+        currentQMatrix(c1, c2) = currentStationary[c2];
+        currentQMatrix(c2, c1) = currentStationary[c1];
     }
-    for (auto coord : MatrixHelper::transitionPairs) {
-        currentQMatrix(coord.first, coord.second) *= currentParams[0];
-        currentQMatrix(coord.second, coord.first) *= currentParams[0];
+    for (const auto& [c1, c2] : MatrixHelper::transitionPairs) {
+        currentQMatrix(c1, c2) *= currentParams[0];
+        currentQMatrix(c2, c1) *= currentParams[0];
     }
-    for (auto coord : MatrixHelper::nonsynonymousPairs) {
-        currentQMatrix(coord.first, coord.second) *= currentParams[1];
-        currentQMatrix(coord.second, coord.first) *= currentParams[1];
+    for (const auto& [c1, c2] : MatrixHelper::nonsynonymousPairs) {
+        currentQMatrix(c1, c2) *= currentParams[1];
+        currentQMatrix(c2, c1) *= currentParams[1];
     }
 }
 
@@ -143,7 +143,7 @@ double M0Matrix::updateStationary() {
     this->dirty();
     double hastings = 0.0;
 
-    int numElements = 30;
+    int numElements = 60;
     moveChoice = MatrixMoves::STATIONARY_MOVE;
     stationaryCount += 1;
 
@@ -245,21 +245,21 @@ std::vector<double> M0Matrix::getStationary(){
 double M0Matrix::dNdS() const {
         Matrix<double> tempMatrix(currentQMatrix.copy());
 
-    for(auto coord : MatrixHelper::validPairs){
-        tempMatrix(coord.first, coord.second) /= currentStationary[coord.second];
-        tempMatrix(coord.second, coord.first) /= currentStationary[coord.first];
+    for(const auto& [c1, c2] : MatrixHelper::validPairs){
+        tempMatrix(c1, c2) /= currentStationary[c2];
+        tempMatrix(c2, c1) /= currentStationary[c1];
     }
 
     double dN1 = 0.0;
-    for(auto coord : MatrixHelper::nonsynonymousPairs){
-        dN1 += tempMatrix(coord.first, coord.second) * currentStationary[coord.first];
-        dN1 += tempMatrix(coord.second, coord.first) * currentStationary[coord.second];
+    for(const auto& [c1, c2] : MatrixHelper::nonsynonymousPairs){
+        dN1 += tempMatrix(c1, c2) * currentStationary[c1];
+        dN1 += tempMatrix(c2, c1) * currentStationary[c2];
     }
 
     double dS1 = 0.0;
-    for(auto coord : MatrixHelper::synonymousPairs){
-        dS1 += tempMatrix(coord.first, coord.second) * currentStationary[coord.first];
-        dS1 += tempMatrix(coord.second, coord.first) * currentStationary[coord.second];
+    for(const auto& [c1, c2] : MatrixHelper::synonymousPairs){
+        dS1 += tempMatrix(c1, c2) * currentStationary[c1];
+        dS1 += tempMatrix(c2, c1) * currentStationary[c2];
     }
 
     return dN1/dS1;

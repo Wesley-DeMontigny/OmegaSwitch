@@ -77,11 +77,11 @@ class RJDPPMatrix : public Parameter {
         double                          currentCatPrior = 0.0;                                          //
         double                          currentStationaryPrior = 0;                                     //
         double                          dpAlpha = 0.0;                                                  //
-        double                          kLambda;                                                        //
+        const double                    kLambda;                                                        //
         double                          oldCatPrior = 0.0;                                              //
         double                          oldStationaryPrior = 0;                                         //
-        double                          omegaLambda;                                                    //
-        double                          rLambda;                                                        //
+        const double                    omegaLambda;                                                    //
+        const double                    rLambda;                                                        //
         id_t                            omegaCount = 0;                                                 //
         int                             currentActiveOmegas = 1;                                        //
         int                             kAcceptCount = 0;                                               //

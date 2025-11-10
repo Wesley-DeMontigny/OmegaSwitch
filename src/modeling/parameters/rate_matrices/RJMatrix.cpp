@@ -9,7 +9,7 @@
 RJMatrix::RJMatrix(Settings& settings) : 
                                    currentQMatrix(305, 305, 0.0), oldQMatrix(305, 305, 0.0), currentStationary(61, -1), oldStationary(61, -1), 
                                    kLambda(settings.kLambda), rLambda(settings.rLambda), omegaLambda(settings.omegaLambda), rDelta(0.5),  
-                                   stationaryAlpha(30000), kDelta(0.5), omegaDelta(0.5), stationaryPriorAlpha(61, 2.0), randomStates(61, 0.0) {
+                                   stationaryAlpha(100000), kDelta(0.5), omegaDelta(0.5), stationaryPriorAlpha(61, 2.0), randomStates(61, 0.0) {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
@@ -50,22 +50,22 @@ void RJMatrix::rebuildQMatrix(){
     }
 
     currentQMatrix = Matrix<double>(61*currentActiveOmegas, 61*currentActiveOmegas, 0.0);
-    for(auto coord : MatrixHelper::validPairs){
+    for(const auto& [c1, c2] : MatrixHelper::validPairs){
         for(int i = 0; i < currentActiveOmegas; i++){
-            currentQMatrix(coord.first + (i*61), coord.second + (i*61)) = currentStationary[coord.second];
-            currentQMatrix(coord.second + (i*61), coord.first + (i*61)) = currentStationary[coord.first];
+            currentQMatrix(c1 + (i*61), c2 + (i*61)) = currentStationary[c2];
+            currentQMatrix(c2 + (i*61), c1 + (i*61)) = currentStationary[c1];
         }
     }
-    for(auto coord : MatrixHelper::nonsynonymousPairs){
+    for(const auto& [c1, c2] : MatrixHelper::nonsynonymousPairs){
         for(int i = 0; i < currentActiveOmegas; i++){   
-            currentQMatrix(coord.first + (i*61), coord.second + (i*61)) *= omegas[i];
-            currentQMatrix(coord.second + (i*61), coord.first + (i*61)) *= omegas[i]; 
+            currentQMatrix(c1 + (i*61), c2 + (i*61)) *= omegas[i];
+            currentQMatrix(c2 + (i*61), c1 + (i*61)) *= omegas[i]; 
         }
     }
-    for(auto coord : MatrixHelper::transitionPairs){
+    for(const auto& [c1, c2] : MatrixHelper::transitionPairs){
         for(int i = 0; i < currentActiveOmegas; i++){
-            currentQMatrix(coord.first + (i*61), coord.second + (i*61)) *= currentParams[0];
-            currentQMatrix(coord.second + (i*61), coord.first + (i*61)) *= currentParams[0];
+            currentQMatrix(c1 + (i*61), c2 + (i*61)) *= currentParams[0];
+            currentQMatrix(c2 + (i*61), c1 + (i*61)) *= currentParams[0];
         }
     }
 }
@@ -193,6 +193,9 @@ double RJMatrix::updateOmega() {
 
         hastings += Probability::Beta::lnPdf(1.0, 5.0, reverseU) - Probability::Beta::lnPdf(1.0, 5.0, forwardU);
         hastings += std::log(originalO1); // Add the Jacobain correction |(1-U, -O1), (U, O1)| = 01
+
+        currentParamPriors[2 + randomOmega1] = Probability::Exponential::lnPdf(omegaLambda, currentParams[2 + randomOmega1]);
+        currentParamPriors[2 + randomOmega2] = Probability::Exponential::lnPdf(omegaLambda, currentParams[2 + randomOmega2]);
     }
     else{ // Re-Indexing Move
         moveChoice = MatrixMoves::REINDEX_MOVE;
@@ -254,7 +257,7 @@ double RJMatrix::updateActiveOmegas(){
 
         double total = MatrixHelper::possibleSplit5[currentActiveOmegas-1] + MatrixHelper::possibleMerge5[currentActiveOmegas - 1];
         double splitProbs = (double)(MatrixHelper::possibleSplit5[currentActiveOmegas-1]) / total;
-        double randomMove = rng.uniformRv() * total;
+        double randomMove = rng.uniformRv();
 
         if(randomMove < splitProbs){ // Perform a split
             double forwardProb = -std::log(total);
@@ -268,12 +271,15 @@ double RJMatrix::updateActiveOmegas(){
             
             for(int j = currentActiveOmegas; j > randomSplit + 1; j--){
                 currentParams[j + 2] = currentParams[j + 1];
+                currentParamPriors[j + 2] = currentParamPriors[j + 1];
             }
 
             double tempO = currentParams[randomSplit + 2];
 
             currentParams[randomSplit + 2] = tempO * u;
             currentParams[randomSplit + 3] = tempO * (1.0 - u);
+            currentParamPriors[randomSplit + 2] = Probability::Exponential::lnPdf(omegaLambda, currentParams[randomSplit + 2]);
+            currentParamPriors[randomSplit + 3] = Probability::Exponential::lnPdf(omegaLambda, currentParams[randomSplit + 3]);
 
             hastings += std::log(tempO);
             hastings -= Probability::Beta::lnPdf(splitAlpha, splitAlpha, u);
@@ -303,10 +309,12 @@ double RJMatrix::updateActiveOmegas(){
 
             double sum = currentParams[randomMerge + 2] + currentParams[randomMerge + 3];
             currentParams[randomMerge + 2] = sum;
+            currentParamPriors[randomMerge + 2] = Probability::Exponential::lnPdf(omegaLambda, currentParams[randomMerge + 2]);
 
             // We need to shift elements down depending on the random merge
             for(int j = randomMerge + 1; j < currentActiveOmegas-1; j++){
                 currentParams[j + 2] = currentParams[j + 3];
+                currentParamPriors[j + 2] = currentParamPriors[j+3];
             }
 
             hastings += Probability::Beta::lnPdf(splitAlpha, splitAlpha, u);
@@ -330,9 +338,11 @@ double RJMatrix::updateActiveOmegas(){
 
             for(int j = currentActiveOmegas; j > randomBirth ; j--){
                 currentParams[j + 2] = currentParams[j + 1];
+                currentParamPriors[j + 2] = currentParamPriors[j + 1];
             }
 
             currentParams[2 + randomBirth] = newOmega;
+            currentParamPriors[2 + randomBirth] = Probability::Exponential::lnPdf(omegaLambda, newOmega);
 
             currentActiveOmegas++;
 
@@ -355,6 +365,7 @@ double RJMatrix::updateActiveOmegas(){
 
             for(int j = randomDeath; j < currentActiveOmegas-1; j++){
                 currentParams[j + 2] = currentParams[j + 3];
+                currentParamPriors[j + 2] = currentParamPriors[j + 3];
             }
 
             currentActiveOmegas--;
@@ -380,7 +391,7 @@ double RJMatrix::updateStationary() {
     this->dirty();
     double hastings = 0.0;
 
-    int numElements = 30;
+    int numElements = 60;
     moveChoice = MatrixMoves::STATIONARY_MOVE;
     stationaryCount += 1;
 
@@ -546,36 +557,36 @@ std::array<double, 5> RJMatrix::dNdS() const {
         omegas[i] = omegas[i-1] + currentParams[i+1];
     }
 
-    for(auto coord : MatrixHelper::validPairs){
+    for(const auto& [c1, c2] : MatrixHelper::validPairs){
         for(int i = 0; i < 5; i++){
-            tempMatrix(coord.first + (i*61), coord.second + (i*61)) = 1.0;
-            tempMatrix(coord.second + (i*61), coord.first + (i*61)) = 1.0;
+            tempMatrix(c1 + (i*61), c2 + (i*61)) = 1.0;
+            tempMatrix(c2 + (i*61), c1 + (i*61)) = 1.0;
         }
     }
-    for(auto coord : MatrixHelper::nonsynonymousPairs){
+    for(const auto& [c1, c2] : MatrixHelper::nonsynonymousPairs){
         for(int i = 0; i < 5; i++){   
-            tempMatrix(coord.first + (i*61), coord.second + (i*61)) *= omegas[i];
-            tempMatrix(coord.second + (i*61), coord.first + (i*61)) *= omegas[i]; 
+            tempMatrix(c1 + (i*61), c2 + (i*61)) *= omegas[i];
+            tempMatrix(c2 + (i*61), c1 + (i*61)) *= omegas[i]; 
         }
     }
-    for(auto coord : MatrixHelper::transitionPairs){
+    for(const auto& [c1, c2] : MatrixHelper::transitionPairs){
         for(int i = 0; i < 5; i++){
-            tempMatrix(coord.first + (i*61), coord.second + (i*61)) *= currentParams[0];
-            tempMatrix(coord.second + (i*61), coord.first + (i*61)) *= currentParams[0];
-        }
-    }
-
-    for(auto coord : MatrixHelper::nonsynonymousPairs){
-        for(int i = 0; i < 5; i++){
-            dNdS[i] += tempMatrix(coord.first + (i*61), coord.second + (i*61)) * currentStationary[coord.first];
-            dNdS[i] += tempMatrix(coord.second + (i*61), coord.first + (i*61)) * currentStationary[coord.second];
+            tempMatrix(c1 + (i*61), c2 + (i*61)) *= currentParams[0];
+            tempMatrix(c2 + (i*61), c1 + (i*61)) *= currentParams[0];
         }
     }
 
-    for(auto coord : MatrixHelper::synonymousPairs){
+    for(const auto& [c1, c2] : MatrixHelper::nonsynonymousPairs){
         for(int i = 0; i < 5; i++){
-            dS[i] += tempMatrix(coord.first + (i*61), coord.second + (i*61)) * currentStationary[coord.first];
-            dS[i] += tempMatrix(coord.second + (i*61), coord.first + (i*61)) * currentStationary[coord.second];
+            dNdS[i] += tempMatrix(c1 + (i*61), c2 + (i*61)) * currentStationary[c1];
+            dNdS[i] += tempMatrix(c2 + (i*61), c1 + (i*61)) * currentStationary[c2];
+        }
+    }
+
+    for(const auto& [c1, c2] : MatrixHelper::synonymousPairs){
+        for(int i = 0; i < 5; i++){
+            dS[i] += tempMatrix(c1 + (i*61), c2 + (i*61)) * currentStationary[c1];
+            dS[i] += tempMatrix(c2 + (i*61), c1 + (i*61)) * currentStationary[c2];
         }
     }
 

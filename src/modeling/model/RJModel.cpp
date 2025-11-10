@@ -29,7 +29,7 @@
 
 RJModel::RJModel(Settings* s, Alignment* a, TreeParameter* t, RJMatrix* m, tf::Executor& e) : 
             aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0), numChar(0), executor(e),
-            branchLog(s->branchOutput), tipsLog(s->tipsOutput), ancestralLog(s->ancestralStatesOutput), treeLog(s->treeOutput),
+            tipsLog(s->tipsOutput), ancestralLog(s->ancestralStatesOutput), treeLog(s->treeOutput),
             analysisLog(s->mcmcOutput)  {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
@@ -86,9 +86,8 @@ void RJModel::accept() {
     if(rateMatrix->isDirty()){
         rateMatrix->accept();
         rateMatrix->clean();
+        transProb->accept(); // TransProb only needs to reject/accept when the eigenvalues have changed
     }
-
-    transProb->accept();
 }
 
 void RJModel::reject() {
@@ -108,37 +107,21 @@ void RJModel::reject() {
     if(rateMatrix->isDirty()){
         rateMatrix->reject();
         rateMatrix->clean();
+        transProb->reject(); // TransProb only needs to reject/accept when the eigenvalues have changed
     }
-
-    transProb->reject();
 }
 
 double RJModel::lnPrior(){
     double prior = tree->lnPrior() + rateMatrix->lnPrior();
-    int activeOmegas = rateMatrix->getActiveOmegas();
-
-    // Prior over the number of active omegas
-    if(activeOmegas == 1){
-        prior += std::log(0.25);
-    }
-    else if(activeOmegas == 2){
-        prior += std::log(0.25);
-    }
-    else if(activeOmegas == 3){
-        prior += std::log(0.20);
-    }
-    else if(activeOmegas == 4){
-        prior += std::log(0.15);
-    }
-    else{
-        prior += std::log(0.15);
-    }
-
 
     return prior;
 }
 
 void RJModel::regenerateLikelihood(){
+    #ifdef SAMPLE_PRIOR
+        return;
+    #endif
+
     TreeObject* activeT = tree->getTree();
 
     const std::vector<Node*> poSeq = activeT->getPostOrderSeq();
@@ -423,6 +406,7 @@ void RJModel::writeLogHeaders() {
         outFile << treeHeader;
     }
 
+    #ifndef SAMPLE_PRIOR
     if(tipsLog != ""){
         std::string tipHeader = "Iteration";
         std::vector<Node*> tips = tree->getTree()->getTips();
@@ -450,28 +434,7 @@ void RJModel::writeLogHeaders() {
         std::ofstream outFile(ancestralLog, std::ios::out);
         outFile << ancestralHeader;
     }
-
-    if(branchLog != ""){
-        std::string branchHeader = "Iteration\tPosterior";
-        TreeObject* treeObj = tree->getTree();
-        std::vector<Node*> poSeq = treeObj->getPostOrderSeq();
-        std::vector<Node*> nodes;
-        for(Node* n : poSeq)
-            nodes.push_back(n);
-        std::sort(nodes.begin(), nodes.end(), [](const Node* a, const Node* b) {
-            return a->getIndex() > b->getIndex();
-        });
-
-        for(Node* n : nodes){
-            if(n != treeObj->getRoot()){
-                branchHeader += "\tBranch[" + std::to_string(n->getIndex()) + "]";
-            }
-        }
-        branchHeader += "\n";
-
-        std::ofstream outFile(branchLog, std::ios::out);
-        outFile << branchHeader;
-    }
+    #endif
 }
 
 void RJModel::writeLogData(int i) {
@@ -500,6 +463,7 @@ void RJModel::writeLogData(int i) {
         outFile << returnString;
     }
 
+    #ifndef SAMPLE_PRIOR
     if(tipsLog != "" || ancestralLog != ""){
         RandomVariable& rng = RandomVariable::randomVariableInstance();
 
@@ -649,27 +613,5 @@ void RJModel::writeLogData(int i) {
         delete [] reconstructedStates;
         delete [] reconstructeddNdS;
     }
-
-    if(branchLog != ""){
-        std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood);
-        TreeObject* treeObj = tree->getTree();
-        std::vector<Node*> poSeq = treeObj->getPostOrderSeq();
-        std::vector<Node*> nodes;
-        for(Node* n : poSeq)
-            nodes.push_back(n);
-        std::sort(nodes.begin(), nodes.end(), [](const Node* a, const Node* b) {
-            return a->getIndex() > b->getIndex();
-        });
-
-        for(Node* n : nodes){
-            if(n != treeObj->getRoot()){
-                returnString += "\t" + std::to_string(treeObj->getBranchLength(n));
-            }
-        }
-
-        returnString =+ "\n";
-
-        std::ofstream outFile(branchLog, std::ios::app);
-        outFile << returnString;
-    }
+    #endif
 }

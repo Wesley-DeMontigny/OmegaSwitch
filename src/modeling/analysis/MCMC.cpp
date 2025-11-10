@@ -10,6 +10,10 @@
 #include <iostream>
 #include <fstream>
 
+#ifdef TIME_PROFILE
+#include <chrono>
+#endif
+
 /**
  * @brief Construct a new MCMC::MCMC object
  * 
@@ -60,7 +64,7 @@ double MCMC::GibbsIteration(double currentLnPosterior){
     double cumSum = 0.0;
     int numUpdates = 1;
     for(Move& mv : moves){
-        if(!mv.condition || mv.condition){
+        if(mv.condition()){
             cumSum += mv.weight;
             if(randomMove < cumSum){
                 updater = mv.action;

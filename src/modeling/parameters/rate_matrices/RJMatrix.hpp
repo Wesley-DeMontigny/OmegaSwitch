@@ -52,10 +52,10 @@ class RJMatrix : public Parameter {
     private:
         void                        rebuildQMatrix();                                       //
         double                      currentStationaryPrior = 0;                             //
-        double                      kLambda;                                                //
+        const double                kLambda;                                                //
         double                      oldStationaryPrior = 0;                                 //
-        double                      omegaLambda;                                            //
-        double                      rLambda;                                                //
+        const double                omegaLambda;                                            //
+        const double                rLambda;                                                //
         int                         currentActiveOmegas = 1;                                //
         int                         kAcceptCount = 0;                                       //
         int                         kCount = 0;                                             //

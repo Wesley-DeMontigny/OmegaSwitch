@@ -27,7 +27,7 @@
 
 RJDPPModel::RJDPPModel(Settings* s, Alignment* a, TreeParameter* t, RJDPPMatrix* m, tf::Executor& e) : 
             aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0), numChar(0), executor(e), numGibbsUpdate(s->numGibbs),
-            branchLog(s->branchOutput), tipsLog(s->tipsOutput), ancestralLog(s->ancestralStatesOutput), treeLog(s->treeOutput),
+            tipsLog(s->tipsOutput), ancestralLog(s->ancestralStatesOutput), treeLog(s->treeOutput),
             analysisLog(s->mcmcOutput), dppLog(s->dppOutput), omegaLambda(s->omegaLambda) {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
@@ -84,6 +84,7 @@ void RJDPPModel::accept() {
     if(rateMatrix->isDirty()){
         rateMatrix->accept();
         rateMatrix->clean();
+        transProb->accept(); // TransProb only needs to reject/accept when the eigenvalues have changed
     }
 
     transProb->accept();
@@ -106,30 +107,21 @@ void RJDPPModel::reject() {
     if(rateMatrix->isDirty()){
         rateMatrix->reject();
         rateMatrix->clean();
+        transProb->reject(); // TransProb only needs to reject/accept when the eigenvalues have changed
     }
-
-    transProb->reject();
 }
 
 double RJDPPModel::lnPrior(){
     double prior = tree->lnPrior() + rateMatrix->lnPrior();
-    int activeOmegas = rateMatrix->getActiveOmegas();
-
-    // Prior over the number of active omegas
-    if(activeOmegas == 1){
-        prior += std::log(0.5);
-    }
-    else if(activeOmegas == 2){
-        prior += std::log(0.3);
-    }
-    else{
-        prior += std::log(0.2);
-    }
 
     return prior;
 }
 
 void RJDPPModel::regenerateLikelihood(){
+    #ifdef SAMPLE_PRIOR
+        return;
+    #endif
+
     TreeObject* activeT = tree->getTree();
 
     const std::vector<Node*> poSeq = activeT->getPostOrderSeq();
@@ -363,6 +355,8 @@ double RJDPPModel::updateDPP(){
     TreeObject* activeT = tree->getTree();
     std::vector<Node*> poSeq = activeT->getPostOrderSeq();
 
+    rateMatrix->dirty();
+
     int numClasses = rateMatrix->getActiveOmegas();
     int activeSubspace = numClasses * 61;
     int numAux = 5;
@@ -405,6 +399,8 @@ double RJDPPModel::updateDPP(){
                 Probability::Exponential::rv(&rng, omegaLambda)
             });
         }
+
+        #ifndef SAMPLE_PRIOR
 
         transProb->allocateQ(numCurrentCats + (numAux * 2));
 
@@ -543,7 +539,6 @@ double RJDPPModel::updateDPP(){
         int rIndex = activeT->getRoot()->getIndex();
         std::vector<double> f = rateMatrix->getStationary(numClasses);
         std::vector<double> likelihoodVec(numTestableCats, 0.0);
-        likelihoodVec.reserve(numTestableCats);
         double* siteRoot = tempCLBuffer + (rIndex * nodeSpacer);
 
         for(int c = 0; c < numTestableCats; c++){
@@ -561,6 +556,9 @@ double RJDPPModel::updateDPP(){
             }
             rescaleBufferPointer += bufferSize;
         }
+        #else
+        std::vector<double> likelihoodVec(numTestableCats, 0.0);
+        #endif
 
         for(int c = 0; c < numCurrentCats; c++){
             likelihoodVec[c] += std::log(currentCategories[c].members.size());
@@ -712,6 +710,7 @@ void RJDPPModel::writeLogHeaders(){
         outFile << dppHeader;
     }
 
+    #ifndef SAMPLE_PRIOR
     if(tipsLog != ""){
         std::string tipHeader = "Iteration";
         std::vector<Node*> tips = tree->getTree()->getTips();
@@ -739,28 +738,7 @@ void RJDPPModel::writeLogHeaders(){
         std::ofstream outFile(ancestralLog, std::ios::out);
         outFile << ancestralHeader;
     }
-
-    if(branchLog != ""){
-        std::string branchHeader = "Iteration\tPosterior";
-        TreeObject* treeObj = tree->getTree();
-        std::vector<Node*> poSeq = treeObj->getPostOrderSeq();
-        std::vector<Node*> nodes;
-        for(Node* n : poSeq)
-            nodes.push_back(n);
-        std::sort(nodes.begin(), nodes.end(), [](const Node* a, const Node* b) {
-            return a->getIndex() > b->getIndex();
-        });
-
-        for(Node* n : nodes){
-            if(n != treeObj->getRoot()){
-                branchHeader += "\tBranch[" + std::to_string(n->getIndex()) + "]";
-            }
-        }
-        branchHeader += "\n";
-
-        std::ofstream outFile(branchLog, std::ios::out);
-        outFile << branchHeader;
-    }
+    #endif
 }
 
 void RJDPPModel::writeLogData(int i) {
@@ -800,6 +778,7 @@ void RJDPPModel::writeLogData(int i) {
         outFile << returnString;
     }
 
+    #ifndef SAMPLE_PRIOR
     if(tipsLog != "" || ancestralLog != ""){
         RandomVariable& rng = RandomVariable::randomVariableInstance();
 
@@ -958,27 +937,5 @@ void RJDPPModel::writeLogData(int i) {
         delete [] reconstructedStates;
         delete [] reconstructeddNdS;
     }
-
-    if(branchLog != ""){
-        std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood);
-        TreeObject* treeObj = tree->getTree();
-        std::vector<Node*> poSeq = treeObj->getPostOrderSeq();
-        std::vector<Node*> nodes;
-        for(Node* n : poSeq)
-            nodes.push_back(n);
-        std::sort(nodes.begin(), nodes.end(), [](const Node* a, const Node* b) {
-            return a->getIndex() > b->getIndex();
-        });
-
-        for(Node* n : nodes){
-            if(n != treeObj->getRoot()){
-                returnString += "\t" + std::to_string(treeObj->getBranchLength(n));
-            }
-        }
-
-        returnString =+ "\n";
-
-        std::ofstream outFile(branchLog, std::ios::app);
-        outFile << returnString;
-    }
+    #endif
 }

@@ -41,7 +41,7 @@ void TransitionProbability::accept(void) {
 	}
 }
 
-void TransitionProbability::reject(void) {	
+void TransitionProbability::reject(void) {
 	isComplex[0] = isComplex[1];
 	for(int i = 0; i < isComplex[1].size(); i++){
 		if(!isComplex[0][i]){

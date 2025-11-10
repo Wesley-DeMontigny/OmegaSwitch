@@ -10,7 +10,7 @@
 
 RJDPPMatrix::RJDPPMatrix(Settings& settings, int nC) : 
                                    currentQMatrix(183, 183, 0.0), oldQMatrix(183, 183, 0.0), currentStationary(61, -1), oldStationary(61, -1), 
-                                   kLambda(settings.kLambda), rLambda(settings.rLambda), rDelta(0.5),  stationaryAlpha(30000), kDelta(0.5), omegaDelta(0.5),
+                                   kLambda(settings.kLambda), rLambda(settings.rLambda), rDelta(0.5),  stationaryAlpha(100000), kDelta(0.5), omegaDelta(0.5),
                                    stationaryPriorAlpha(61, 2.0), numChar(nC), omegaLambda(settings.omegaLambda), assignments(nC, 0), randomStates(61, 0.0) {
 
 
@@ -73,16 +73,16 @@ RJDPPMatrix::RJDPPMatrix(Settings& settings, int nC) :
 
 void RJDPPMatrix::rebuildQMatrix(){
     currentQMatrix = Matrix<double>(61*currentActiveOmegas, 61*currentActiveOmegas, 0.0);
-    for(auto coord : MatrixHelper::validPairs){
+    for(const auto& [c1, c2] : MatrixHelper::validPairs){
         for(int i = 0; i < currentActiveOmegas; i++){
-            currentQMatrix(coord.first + (i*61), coord.second + (i*61)) = currentStationary[coord.second];
-            currentQMatrix(coord.second + (i*61), coord.first + (i*61)) = currentStationary[coord.first];
+            currentQMatrix(c1 + (i*61), c2 + (i*61)) = currentStationary[c2];
+            currentQMatrix(c2 + (i*61), c1 + (i*61)) = currentStationary[c1];
         }
     }
-    for(auto coord : MatrixHelper::transitionPairs){
+    for(const auto& [c1, c2] : MatrixHelper::transitionPairs){
         for(int i = 0; i < currentActiveOmegas; i++){
-            currentQMatrix(coord.first + (i*61), coord.second + (i*61)) *= currentParams[0];
-            currentQMatrix(coord.second + (i*61), coord.first + (i*61)) *= currentParams[0];
+            currentQMatrix(c1 + (i*61), c2 + (i*61)) *= currentParams[0];
+            currentQMatrix(c2 + (i*61), c1 + (i*61)) *= currentParams[0];
         }
     }
 }
@@ -131,10 +131,11 @@ void RJDPPMatrix::reject() {
 }
 
 double RJDPPMatrix::lnPrior() {
-    int stateSpace = currentQMatrix.dim1();
-    double prior = currentParamPriors[0] + currentStationaryPrior;
-    if(stateSpace != 61)
+    double prior = currentParamPriors[0] + currentStationaryPrior + currentCatPrior;
+
+    if(currentActiveOmegas > 1)
         prior += currentParamPriors[1];
+
     return prior;
 }
 
@@ -198,7 +199,7 @@ double RJDPPMatrix::updateStationary() {
     this->dirty();
     double hastings = 0.0;
 
-    int numElements = 30;
+    int numElements = 60;
     moveChoice = MatrixMoves::STATIONARY_MOVE;
     stationaryCount += 1;
 
@@ -421,6 +422,7 @@ double RJDPPMatrix::updateActiveOmegas() {
     }
 
     rebuildQMatrix();
+    regenerateCatPrior();
 
     return hastings;
 }
@@ -532,12 +534,12 @@ Matrix<double> RJDPPMatrix::Q(const std::array<double, 3>& omegas) const {
 
     int stateSpace = currentQMatrix.dim1();
 
-    for(auto coord : MatrixHelper::nonsynonymousPairs){
+    for(const auto& [c1, c2] : MatrixHelper::nonsynonymousPairs){
         double total = 0.0;
         for(int i = 0; i < currentActiveOmegas; i++){
             total += omegas[i];
-            returnMatrix(coord.first + (i*61), coord.second + (i*61)) *= total;
-            returnMatrix(coord.second + (i*61), coord.first + (i*61)) *= total;
+            returnMatrix(c1 + (i*61), c2 + (i*61)) *= total;
+            returnMatrix(c2 + (i*61), c1 + (i*61)) *= total;
         }
     }
 
@@ -604,38 +606,38 @@ std::array<double, 3> RJDPPMatrix::dNdS(int c) const {
     std::array<double, 3> dNdS = {0,0,0}; // We start out with dN and then divide by dS
     std::array<double, 3> dS = {0,0,0};
 
-    for(auto coord : MatrixHelper::validPairs){
+    for(const auto& [c1, c2] : MatrixHelper::validPairs){
         for(int i = 0; i < 3; i++){
-            tempMatrix(coord.first + (i*61), coord.second + (i*61)) = 1.0;
-            tempMatrix(coord.second + (i*61), coord.first + (i*61)) = 1.0;
+            tempMatrix(c1 + (i*61), c2 + (i*61)) = 1.0;
+            tempMatrix(c2 + (i*61), c1 + (i*61)) = 1.0;
         }
     }
-    for(auto coord : MatrixHelper::nonsynonymousPairs){
+    for(const auto& [c1, c2] : MatrixHelper::nonsynonymousPairs){
         double total = 0.0;
         for(int i = 0; i < 3; i++){
             total += currentCategories[c].omegas[i];
-            tempMatrix(coord.first + (i*61), coord.second + (i*61)) *= total;
-            tempMatrix(coord.second + (i*61), coord.first + (i*61)) *= total;
+            tempMatrix(c1 + (i*61), c2 + (i*61)) *= total;
+            tempMatrix(c2 + (i*61), c1 + (i*61)) *= total;
         }
     }
-    for(auto coord : MatrixHelper::transitionPairs){
+    for(const auto& [c1, c2] : MatrixHelper::transitionPairs){
         for(int i = 0; i < 3; i++){
-            tempMatrix(coord.first + (i*61), coord.second + (i*61)) *= currentParams[0];
-            tempMatrix(coord.second + (i*61), coord.first + (i*61)) *= currentParams[0];
-        }
-    }
-
-    for(auto coord : MatrixHelper::nonsynonymousPairs){
-        for(int i = 0; i < 3; i++){
-            dNdS[i] += tempMatrix(coord.first + (i*61), coord.second + (i*61)) * currentStationary[coord.first];
-            dNdS[i] += tempMatrix(coord.second + (i*61), coord.first + (i*61)) * currentStationary[coord.second];
+            tempMatrix(c1 + (i*61), c2 + (i*61)) *= currentParams[0];
+            tempMatrix(c2 + (i*61), c1 + (i*61)) *= currentParams[0];
         }
     }
 
-    for(auto coord : MatrixHelper::synonymousPairs){
+    for(const auto& [c1, c2] : MatrixHelper::nonsynonymousPairs){
         for(int i = 0; i < 3; i++){
-            dS[i] += tempMatrix(coord.first + (i*61), coord.second + (i*61)) * currentStationary[coord.first];
-            dS[i] += tempMatrix(coord.second + (i*61), coord.first + (i*61)) * currentStationary[coord.second];
+            dNdS[i] += tempMatrix(c1 + (i*61), c2 + (i*61)) * currentStationary[c1];
+            dNdS[i] += tempMatrix(c2 + (i*61), c1 + (i*61)) * currentStationary[c2];
+        }
+    }
+
+    for(const auto& [c1, c2] : MatrixHelper::synonymousPairs){
+        for(int i = 0; i < 3; i++){
+            dS[i] += tempMatrix(c1 + (i*61), c2 + (i*61)) * currentStationary[c1];
+            dS[i] += tempMatrix(c2 + (i*61), c1 + (i*61)) * currentStationary[c2];
         }
     }
 

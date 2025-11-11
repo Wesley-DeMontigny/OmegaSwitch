@@ -4,6 +4,11 @@ project(Bayesian_Phylo)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+option(TEST_RUN "Enabled Test Environment Run Parameters" ON)
+option(SAMPLE_PRIOR "Enabled Prior Sampling Mode" OFF)
+option(DEBUG "Enabled Debug Mode" OFF)
+option(TIME_PROFILE "Enabled Time Profiling" OFF)
+
 add_subdirectory(${PROJECT_SOURCE_DIR}/lib/ncl)
 
 include_directories(/workspaces/taskflow/)
@@ -18,8 +23,19 @@ target_link_libraries(main PRIVATE ncl_static)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -O3")
 
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=leak -fno-omit-frame-pointer -g")
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer -g")
-#add_compile_definitions(TIME_PROFILE=1)
-#add_compile_definitions(SAMPLE_PRIOR=1)
+if(DEBUG)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=leak -fno-omit-frame-pointer -g")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer -g")
+endif()
+
+if(TIME_PROFILE)
+add_compile_definitions(TIME_PROFILE=1)
+endif()
+
+if(SAMPLE_PRIOR)
+add_compile_definitions(SAMPLE_PRIOR=1)
+endif()
+
+if(TEST_RUN)
 add_compile_definitions(TEST_RUN=1)
+endif()

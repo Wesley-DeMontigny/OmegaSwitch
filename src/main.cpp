@@ -65,7 +65,7 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
         });
         moves.emplace_back(Move{
             settings.rjWeight,
-            3,
+            10,
             [&rateMatrix]() {return rateMatrix.updateActiveOmegas();},
             []() {return true;}
         });
@@ -116,7 +116,7 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
         });
         moves.emplace_back(Move{
             settings.rjWeight,
-            5,
+            10,
             [&rateMatrix]() {return rateMatrix.updateActiveOmegas();},
             []() {return true;}
         });

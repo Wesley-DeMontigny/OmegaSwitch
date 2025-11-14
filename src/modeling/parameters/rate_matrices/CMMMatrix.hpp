@@ -1,5 +1,5 @@
-#ifndef RJ_MATRIX_HPP
-#define RJ_MATRIX_HPP
+#ifndef CMM_MATRIX_HPP
+#define CMM_MATRIX_HPP
 #include "core/Matrix.hpp"
 #include "core/Msg.hpp"
 #include "MatrixHelper.hpp"
@@ -15,9 +15,9 @@ using namespace MatrixHelper;
 /**
  * @brief 
  */
-class RJMatrix : public Parameter {
+class CMMMatrix : public Parameter {
     public:
-                                    RJMatrix(Settings& settings);                           //
+                                    CMMMatrix(Settings& settings);                           //
 
         double                      getActiveOmegas() const {return currentActiveOmegas;}   //
         double                      getK() const {return currentParams[0];}                 //

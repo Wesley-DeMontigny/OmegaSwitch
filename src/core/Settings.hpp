@@ -16,14 +16,14 @@ struct Settings {
     void                    usage();
 
     bool                    M0 = false;                     // Do inference under a standard codon phylogenetic mode
-    bool                    RJ = false;                     // Do inference under a Markov-modulated model with simulataneous inference for the number of evolutionary regimes
-    bool                    RJDPP = false;                  // Do inference under an infinite mixture of Markov-modulated models with simulateous inference for the number of evolutionary regimes
+    bool                    CMM = false;                     // Do inference under a Markov-modulated model with simulataneous inference for the number of evolutionary regimes
+    bool                    DPCMM = false;                  // Do inference under an infinite mixture of Markov-modulated models with simulateous inference for the number of evolutionary regimes
     bool                    sequentialTuningSim = false;    // Do a simulation that first does Bayesian optimization for tunable parameters and then does classic tuning
     bool                    simulateM0 = false;             // Simulate under a standard codon model
-    bool                    simulateRJ = false;             // Simulate under a Markov-modulated model with 1-5 evolutionary regimes
-    bool                    simulateRJDPP = false;          // Simulate under a mixture of Markov-modulated models with 1-3 evolutionary regimes
+    bool                    simulateCMM = false;             // Simulate under a Markov-modulated model with 1-5 evolutionary regimes
+    bool                    simulateDPCMM = false;          // Simulate under a mixture of Markov-modulated models with 1-3 evolutionary regimes
     double                  dppWeight = 2.0;                // Weight associated with performing Neal's algorithm 8
-    double                  expectedCat = 2.0;              // The expected number of categories under the Chinese restaurant process for RJ-DPP
+    double                  expectedCat = 2.0;              // The expected number of categories under the Chinese restaurant process for CMM-DPP
     double                  kLambda = 3.0;                  // The rate parameter for the transition/transversion exponential prior
     double                  kWeight = 1.0;                  // Weight associated with updating the transition/transversion rate parameter
     double                  omegaLambda = 3.0;              // The rate parameter for the non-synonymous/synonymous exponential prior
@@ -32,8 +32,8 @@ struct Settings {
     double                  rLambda = 3.0;                  // The rate parameter for the evolutionary regime swapping exponential prior
     double                  rWeight = 1.0;                  // Weight associated with updating the rate of swapping evolutionary rates
     double                  stationaryWeight = 2.0;         // Weight associated with updating the stationary distribution of the rate matrix
-    double                  treeLengthMean = 6.0;           // The mean parameter associated with the tree length prior
-    double                  treeLengthSD = 1.0;             // The SD parameter associated with the tree length prior
+    double                  treeLengthMean = 35.0;           // The mean parameter associated with the tree length prior
+    double                  treeLengthSD = 2.5;             // The SD parameter associated with the tree length prior
     double                  treeWeight = 2.0;               // Weight associated with updating the tree topology or branch lengths
     int                     bayesOpt = 0;                   // How many iterations of Bayesian optimization to perform on the tunable parameters
     int                     bayesOptFrequency = 0;          // How many MCMC iterations a single iteration of Bayesian optimization uses

@@ -8,7 +8,7 @@
 
 M0Matrix::M0Matrix(Settings& settings) : 
                                    currentQMatrix(61, 61, 0.0), oldQMatrix(61, 61, 0.0), currentStationary(61, -1), oldStationary(61, -1), 
-                                   kLambda(settings.kLambda), omegaLambda(settings.omegaLambda), stationaryAlpha(100000), kDelta(0.5),
+                                   kLambda(settings.kLambda), omegaLambda(settings.omegaLambda), stationaryAlpha(1000), kDelta(0.5),
                                    omegaDelta(0.5), stationaryPriorAlpha(61, 2.0), randomStates(61, 0.0) {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
@@ -143,7 +143,7 @@ double M0Matrix::updateStationary() {
     this->dirty();
     double hastings = 0.0;
 
-    int numElements = 60;
+    int numElements = 1;
     moveChoice = MatrixMoves::STATIONARY_MOVE;
     stationaryCount += 1;
 

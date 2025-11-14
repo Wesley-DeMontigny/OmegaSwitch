@@ -7,12 +7,12 @@
 #include "modeling/analysis/Move.hpp"
 #include "modeling/model/M0Model.hpp"
 #include "modeling/model/Model.hpp"
-#include "modeling/model/RJDPPModel.hpp"
-#include "modeling/model/RJModel.hpp"
+#include "modeling/model/DPCMMModel.hpp"
+#include "modeling/model/CMMModel.hpp"
 #include "modeling/model/TransitionProbability.hpp"
 #include "modeling/parameters/rate_matrices/M0Matrix.hpp"
-#include "modeling/parameters/rate_matrices/RJDPPMatrix.hpp"
-#include "modeling/parameters/rate_matrices/RJMatrix.hpp"
+#include "modeling/parameters/rate_matrices/DPCMMMatrix.hpp"
+#include "modeling/parameters/rate_matrices/CMMMatrix.hpp"
 #include "modeling/parameters/trees/Node.hpp"
 #include "modeling/parameters/trees/TreeObject.hpp"
 #include "modeling/parameters/trees/TreeParameter.hpp"
@@ -31,17 +31,17 @@
 
 void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, bool disableBayesOpt, tf::Executor& executor){
 
-    if(settings.RJ){
+    if(settings.CMM){
         std::cout << "Initializing the Reversible Jump model..." << std::endl;
 
-        RJMatrix rateMatrix(settings);
+        CMMMatrix rateMatrix(settings);
 
-        RJModel model(&settings, &aln, &treeParam, &rateMatrix, executor);
+        CMMModel model(&settings, &aln, &treeParam, &rateMatrix, executor);
 
         std::vector<Move> moves;
         moves.emplace_back(Move{
             settings.treeWeight,
-            aln.getNumTaxa(),
+            static_cast<int>(aln.getNumTaxa() / 2.0),
             [&treeParam]() {return treeParam.update();},
             []() {return true;}
         });
@@ -71,7 +71,7 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
         });
         moves.emplace_back(Move{
             settings.rWeight,
-            3,
+            5,
             [&rateMatrix]() {return rateMatrix.updateR();},
             [&rateMatrix]() {return rateMatrix.getActiveOmegas() > 1;}
         });
@@ -82,17 +82,17 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
         mcmc.burnin();
         mcmc.run();
     }
-    else if(settings.RJDPP){
+    else if(settings.DPCMM){
         std::cout << "Initializing the Reversible Jump DPP model..." << std::endl;
 
-        RJDPPMatrix rateMatrix(settings, aln.getNumChar());
+        DPCMMMatrix rateMatrix(settings, aln.getNumChar());
 
-        RJDPPModel model(&settings, &aln, &treeParam, &rateMatrix, executor);
+        DPCMMModel model(&settings, &aln, &treeParam, &rateMatrix, executor);
 
         std::vector<Move> moves;
         moves.emplace_back(Move{
             settings.treeWeight,
-            aln.getNumTaxa(),
+            static_cast<int>(aln.getNumTaxa() / 2.0),
             [&treeParam]() {return treeParam.update();},
             []() {return true;}
         });
@@ -104,7 +104,7 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
         });
         moves.emplace_back(Move{
             settings.kWeight,
-            3,
+            5,
             [&rateMatrix]() {return rateMatrix.updateK();},
             []() {return true;}
         });
@@ -122,7 +122,7 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
         });
         moves.emplace_back(Move{
             settings.rWeight,
-            3,
+            5,
             [&rateMatrix]() {return rateMatrix.updateR();},
             [&rateMatrix]() {return rateMatrix.getActiveOmegas() > 1;}
         });
@@ -234,7 +234,7 @@ int main(int argc, char* argv[]) {
     double treeLengthParams[2] = {alphaLength, betaLength};
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
-    if(settings.simulateM0 == false && settings.simulateRJ == false && settings.simulateRJDPP == false){
+    if(settings.simulateM0 == false && settings.simulateCMM == false && settings.simulateDPCMM == false){
         Alignment aln(settings.nexusInput);
         TreeParameter treeParam(aln, settings.tree, treeLengthParams);
         inference(settings, aln, treeParam, false, executor);
@@ -252,10 +252,10 @@ int main(int argc, char* argv[]) {
         std::string modelClass = "";
         if(settings.simulateM0)
             modelClass = "M0";
-        else if(settings.simulateRJ)
-            modelClass = "RJ";
-        else if(settings.simulateRJDPP)
-            modelClass = "RJDPP";
+        else if(settings.simulateCMM)
+            modelClass = "CMM";
+        else if(settings.simulateDPCMM)
+            modelClass = "DPCMM";
 
         std::cout << "Doing a simulation analysis of " << modelClass << " with " << settings.numSimulations << " simulations of " << numTaxa << " taxa trees with " << numSites << " sites." << std::endl;
         for(int i = 0; i < settings.numSimulations; i++){
@@ -344,9 +344,9 @@ int main(int argc, char* argv[]) {
                 fs << std::endl;
                 fs.close();
             }
-            else if(settings.simulateRJ){
+            else if(settings.simulateCMM){
                 TransitionProbability transProb(numNodes, 305);
-                RJMatrix rateMatrix(settings);
+                CMMMatrix rateMatrix(settings);
                 int activeOmegas = (int)(rng.uniformRv() * 5) + 1;
 
                 rateMatrix.setActiveOmegas(activeOmegas);
@@ -413,9 +413,9 @@ int main(int argc, char* argv[]) {
                 fs << std::endl;
                 fs.close();
             }
-            else if(settings.simulateRJDPP){
+            else if(settings.simulateDPCMM){
                 TransitionProbability transProb(numNodes, 183);
-                RJDPPMatrix rateMatrix(settings, numSites);
+                DPCMMMatrix rateMatrix(settings, numSites);
                 int activeOmegas = (int)(rng.uniformRv() * 3) + 1;
 
                 rateMatrix.setActiveOmegas(activeOmegas);

@@ -1,5 +1,5 @@
-#ifndef RJ_DPP_MODEL_HPP
-#define RJ_DPP_MODEL_HPP
+#ifndef DP_CMM_MODEL_HPP
+#define DP_CMM_MODEL_HPP
 #include "modeling/parameters/trees/TreeParameter.hpp"
 #include <taskflow/taskflow.hpp>
 #include "core/Alignment.hpp"
@@ -8,18 +8,18 @@
 class ConditionalLikelihood;
 class TransitionProbability;
 class RandomVariable;
-class RJDPPMatrix;
+class DPCMMMatrix;
 class Settings;
 
 /**
  * @brief 
  * 
  */
-class RJDPPModel : public Model {
+class DPCMMModel : public Model {
     public:
-        RJDPPModel(void) = delete;
-        RJDPPModel(Settings* s, Alignment* a, TreeParameter* t, RJDPPMatrix* m, tf::Executor& e);
-        ~RJDPPModel();
+        DPCMMModel(void) = delete;
+        DPCMMModel(Settings* s, Alignment* a, TreeParameter* t, DPCMMMatrix* m, tf::Executor& e);
+        ~DPCMMModel();
         
         double                  lnLikelihood() override {return currentLikelihood; }                                    //
         double                  lnPrior() override;                                                                     //
@@ -49,7 +49,7 @@ class RJDPPModel : public Model {
         int numGibbsUpdate;
         int numNodes;
         int stateSpace;
-        RJDPPMatrix* rateMatrix;
+        DPCMMMatrix* rateMatrix;
         std::string             analysisLog;
         std::string             ancestralLog;
         std::string             dppLog;

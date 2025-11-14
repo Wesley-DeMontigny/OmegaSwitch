@@ -3,14 +3,14 @@
 #include "core/Probability.hpp"
 #include "core/RandomVariable.hpp"
 #include "core/Settings.hpp"
-#include "RJDPPMatrix.hpp"
+#include "DPCMMMatrix.hpp"
 #include <algorithm>
 #include <cmath>
 #include <numeric>
 
-RJDPPMatrix::RJDPPMatrix(Settings& settings, int nC) : 
+DPCMMMatrix::DPCMMMatrix(Settings& settings, int nC) : 
                                    currentQMatrix(183, 183, 0.0), oldQMatrix(183, 183, 0.0), currentStationary(61, -1), oldStationary(61, -1), 
-                                   kLambda(settings.kLambda), rLambda(settings.rLambda), rDelta(0.5),  stationaryAlpha(100000), kDelta(0.5), omegaDelta(0.5),
+                                   kLambda(settings.kLambda), rLambda(settings.rLambda), rDelta(0.5),  stationaryAlpha(1000), kDelta(0.5), omegaDelta(0.5),
                                    stationaryPriorAlpha(61, 2.0), numChar(nC), omegaLambda(settings.omegaLambda), assignments(nC, 0), randomStates(61, 0.0) {
 
 
@@ -71,7 +71,7 @@ RJDPPMatrix::RJDPPMatrix(Settings& settings, int nC) :
     dirty();
 }
 
-void RJDPPMatrix::rebuildQMatrix(){
+void DPCMMMatrix::rebuildQMatrix(){
     currentQMatrix = Matrix<double>(61*currentActiveOmegas, 61*currentActiveOmegas, 0.0);
     for(const auto& [c1, c2] : MatrixHelper::validPairs){
         for(int i = 0; i < currentActiveOmegas; i++){
@@ -87,7 +87,7 @@ void RJDPPMatrix::rebuildQMatrix(){
     }
 }
 
-void RJDPPMatrix::accept() {
+void DPCMMMatrix::accept() {
     oldParams[0] = currentParams[0];
     oldParamPriors[0] = currentParamPriors[0];
     oldParams[1] = currentParams[1];
@@ -115,7 +115,7 @@ void RJDPPMatrix::accept() {
     moveChoice = MatrixMoves::NO_MOVE;
 }
 
-void RJDPPMatrix::reject() {
+void DPCMMMatrix::reject() {
     currentParams[0] = oldParams[0];
     currentParamPriors[0] = oldParamPriors[0];
     currentParams[1] = oldParams[1];
@@ -130,7 +130,7 @@ void RJDPPMatrix::reject() {
     moveChoice = MatrixMoves::NO_MOVE;
 }
 
-double RJDPPMatrix::lnPrior() {
+double DPCMMMatrix::lnPrior() {
     double prior = currentParamPriors[0] + currentStationaryPrior + currentCatPrior;
 
     if(currentActiveOmegas > 1)
@@ -139,7 +139,7 @@ double RJDPPMatrix::lnPrior() {
     return prior;
 }
 
-void RJDPPMatrix::regenerateCatPrior(){
+void DPCMMMatrix::regenerateCatPrior(){
     int numCats = currentCategories.size();
     
     currentCatPrior = std::log(dpAlpha) * numCats;
@@ -152,7 +152,7 @@ void RJDPPMatrix::regenerateCatPrior(){
     }
 }
 
-double RJDPPMatrix::updateK() {
+double DPCMMMatrix::updateK() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
     double hastings = 0.0;
 
@@ -174,7 +174,7 @@ double RJDPPMatrix::updateK() {
     return hastings;
 }
 
-double RJDPPMatrix::updateR() {
+double DPCMMMatrix::updateR() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
     double hastings = 0.0;
     this->dirty();
@@ -194,12 +194,12 @@ double RJDPPMatrix::updateR() {
     return hastings;
 }
 
-double RJDPPMatrix::updateStationary() {
+double DPCMMMatrix::updateStationary() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
     this->dirty();
     double hastings = 0.0;
 
-    int numElements = 60;
+    int numElements = 1;
     moveChoice = MatrixMoves::STATIONARY_MOVE;
     stationaryCount += 1;
 
@@ -271,7 +271,7 @@ double RJDPPMatrix::updateStationary() {
     return hastings;
 }
 
-double RJDPPMatrix::updateOmega() {
+double DPCMMMatrix::updateOmega() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
     this->dirty();
@@ -339,7 +339,7 @@ double RJDPPMatrix::updateOmega() {
 }
 
 
-double RJDPPMatrix::updateActiveOmegas() {
+double DPCMMMatrix::updateActiveOmegas() {
     RandomVariable& rng = RandomVariable::randomVariableInstance();
     double hastings = 0.0;
     this->dirty();
@@ -428,12 +428,12 @@ double RJDPPMatrix::updateActiveOmegas() {
 }
 
 
-double RJDPPMatrix::expectedCategories(double a, int members) const {
+double DPCMMMatrix::expectedCategories(double a, int members) const {
     return a * std::log(1 + (members/a));
 }
 
 // From John's code
-double RJDPPMatrix::calculateAlpha(double expectedCat, int members) const {
+double DPCMMMatrix::calculateAlpha(double expectedCat, int members) const {
 
     if (expectedCat > members)
         Msg::error("The expected number of tables cannot be larger than the number of patrons (" + std::to_string(members) + "<" + std::to_string(expectedCat) + ")");
@@ -472,11 +472,11 @@ double RJDPPMatrix::calculateAlpha(double expectedCat, int members) const {
     return a;
 }
 
-void RJDPPMatrix::assignMember(int member, int category){
+void DPCMMMatrix::assignMember(int member, int category){
     currentCategories[category].members.push_back(member);
 }
 
-void RJDPPMatrix::regenerateAssignments(){
+void DPCMMMatrix::regenerateAssignments(){
     int numCats = currentCategories.size();
     int checkSum = 0;
     for(int i = 0; i < numCats; i++){
@@ -489,19 +489,19 @@ void RJDPPMatrix::regenerateAssignments(){
         Msg::error("Assignment book keeping failed!");
 }
 
-void RJDPPMatrix::removeCategory(int index){
+void DPCMMMatrix::removeCategory(int index){
     if(currentCategories[index].members.size() != 0)
         Msg::error("Attempt to remove DPP category that still had members!");
 
     currentCategories.erase(currentCategories.begin() + index);
 }
 
-void RJDPPMatrix::addCategory(const std::array<double, 3>& omegas){
+void DPCMMMatrix::addCategory(const std::array<double, 3>& omegas){
     Category newCat = {omegas, {}, true};
     currentCategories.push_back(newCat);
 }
 
-std::optional<int> RJDPPMatrix::unassignMember(int member){
+std::optional<int> DPCMMMatrix::unassignMember(int member){
     for(int i = 0; i < currentCategories.size(); i++){
         Category& c = currentCategories[i];
         for(int j = 0; j < c.members.size(); j++){
@@ -518,18 +518,18 @@ std::optional<int> RJDPPMatrix::unassignMember(int member){
     return std::nullopt;
 }
 
-void RJDPPMatrix::popCategories(int n){
+void DPCMMMatrix::popCategories(int n){
     int size = currentCategories.size();
     for(int i = 0; i < n; i++){
         currentCategories.pop_back();
     }
 }
 
-Matrix<double> RJDPPMatrix::Q(int c) const {
+Matrix<double> DPCMMMatrix::Q(int c) const {
     return Q(currentCategories[c].omegas);
 }
 
-Matrix<double> RJDPPMatrix::Q(const std::array<double, 3>& omegas) const {
+Matrix<double> DPCMMMatrix::Q(const std::array<double, 3>& omegas) const {
     Matrix<double> returnMatrix(currentQMatrix.copy());
 
     int stateSpace = currentQMatrix.dim1();
@@ -587,7 +587,7 @@ Matrix<double> RJDPPMatrix::Q(const std::array<double, 3>& omegas) const {
     return returnMatrix;
 }
 
-std::vector<double> RJDPPMatrix::getStationary(int omegaCount){
+std::vector<double> DPCMMMatrix::getStationary(int omegaCount){
     std::vector<double> returnStationary;
 
     double factor = 1.0/(double)(currentActiveOmegas);
@@ -601,7 +601,7 @@ std::vector<double> RJDPPMatrix::getStationary(int omegaCount){
     return returnStationary;
 }
 
-std::array<double, 3> RJDPPMatrix::dNdS(int c) const {
+std::array<double, 3> DPCMMMatrix::dNdS(int c) const {
     Matrix<double> tempMatrix(183, 183, 0.0);
     std::array<double, 3> dNdS = {0,0,0}; // We start out with dN and then divide by dS
     std::array<double, 3> dS = {0,0,0};
@@ -648,23 +648,23 @@ std::array<double, 3> RJDPPMatrix::dNdS(int c) const {
     return dNdS;
 }
 
-double RJDPPMatrix::getOmegaRate() const {
+double DPCMMMatrix::getOmegaRate() const {
     return (double)omegaAcceptCount/(double)omegaCount;
 }
 
-double RJDPPMatrix::getStationaryRate() const {
+double DPCMMMatrix::getStationaryRate() const {
     return (double)stationaryAcceptCount/(double)stationaryCount;
 }
 
-double RJDPPMatrix::getRRate() const {
+double DPCMMMatrix::getRRate() const {
     return (double)rAcceptCount/(double)rCount;
 }
 
-double RJDPPMatrix::getKRate() const {
+double DPCMMMatrix::getKRate() const {
     return (double)kAcceptCount/(double)kCount;
 }
 
-void RJDPPMatrix::tune(){
+void DPCMMMatrix::tune(){
     if(kCount > 0){
         double kRate = getKRate();
 

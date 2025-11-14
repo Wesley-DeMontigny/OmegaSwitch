@@ -1,5 +1,5 @@
-#ifndef RJ_DPP_MATRIX_HPP
-#define RJ_DPP_MATRIX_HPP
+#ifndef DP_CMM_MATRIX_HPP
+#define DP_CMM_MATRIX_HPP
 #include "core/Matrix.hpp"
 #include "core/Msg.hpp"
 #include "core/Probability.hpp"
@@ -24,9 +24,9 @@ using namespace MatrixHelper;
  * @brief 
  * 
  */
-class RJDPPMatrix : public Parameter {
+class DPCMMMatrix : public Parameter {
     public:
-                                        RJDPPMatrix(Settings& settings, int nC);                        //
+                                        DPCMMMatrix(Settings& settings, int nC);                        //
 
         double                          getK() const {return currentParams[0];}                         //
         double                          getKRate() const;                                               //

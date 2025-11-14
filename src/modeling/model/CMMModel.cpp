@@ -1,4 +1,4 @@
-#include "RJModel.hpp"
+#include "CMMModel.hpp"
 #include "core/RandomVariable.hpp"
 #include "core/Alignment.hpp"
 #include "core/Msg.hpp"
@@ -7,7 +7,7 @@
 #include "modeling/parameters/trees/Node.hpp"
 #include "modeling/parameters/trees/TreeObject.hpp"
 #include "modeling/parameters/trees/TreeParameter.hpp"
-#include "modeling/parameters/rate_matrices/RJMatrix.hpp"
+#include "modeling/parameters/rate_matrices/CMMMatrix.hpp"
 #include "core/RandomVariable.hpp"
 #include "core/Settings.hpp"
 #include <cmath>
@@ -27,7 +27,7 @@
 #include <arm_neon.h>
 #endif
 
-RJModel::RJModel(Settings* s, Alignment* a, TreeParameter* t, RJMatrix* m, tf::Executor& e) : 
+CMMModel::CMMModel(Settings* s, Alignment* a, TreeParameter* t, CMMMatrix* m, tf::Executor& e) : 
             aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0), numChar(0), executor(e),
             tipsLog(s->tipsOutput), ancestralLog(s->ancestralStatesOutput), treeLog(s->treeOutput),
             analysisLog(s->mcmcOutput)  {
@@ -61,7 +61,7 @@ RJModel::RJModel(Settings* s, Alignment* a, TreeParameter* t, RJMatrix* m, tf::E
     activeT->updateAll();
 }
 
-RJModel::~RJModel(){
+CMMModel::~CMMModel(){
     delete postOrder;
     delete transProb;
     delete [] rescaling;
@@ -69,7 +69,7 @@ RJModel::~RJModel(){
     delete [] activeTP;
 }
 
-void RJModel::accept() {
+void CMMModel::accept() {
     oldLikelihood = currentLikelihood;
 
     for(int i = 0; i < numNodes; i++){
@@ -90,7 +90,7 @@ void RJModel::accept() {
     }
 }
 
-void RJModel::reject() {
+void CMMModel::reject() {
     currentLikelihood = oldLikelihood;
 
     for(int i = 0; i < numNodes; i++){
@@ -111,13 +111,13 @@ void RJModel::reject() {
     }
 }
 
-double RJModel::lnPrior(){
+double CMMModel::lnPrior(){
     double prior = tree->lnPrior() + rateMatrix->lnPrior();
 
     return prior;
 }
 
-void RJModel::regenerateLikelihood(){
+void CMMModel::regenerateLikelihood(){
     #ifdef SAMPLE_PRIOR
         return;
     #endif
@@ -318,12 +318,12 @@ void RJModel::regenerateLikelihood(){
     #endif
 }
 
-void RJModel::tuneMoves(){
+void CMMModel::tuneMoves(){
     tree->tune();
     rateMatrix->tune();
 }
 
-std::vector<double> RJModel::getTunableParameterRecord() const {
+std::vector<double> CMMModel::getTunableParameterRecord() const {
     std::vector<double> record = {
         rateMatrix->getK(), rateMatrix->getOmega(0), rateMatrix->getOmega(1), 
         rateMatrix->getOmega(2), rateMatrix->getOmega(3), rateMatrix->getOmega(4),
@@ -337,7 +337,7 @@ std::vector<double> RJModel::getTunableParameterRecord() const {
     return record;
 }
 
-std::vector<double> RJModel::getTunableParameters() const {
+std::vector<double> CMMModel::getTunableParameters() const {
     std::vector<double> returnVec(6, 0.0);
     returnVec[0] = tree->branchAlpha;
     returnVec[1] = tree->treeDelta;
@@ -348,7 +348,7 @@ std::vector<double> RJModel::getTunableParameters() const {
     return returnVec;
 }
 
-void RJModel::setTunableParameters(const std::vector<double> & v){
+void CMMModel::setTunableParameters(const std::vector<double> & v){
     tree->branchAlpha = v[0];
     tree->treeDelta = v[1];
     rateMatrix->stationaryAlpha = v[2];
@@ -357,13 +357,13 @@ void RJModel::setTunableParameters(const std::vector<double> & v){
     rateMatrix->rDelta = v[5];
 }
 
-void RJModel::printAcceptanceRates() {
+void CMMModel::printAcceptanceRates() {
     std::cout << "Tree Acceptance Rate: " << tree->getTreeRate() << "\tBranch Acceptance Rate: " << tree->getBranchRate() <<
     "\tStationary Acceptance Rate: " << rateMatrix->getStationaryRate() << "\tK Acceptance Rate: " << rateMatrix->getKRate() <<
     "\tOmega Acceptance Rate: " << rateMatrix->getOmegaRate() << "\tR Acceptance Rate: " << rateMatrix->getRRate() << std::endl;
 }
 
-void RJModel::printTabular(int i) {
+void CMMModel::printTabular(int i) {
     if(i == 0){
         std::string returnString = "Iteration\tPosterior\tLikelihood\tPrior\tTreeLength\tOmegaCount\tK\tOmega\tOmegaIncrement1\tOmegaIncrement2\tOmegaIncrement3\tOmegaIncrement4\tR";
         for(int i = 0; i < 61; i++)
@@ -389,7 +389,7 @@ void RJModel::printTabular(int i) {
     }
 }
 
-void RJModel::writeLogHeaders() {
+void CMMModel::writeLogHeaders() {
     if(analysisLog != ""){
         std::string tabHeader = "Iteration\tPosterior\tLikelihood\tPrior\tTreeLength\tOmegaCount\tK\tOmega\tOmegaIncrement1\tOmegaIncrement2\tOmegaIncrement3\tOmegaIncrement4\tR";
         for(int i = 0; i < 61; i++)
@@ -437,7 +437,7 @@ void RJModel::writeLogHeaders() {
     #endif
 }
 
-void RJModel::writeLogData(int i) {
+void CMMModel::writeLogData(int i) {
     if(analysisLog != ""){
         std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" +
                                 std::to_string(currentLikelihood) + "\t" + std::to_string(lnPrior()) + "\t" + std::to_string(tree->getTree()->getTreeLength()) + "\t" +

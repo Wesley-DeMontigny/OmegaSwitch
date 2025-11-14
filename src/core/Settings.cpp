@@ -32,6 +32,7 @@ Settings::Settings(int argc,  char* argv[]) {
     settings.push_back("-simulationOutput");
     settings.push_back("/workspaces/Varying_Selection_DPP/testing/sim.log");
     settings.push_back("-M0");
+    numSimulations = 1;
     #endif
     if (settings.size() == 0) {
         usage();
@@ -50,15 +51,15 @@ Settings::Settings(int argc,  char* argv[]) {
             }
             modelSelected = true;
         }
-        else if(settings[i] == "-RJ"){
-            RJ = true;
+        else if(settings[i] == "-CMM"){
+            CMM = true;
             if(modelSelected){
                 Msg::error("Cannot do inference under two models!");
             }
             modelSelected = true;
         }
-        else if(settings[i] == "-RJDPP"){
-            RJDPP = true;
+        else if(settings[i] == "-DPCMM"){
+            DPCMM = true;
             if(modelSelected){
                 Msg::error("Cannot do inference under two models!");
             }
@@ -71,15 +72,15 @@ Settings::Settings(int argc,  char* argv[]) {
             }
             simulating = true;
         }
-        else if(settings[i] == "-simulateRJ"){
-            simulateRJ = true;
+        else if(settings[i] == "-simulateCMM"){
+            simulateCMM = true;
             if(simulating){
                 Msg::error("Cannot simulate under multiple models!");
             }
             simulating = true;
         }
-        else if(settings[i] == "-simulateRJDPP"){
-            simulateRJDPP = true;
+        else if(settings[i] == "-simulateDPCMM"){
+            simulateDPCMM = true;
             if(simulating){
                 Msg::error("Cannot simulate under multiple models!");
             }
@@ -208,11 +209,11 @@ void Settings::print(){
 
     std::cout << "Inference Model and Simulation:" << std::endl;
     std::cout << "   * -M0                : " << M0 << std::endl;
-    std::cout << "   * -RJ                : " << RJ << std::endl;
-    std::cout << "   * -RJDPP             : " << RJDPP << std::endl;
+    std::cout << "   * -CMM                : " << CMM << std::endl;
+    std::cout << "   * -DPCMM             : " << DPCMM << std::endl;
     std::cout << "   * -simulateM0        : " << simulateM0 << std::endl;
-    std::cout << "   * -simulateRJ        : " << simulateRJ << std::endl;
-    std::cout << "   * -simulateRJDPP     : " << simulateRJDPP << std::endl;
+    std::cout << "   * -simulateCMM        : " << simulateCMM << std::endl;
+    std::cout << "   * -simulateDPCMM     : " << simulateDPCMM << std::endl;
     std::cout << "   * -numSimulations    : " << numSimulations << std::endl;
     std::cout << std::endl;
     
@@ -264,11 +265,11 @@ void Settings::usage() {
     std::cout << "Inference Model and Simulation:" << std::endl;
     std::cout << "   * NOTE: By default, this software will run the M0 model." << std::endl;
     std::cout << "   * -M0                : Do inference under a normal codon phylogenetic model." << std::endl;
-    std::cout << "   * -RJ                : Do inference under the reversible jump Markov-modulated model." << std::endl;
-    std::cout << "   * -RJDPP             : Do inference with the reversible-jump DPP model." << std::endl;
+    std::cout << "   * -CMM                : Do inference under the reversible jump Markov-modulated model." << std::endl;
+    std::cout << "   * -DPCMM             : Do inference with the reversible-jump DPP model." << std::endl;
     std::cout << "   * -simulateM0        : Directs the program to simulate under M0 and test against the selected inference model." << std::endl;
-    std::cout << "   * -simulateRJ        : Directs the program to simulate under the RJ model and test against the selected inference model." << std::endl;
-    std::cout << "   * -simulateRJDPP     : Directs the program to simulate under the RJ-DPP model and test against the selected inference model." << std::endl;
+    std::cout << "   * -simulateCMM        : Directs the program to simulate under the CMM model and test against the selected inference model." << std::endl;
+    std::cout << "   * -simulateDPCMM     : Directs the program to simulate under the CMM-DPP model and test against the selected inference model." << std::endl;
     std::cout << "   * -numSimulations    : The number of simulations to do inference under." << std::endl;
     std::cout << std::endl;
 

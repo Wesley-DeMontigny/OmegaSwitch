@@ -1,4 +1,4 @@
-#include "RJDPPModel.hpp"
+#include "DPCMMModel.hpp"
 #include "core/RandomVariable.hpp"
 #include "core/Alignment.hpp"
 #include "core/Msg.hpp"
@@ -7,7 +7,7 @@
 #include "modeling/parameters/trees/Node.hpp"
 #include "modeling/parameters/trees/TreeObject.hpp"
 #include "modeling/parameters/trees/TreeParameter.hpp"
-#include "modeling/parameters/rate_matrices/RJDPPMatrix.hpp"
+#include "modeling/parameters/rate_matrices/DPCMMMatrix.hpp"
 #include "core/RandomVariable.hpp"
 #include "core/Settings.hpp"
 #include <cmath>
@@ -25,7 +25,7 @@
 #include <arm_neon.h>
 #endif
 
-RJDPPModel::RJDPPModel(Settings* s, Alignment* a, TreeParameter* t, RJDPPMatrix* m, tf::Executor& e) : 
+DPCMMModel::DPCMMModel(Settings* s, Alignment* a, TreeParameter* t, DPCMMMatrix* m, tf::Executor& e) : 
             aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0), numChar(0), executor(e), numGibbsUpdate(s->numGibbs),
             tipsLog(s->tipsOutput), ancestralLog(s->ancestralStatesOutput), treeLog(s->treeOutput),
             analysisLog(s->mcmcOutput), dppLog(s->dppOutput), omegaLambda(s->omegaLambda) {
@@ -59,7 +59,7 @@ RJDPPModel::RJDPPModel(Settings* s, Alignment* a, TreeParameter* t, RJDPPMatrix*
     activeT->updateAll();
 }
 
-RJDPPModel::~RJDPPModel(){
+DPCMMModel::~DPCMMModel(){
     delete postOrder;
     delete transProb;
     delete [] rescaling;
@@ -67,7 +67,7 @@ RJDPPModel::~RJDPPModel(){
     delete [] activeTP;
 }
 
-void RJDPPModel::accept() {
+void DPCMMModel::accept() {
     oldLikelihood = currentLikelihood;
 
     for(int i = 0; i < numNodes; i++){
@@ -90,7 +90,7 @@ void RJDPPModel::accept() {
     transProb->accept();
 }
 
-void RJDPPModel::reject() {
+void DPCMMModel::reject() {
     currentLikelihood = oldLikelihood;
 
     for(int i = 0; i < numNodes; i++){
@@ -111,13 +111,13 @@ void RJDPPModel::reject() {
     }
 }
 
-double RJDPPModel::lnPrior(){
+double DPCMMModel::lnPrior(){
     double prior = tree->lnPrior() + rateMatrix->lnPrior();
 
     return prior;
 }
 
-void RJDPPModel::regenerateLikelihood(){
+void DPCMMModel::regenerateLikelihood(){
     #ifdef SAMPLE_PRIOR
         return;
     #endif
@@ -331,7 +331,7 @@ void RJDPPModel::regenerateLikelihood(){
     #endif
 }
 
-void RJDPPModel::regenerateTransitionProbs(int category){
+void DPCMMModel::regenerateTransitionProbs(int category){
     TreeObject* activeT = tree->getTree();
 
     std::vector<Node*> poSeq = activeT->getPostOrderSeq();
@@ -350,7 +350,7 @@ void RJDPPModel::regenerateTransitionProbs(int category){
     }
 }
 
-double RJDPPModel::updateDPP(){
+double DPCMMModel::updateDPP(){
     RandomVariable& rng = RandomVariable::randomVariableInstance();
     TreeObject* activeT = tree->getTree();
     std::vector<Node*> poSeq = activeT->getPostOrderSeq();
@@ -618,13 +618,13 @@ double RJDPPModel::updateDPP(){
     return INFINITY;
 }
 
-void RJDPPModel::tuneMoves(){
+void DPCMMModel::tuneMoves(){
     tree->tune();
     rateMatrix->tune();
 }
 
 
-std::vector<double> RJDPPModel::getTunableParameterRecord() const {
+std::vector<double> DPCMMModel::getTunableParameterRecord() const {
     std::vector<double> record = {
         rateMatrix->getK(), rateMatrix->getR()
     };
@@ -636,7 +636,7 @@ std::vector<double> RJDPPModel::getTunableParameterRecord() const {
     return record;
 }
 
-std::vector<double> RJDPPModel::getTunableParameters() const {
+std::vector<double> DPCMMModel::getTunableParameters() const {
     std::vector<double> returnVec(5, 0.0);
     returnVec[0] = tree->branchAlpha;
     returnVec[1] = tree->treeDelta;
@@ -646,7 +646,7 @@ std::vector<double> RJDPPModel::getTunableParameters() const {
     return returnVec;
 }
 
-void RJDPPModel::setTunableParameters(const std::vector<double> & v){
+void DPCMMModel::setTunableParameters(const std::vector<double> & v){
     tree->branchAlpha= v[0];
     tree->treeDelta = v[1];
     rateMatrix->stationaryAlpha = v[2];
@@ -654,13 +654,13 @@ void RJDPPModel::setTunableParameters(const std::vector<double> & v){
     rateMatrix->rDelta = v[4];
 }
 
-void RJDPPModel::printAcceptanceRates(){
+void DPCMMModel::printAcceptanceRates(){
     std::cout << "Tree Acceptance Rate: " << tree->getTreeRate() << "\tBranch Acceptance Rate: " << tree->getBranchRate() <<
     "\tStationary Acceptance Rate: " << rateMatrix->getStationaryRate() << "\tK Acceptance Rate: " << rateMatrix->getKRate() <<
     "\tOmega Acceptance Rate: " << rateMatrix->getOmegaRate() << "\tR Acceptance Rate: " << rateMatrix->getRRate() << std::endl;
 }
 
-void RJDPPModel::printTabular(int i){
+void DPCMMModel::printTabular(int i){
     if(i == 0){
         std::string returnString = "Iteration\tPosterior\tLikelihood\tPrior\tTreeLength\tOmegaCount\tK\tR";
         for(int i = 0; i < 61; i++)
@@ -683,7 +683,7 @@ void RJDPPModel::printTabular(int i){
     }
 }
 
-void RJDPPModel::writeLogHeaders(){
+void DPCMMModel::writeLogHeaders(){
     if(analysisLog != ""){
         std::string tabHeader = "Iteration\tPosterior\tLikelihood\tPrior\tTreeLength\tOmegaCount\tK\tR";
         for(int i = 0; i < 61; i++)
@@ -741,7 +741,7 @@ void RJDPPModel::writeLogHeaders(){
     #endif
 }
 
-void RJDPPModel::writeLogData(int i) {
+void DPCMMModel::writeLogData(int i) {
     if(analysisLog != ""){
         std::string returnString = std::to_string(i) + "\t" + std::to_string(lnPrior() + currentLikelihood) + "\t" +
                                 std::to_string(currentLikelihood) + "\t" + std::to_string(lnPrior()) + "\t" + std::to_string(tree->getTree()->getTreeLength()) + "\t" +

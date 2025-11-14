@@ -1,5 +1,5 @@
-#ifndef RJ_MODEL_HPP
-#define RJ_MODEL_HPP
+#ifndef CMM_MODEL_HPP
+#define CMM_MODEL_HPP
 #include "modeling/parameters/trees/TreeParameter.hpp"
 #include "core/Alignment.hpp"
 #include "Model.hpp"
@@ -9,18 +9,18 @@
 class ConditionalLikelihood;
 class TransitionProbability;
 class RandomVariable;
-class RJMatrix;
+class CMMMatrix;
 class Settings;
 
 /**
  * @brief 
  * 
  */
-class RJModel : public Model {
+class CMMModel : public Model {
     public:
-                                RJModel(void) = delete;
-                                RJModel(Settings* s, Alignment* a, TreeParameter* t, RJMatrix* m, tf::Executor& e);     //
-                                ~RJModel();                                                                             //
+                                CMMModel(void) = delete;
+                                CMMModel(Settings* s, Alignment* a, TreeParameter* t, CMMMatrix* m, tf::Executor& e);     //
+                                ~CMMModel();                                                                             //
 
         double                  lnLikelihood() override {return currentLikelihood; }                                    //
         double                  lnPrior() override;                                                                     //
@@ -46,7 +46,7 @@ class RJModel : public Model {
         int                     numChar;                                                                                //
         int                     numNodes;                                                                               //
         int                     stateSpace;                                                                             //
-        RJMatrix*               rateMatrix;                                                                             //
+        CMMMatrix*               rateMatrix;                                                                             //
         std::string             analysisLog;                                                                            //
         std::string             treeLog;                                                                                //
         std::string             tipsLog;                                                                                //

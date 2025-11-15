@@ -224,7 +224,7 @@ int randomTransition(RandomVariable& rng, const int ancestralState, const Matrix
 int main(int argc, char* argv[]) {
 
     Settings settings(argc, argv);
-    tf::Executor executor(8);
+    tf::Executor executor(settings.threads);
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 

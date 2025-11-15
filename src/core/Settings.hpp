@@ -43,6 +43,7 @@ struct Settings {
     int                     numSimulations = 0;             // How many simulations to perform under the specified model
     int                     printFrequency = 10;            // How many MCMC iterations between printing the program state to the screen
     int                     sampleFrequency = 10;           // How many MCMC iterations between sampling events
+    id_t                    threads = 8;                    // How many threads to use in the analysis
     int                     tuneFrequency = 100;            // How many MCMC iterations between tuning events during the burn-in
 
     std::string             ancestralStatesOutput = "";     // The file to output all ancestral states to

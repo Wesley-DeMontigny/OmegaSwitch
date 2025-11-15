@@ -152,6 +152,8 @@ Settings::Settings(int argc,  char* argv[]) {
                 numSimulations = stoi(settings[i]);
             else if (currentArg == "-simulationOutput")
                 simulationOutput = settings[i];
+            else if(currentArg == "-threads")
+                threads = stoi(settings[i]);
             else{
                 Msg::error("Could not interpret argument " + currentArg);
                 usage();
@@ -203,8 +205,9 @@ void Settings::print(){
     std::cout << "   * -dppOut            : " << dppOutput << std::endl;
     std::cout << "   * -tipsOut           : " << tipsOutput << std::endl;
     std::cout << "   * -ancestralStatesOut: " << ancestralStatesOutput << std::endl;
-    std::cout << "   * -tree         : " << tree << std::endl;
+    std::cout << "   * -tree              : " << tree << std::endl;
     std::cout << "   * -simulationOutput  : " << simulationOutput << std::endl;
+    std::cout << "   * -threads           :" << threads << std::endl;
     std::cout << std::endl;
 
     std::cout << "Inference Model and Simulation:" << std::endl;
@@ -260,6 +263,7 @@ void Settings::usage() {
     std::cout << "   * -ancestralStatesOut: The output file name for the all ancestral dNdS ratios." << std::endl;
     std::cout << "   * -tree              : The NEWICK string corresponding to the fixed tree you wish to analyze." << std::endl;
     std::cout << "   * -simulationOutput  : The output file name for the true simulation parameters." << std::endl;
+    std::cout << "   * -threads           : The number of threads to use during the analysis." << std::endl;
     std::cout << std::endl;
 
     std::cout << "Inference Model and Simulation:" << std::endl;

@@ -113,6 +113,8 @@ double MCMC::GibbsIteration(double currentLnPosterior){
 void MCMC::burnin(){
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
+    model->regenerateLikelihood();
+    model->accept();
     double currentLnPosterior = model->lnLikelihood() + model->lnPrior();
 
     std::vector<double> initTuning = model->getTunableParameters();
@@ -177,6 +179,8 @@ void MCMC::burnin(){
  * 
  */
 void MCMC::run(){
+    model->regenerateLikelihood();
+    model->accept();
     double currentLnPosterior = model->lnLikelihood() + model->lnPrior();
 
     model->writeLogHeaders();

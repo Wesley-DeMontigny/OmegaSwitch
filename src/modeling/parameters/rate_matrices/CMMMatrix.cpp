@@ -336,7 +336,7 @@ double CMMMatrix::updateActiveOmegas(){
             double newOmega = Probability::Exponential::rv(&rng, omegaLambda);
             hastings -= Probability::Exponential::lnPdf(omegaLambda, newOmega);
 
-            for(int j = currentActiveOmegas; j > randomBirth ; j--){
+            for(int j = currentActiveOmegas; j > randomBirth; j--){
                 currentParams[j + 2] = currentParams[j + 1];
                 currentParamPriors[j + 2] = currentParamPriors[j + 1];
             }

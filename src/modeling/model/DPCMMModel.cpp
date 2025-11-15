@@ -191,7 +191,7 @@ void DPCMMModel::regenerateLikelihood(){
     int chunkSize = (int)std::ceil((double)numChar/(double)executor.num_workers());
     for(int range = 0; range < (int)std::ceil((double)numChar / (double)chunkSize); range++){
         int start = range * chunkSize;
-        int end   = std::min(start + chunkSize, numChar);
+        int end = std::min(start + chunkSize, numChar) - 1;
 
         phyloTaskflow.emplace([this, &poSeq, numCats, &assignments, numClasses, activeSubspace, start, end](){
 

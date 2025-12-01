@@ -32,7 +32,7 @@ struct Settings {
     double                  rLambda = 3.0;                  // The rate parameter for the evolutionary regime swapping exponential prior
     double                  rWeight = 1.0;                  // Weight associated with updating the rate of swapping evolutionary rates
     double                  stationaryWeight = 2.0;         // Weight associated with updating the stationary distribution of the rate matrix
-    double                  treeLengthMean = 35.0;           // The mean parameter associated with the tree length prior
+    double                  treeLengthMean = 35.0;          // The mean parameter associated with the tree length prior
     double                  treeLengthSD = 2.5;             // The SD parameter associated with the tree length prior
     double                  treeWeight = 2.0;               // Weight associated with updating the tree topology or branch lengths
     int                     bayesOpt = 0;                   // How many iterations of Bayesian optimization to perform on the tunable parameters
@@ -43,7 +43,7 @@ struct Settings {
     int                     numSimulations = 0;             // How many simulations to perform under the specified model
     int                     printFrequency = 10;            // How many MCMC iterations between printing the program state to the screen
     int                     sampleFrequency = 10;           // How many MCMC iterations between sampling events
-    id_t                    threads = 8;                    // How many threads to use in the analysis
+    id_t                    threads = 15;                    // How many threads to use in the analysis
     int                     tuneFrequency = 100;            // How many MCMC iterations between tuning events during the burn-in
 
     std::string             ancestralStatesOutput = "";     // The file to output all ancestral states to

@@ -31,7 +31,8 @@ Settings::Settings(int argc,  char* argv[]) {
     settings.push_back("-simulateM0");
     settings.push_back("-simulationOutput");
     settings.push_back("/workspaces/Varying_Selection_DPP/testing/sim.log");
-    settings.push_back("-M0");
+    settings.push_back("DPCMM");
+    numIterations = 100000;
     numSimulations = 1;
     #endif
     if (settings.size() == 0) {

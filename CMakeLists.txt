@@ -11,7 +11,7 @@ option(TIME_PROFILE "Enabled Time Profiling" OFF)
 
 add_subdirectory(${PROJECT_SOURCE_DIR}/lib/ncl)
 
-include_directories(/workspaces/taskflow/)
+include_directories(/workspaces/taskflow/) # Add the location of taskflow
 
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
@@ -20,7 +20,7 @@ file(GLOB_RECURSE SOURCES "${PROJECT_SOURCE_DIR}/src/*.cpp")
 add_executable(main ${SOURCES})
 
 target_link_libraries(main PRIVATE ncl_static)
-
+target_link_libraries(main PRIVATE pthread) # This was required on RedHat in my experience
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -O3")
 
 if(DEBUG)

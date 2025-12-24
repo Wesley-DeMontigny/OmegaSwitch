@@ -19,7 +19,7 @@ ConditionalLikelihood::ConditionalLikelihood(Alignment* aln, int nN, int nR, int
         for(int r = 0; r < numRates; r++){
             double* p = (*this)(index, 0, r);
             for(int i = 0; i < numChar; i++){
-                std::bitset<61> state = aln->getMatrix()[index][i];
+                const std::bitset<61>& state = aln->getMatrix()[index][i];
 
                 bool assigned = false;
                 for(int j = 0; j < 61; j++) {

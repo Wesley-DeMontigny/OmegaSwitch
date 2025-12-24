@@ -22,18 +22,17 @@ Settings::Settings(int argc,  char* argv[]) {
     settings.push_back("/workspaces/Varying_Selection_DPP/testing/trees.trees");
     settings.push_back("-mcmcOut");
     settings.push_back("/workspaces/Varying_Selection_DPP/testing/analysis.log");
-    settings.push_back("-dppOut");
-    settings.push_back("/workspaces/Varying_Selection_DPP/testing/dpp.log");
     settings.push_back("-tipsOut");
     settings.push_back("/workspaces/Varying_Selection_DPP/testing/tips.log");
     settings.push_back("-branchOut");
-    settings.push_back("/workspaces/Varying_Selection_DPP/testing/branches.log");
-    settings.push_back("-simulateM0");
-    settings.push_back("-simulationOutput");
-    settings.push_back("/workspaces/Varying_Selection_DPP/testing/sim.log");
-    settings.push_back("DPCMM");
+    settings.push_back("/workspaces/Varying_Selection_DPP/tessting/branches.log");
+    settings.push_back("-tree");
+    settings.push_back("(((((((HBBCmydas:1,HBBPcastaneus:1):1,HBBCniloticus:1):1,(HBBAindicus:1,(HBBCminor:1,HBBGgallus:1):1):1):1,(HBBBtaurus:1,HBBHsapiens:1):1):1,(HBBBbombina:1,HBBXborealis:1):1):1,((HBBDrerio:1,HBBCcarpio:1):1,HBBSsalar:1):1):1,(((HBADrerio:1,HBACcarpio:1):1,HBASsalar:1):1,((HBABbombina:1,HBAXborealis:1):1,((HBABtaurus:1,HBAHsapiens:1):1,((HBAAindicus:1,(HBACminor:1,HBAGgallus:1):1):1,((HBACmydas:1,HBAPcastaneus:1):1,HBACniloticus:1):1):1):1):1):1);");
+    settings.push_back("-nexus");
+    settings.push_back("/workspaces/Varying_Selection_DPP/publication_analyses/globin_analysis/globins.nex");
+    settings.push_back("-M0");
     numIterations = 100000;
-    numSimulations = 1;
+    burnInIterations = 10000;
     #endif
     if (settings.size() == 0) {
         usage();
@@ -190,6 +189,9 @@ Settings::Settings(int argc,  char* argv[]) {
     if(sequentialTuningSim && !simulating){
         Msg::error("For a sequential tuning simulation, the software must be in simulation mode.");
     }
+
+    if(simulating && numSimulations == 0)
+        numSimulations = 1;
 
     print();
 }

@@ -111,6 +111,7 @@ double TreeParameter::update() {
     else {
         moveChoice = TreeMoves::TREE_LENGTH_MOVE;
         treeCount += 1;
+        trees[0]->updateAll();
 
         double currentV = trees[0]->getTreeLength();
         double scale = std::exp(treeDelta * (rng.uniformRv() - 0.5));

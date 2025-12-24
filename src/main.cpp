@@ -237,7 +237,7 @@ int main(int argc, char* argv[]) {
     if(settings.simulateM0 == false && settings.simulateCMM == false && settings.simulateDPCMM == false){
         Alignment aln(settings.nexusInput);
         TreeParameter treeParam(aln, settings.tree, treeLengthParams);
-        inference(settings, aln, treeParam, false, executor);
+        inference(settings, aln, treeParam, settings.bayesOpt == 0, executor);
     }
     else{
         int numSites = 200;

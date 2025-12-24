@@ -125,9 +125,7 @@ TreeObject::TreeObject(std::string newick, std::vector<std::string> taxaNames){
         }
         else{
             if(readingBranchLength){
-                double x = atof(tok.c_str());
-                treeLength += x;
-                setBranchProportion(p, x);
+                // We don't care about branch lengths
             }
             else{
                 //We need to trim the white space at the beginning and end of the token
@@ -260,10 +258,8 @@ void TreeObject::randomizeBranches(){
         }
     }
 
-    double total = 0.0;
     for(auto& bP : branchProportions){
         bP.second /= gammaTotal;
-        total += bP.second;
     }
 }
 

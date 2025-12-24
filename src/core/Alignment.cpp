@@ -40,7 +40,8 @@ Alignment::Alignment(std::string fn) {
 /**
  * @brief Construct a new alignment from a siteMatrix. This kind of matrix consits of entries
  * with values 0-60 to indicate the codon at that taxon/site pair. The matrix should be indexed
- * so that matrix[t*numChar + c] gives the character code for taxon t and site c
+ * so that matrix[t*numChar + c] gives the character code for taxon t and site c. This is intended
+ * to be used to construct an alignment object from a simulation.
  */
 Alignment::Alignment(int* siteMatrix, int nC, int nT) : numChar(nC), numTaxa(nT) {
 
@@ -111,7 +112,7 @@ void Alignment::readCodonData(NxsCharactersBlock* charBlock){
                     break;
                 }
 
-                if(k == len-1) { // We did not find something here - anything could have emitted it
+                if(k == len-1) { // We only have support for gaps as ambiguous data
                     matrix[i][j].set();
                 }
             }

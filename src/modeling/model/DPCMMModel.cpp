@@ -916,7 +916,7 @@ void DPCMMModel::writeLogData(int i) {
             }
 
             std::ofstream outFile(tipsLog, std::ios::app);
-            outFile << tipString;
+            outFile << tipString << std::endl;
         }
 
         if(ancestralLog != ""){
@@ -930,7 +930,7 @@ void DPCMMModel::writeLogData(int i) {
             }
 
             std::ofstream outFile(ancestralLog, std::ios::app);
-            outFile << ancestralString;
+            outFile << ancestralString << std::endl;
         }
 
         delete [] reconstructedStates;

@@ -606,6 +606,7 @@ Matrix<double> DPCMMMatrix::Q(const std::array<double, 3>& omegas) const {
         }
     }
 
+    double stateSpaceScaler = 1.0 / (double)(currentActiveOmegas);
     double scaler= 0.0;
     for(int i = 0; i < stateSpace; i++){
         double total = 0.0;
@@ -615,7 +616,7 @@ Matrix<double> DPCMMMatrix::Q(const std::array<double, 3>& omegas) const {
             }
         }
         returnMatrix(i, i) = total * -1.0;
-        scaler += returnMatrix(i, i) * currentStationary[i % 61];
+        scaler += returnMatrix(i, i) * currentStationary[i % 61] * stateSpaceScaler;
     }
 
     scaler = -1.0 / scaler;

@@ -467,7 +467,8 @@ Matrix<double> CMMMatrix::Q() const {
     Matrix<double> returnMatrix(currentQMatrix.copy());
 
     int stateSpace = 61 * currentActiveOmegas;
-
+    
+    double stateSpaceScaler = 1.0 / (double)(currentActiveOmegas);
     double scaler= 0.0;
     for(int i = 0; i < stateSpace; i++){
         double total = 0.0;
@@ -477,7 +478,7 @@ Matrix<double> CMMMatrix::Q() const {
             }
         }
         returnMatrix(i, i) = total * -1.0;
-        scaler += returnMatrix(i, i) * currentStationary[i % 61];
+        scaler += returnMatrix(i, i) * currentStationary[i % 61] * stateSpaceScaler;
     }
 
     scaler = -1.0 / scaler;

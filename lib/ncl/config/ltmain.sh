@@ -4709,7 +4709,7 @@ find_executable (const char *wrapper)
               nonnull (strerror (errno)));
   tmp_len = strlen (tmp);
   concat_name = XMALLOC (char, tmp_len + 1 + strlen (wrapper) + 1);
-   (concat_name, tmp, tmp_len);
+  memcpy (concat_name, tmp, tmp_len);
   concat_name[tmp_len] = '/';
   strcpy (concat_name + tmp_len + 1, wrapper);
 

@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.20)
 project(Bayesian_Phylo)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-option(TEST_RUN "Enabled Test Environment Run Parameters" ON)
+option(TEST_RUN "Enabled Test Environment Run Parameters" OFF)
 option(SAMPLE_PRIOR "Enabled Prior Sampling Mode" OFF)
 option(DEBUG "Enabled Debug Mode" OFF)
 option(TIME_PROFILE "Enabled Time Profiling" OFF)

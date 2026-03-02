@@ -32,7 +32,7 @@
 void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, bool disableBayesOpt, tf::Executor& executor){
 
     if(settings.CMM){
-        std::cout << "Initializing the Reversible Jump model..." << std::endl;
+        std::cout << "Initializing the CMM model..." << std::endl;
 
         CMMMatrix rateMatrix(settings);
 
@@ -83,7 +83,7 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
         mcmc.run();
     }
     else if(settings.DPCMM){
-        std::cout << "Initializing the Reversible Jump DPP model..." << std::endl;
+        std::cout << "Initializing the DPCMM model..." << std::endl;
 
         DPCMMMatrix rateMatrix(settings, aln.getNumChar());
 

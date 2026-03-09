@@ -1,8 +1,8 @@
-#include "core/Math.hpp"
-#include "core/Matrix.hpp"
-#include "core/Probability.hpp"
-#include "core/RandomVariable.hpp"
-#include "core/Settings.hpp"
+#include "misc/Math.hpp"
+#include "misc/Matrix.hpp"
+#include "misc/Probability.hpp"
+#include "misc/RandomVariable.hpp"
+#include "misc/Settings.hpp"
 #include "DPCMMMatrix.hpp"
 #include <algorithm>
 #include <cmath>
@@ -351,9 +351,9 @@ double DPCMMMatrix::updateActiveOmegas() {
         double splitAlpha = 5.0;
         double total = MatrixHelper::possibleSplit3[currentActiveOmegas-1] + MatrixHelper::possibleMerge3[currentActiveOmegas - 1];
         double splitProbs = (double)(MatrixHelper::possibleSplit3[currentActiveOmegas-1]) / total;
-        double randomMove = rng.uniformRv();
+        double randomMove2 = rng.uniformRv();
 
-        if(randomMove < splitProbs){ // Perform a split
+        if(randomMove2 < splitProbs){ // Perform a split
             double forwardProb = -std::log(total);
             double nextTotal = MatrixHelper::possibleSplit3[currentActiveOmegas] + MatrixHelper::possibleMerge3[currentActiveOmegas];
             double reverseProb = -std::log(nextTotal);
@@ -462,7 +462,7 @@ double DPCMMMatrix::updateActiveOmegas() {
             int randomDeath = (int)(rng.uniformRv() * currentActiveOmegas);
 
             for(int i = 0; i < currentCategories.size(); i++){
-                hastings += Probability::Exponential::lnPdf(omegaLambda, currentCategories[i].omegas[i]);
+                hastings += Probability::Exponential::lnPdf(omegaLambda, currentCategories[i].omegas[randomDeath]);
 
                 for(int j = randomDeath; j < currentActiveOmegas-1; j++){
                     currentCategories[i].omegas[j] = currentCategories[i].omegas[j + 1];

@@ -1,6 +1,6 @@
-#include "core/Probability.hpp"
-#include "core/RandomVariable.hpp"
-#include "core/Settings.hpp"
+#include "misc/Probability.hpp"
+#include "misc/RandomVariable.hpp"
+#include "misc/Settings.hpp"
 #include "CMMMatrix.hpp"
 #include <algorithm>
 #include <cmath>

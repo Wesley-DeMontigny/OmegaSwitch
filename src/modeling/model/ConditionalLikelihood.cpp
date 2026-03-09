@@ -1,6 +1,6 @@
 #include "ConditionalLikelihood.hpp"
-#include "core/Alignment.hpp"
-#include "core/Msg.hpp"
+#include "misc/Alignment.hpp"
+#include "misc/Msg.hpp"
 
 ConditionalLikelihood::ConditionalLikelihood(Alignment* aln, int nN, int nR, int ss) : numNodes(nN), numRates(nR), stateSpace(ss) {
     numChar = aln->getNumChar();

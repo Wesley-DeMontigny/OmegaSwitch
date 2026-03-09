@@ -1,4 +1,4 @@
-#include "core/RandomVariable.hpp"
+#include "misc/RandomVariable.hpp"
 #include "Node.hpp"
 
 /**

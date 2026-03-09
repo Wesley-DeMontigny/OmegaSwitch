@@ -2,7 +2,7 @@
 #define RJ_MCMC_HPP
 #include <vector>
 #include <string>
-#include "core/BayesianOptimizer.hpp"
+#include "misc/BayesianOptimizer.hpp"
 
 class Model;
 class Move;

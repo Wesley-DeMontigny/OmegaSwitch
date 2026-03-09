@@ -2,7 +2,7 @@
 #define DP_CMM_MODEL_HPP
 #include "modeling/parameters/trees/TreeParameter.hpp"
 #include <taskflow/taskflow.hpp>
-#include "core/Alignment.hpp"
+#include "misc/Alignment.hpp"
 #include "Model.hpp"
 
 class ConditionalLikelihood;

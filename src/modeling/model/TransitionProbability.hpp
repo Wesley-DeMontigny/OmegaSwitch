@@ -3,9 +3,9 @@
 
 #include <complex>
 #include <vector>
-#include "core/EigenSystem.hpp"
-#include "core/Matrix.hpp"
-#include "core/RateEigens.hpp"
+#include "misc/EigenSystem.hpp"
+#include "misc/Matrix.hpp"
+#include "misc/RateEigens.hpp"
 
 /**
  * @brief 

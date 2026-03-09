@@ -1,8 +1,8 @@
 #ifndef DP_CMM_MATRIX_HPP
 #define DP_CMM_MATRIX_HPP
-#include "core/Matrix.hpp"
-#include "core/Msg.hpp"
-#include "core/Probability.hpp"
+#include "misc/Matrix.hpp"
+#include "misc/Msg.hpp"
+#include "misc/Probability.hpp"
 #include "MatrixHelper.hpp"
 #include "modeling/parameters/Parameter.hpp"
 #include <array>

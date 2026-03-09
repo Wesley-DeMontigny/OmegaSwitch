@@ -1,7 +1,7 @@
 #ifndef M0_MATRIX_HPP
 #define M0_MATRIX_HPP
-#include "core/Matrix.hpp"
-#include "core/Msg.hpp"
+#include "misc/Matrix.hpp"
+#include "misc/Msg.hpp"
 #include "MatrixHelper.hpp"
 #include "modeling/parameters/Parameter.hpp"
 #include <array>

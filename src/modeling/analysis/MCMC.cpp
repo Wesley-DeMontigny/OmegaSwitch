@@ -1,10 +1,10 @@
 #include "MCMC.hpp"
-#include "core/RandomVariable.hpp"
+#include "misc/RandomVariable.hpp"
 #include "modeling/model/Model.hpp"
 #include "modeling/parameters/Parameter.hpp"
 #include "modeling/parameters/trees/TreeParameter.hpp"
 #include "modeling/parameters/trees/TreeObject.hpp"
-#include "core/Settings.hpp"
+#include "misc/Settings.hpp"
 #include "Move.hpp"
 #include <cmath>
 #include <iostream>

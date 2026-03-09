@@ -1,6 +1,6 @@
 #include <complex>
 #include "TransitionProbability.hpp"
-#include "core/Math.hpp"
+#include "misc/Math.hpp"
 #include <cstring>
 
 TransitionProbability::TransitionProbability(const int nn, const int ss)

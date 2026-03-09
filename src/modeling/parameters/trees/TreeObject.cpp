@@ -1,7 +1,7 @@
-#include "core/Alignment.hpp"
-#include "core/Msg.hpp"
-#include "core/RandomVariable.hpp"
-#include "core/Probability.hpp"
+#include "misc/Alignment.hpp"
+#include "misc/Msg.hpp"
+#include "misc/RandomVariable.hpp"
+#include "misc/Probability.hpp"
 #include "Node.hpp"
 #include "TreeObject.hpp"
 #include <cmath>

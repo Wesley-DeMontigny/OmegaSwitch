@@ -162,9 +162,9 @@ Settings::Settings(int argc,  char* argv[]) {
         }
     }
 
-    if((nexusInput == "" || treeOutput == "" || mcmcOutput == "" || tree == "") && !simulating){
+    if((nexusInput == "" || mcmcOutput == "" || tree == "") && !simulating){
         usage();
-        Msg::error("For non-simulation analyses, nexusInput, treeOut, mcmcOut, and a topology are required arguments.");
+        Msg::error("For non-simulation analyses, nexus, mcmcOut, and a topology are required arguments.");
     }
 
     if(simulating && nexusInput != ""){
@@ -174,16 +174,12 @@ Settings::Settings(int argc,  char* argv[]) {
 
     if(simulating && tree != ""){
         usage();
-        Msg::warning("Simulation analyses cannot use a provided tree. This file will be ignored!");
+        Msg::warning("Simulation analyses cannot use a provided tree. This file be ignored!");
     }
 
     if(simulating && simulationOutput == ""){
         usage();
         Msg::warning("Simulation analyses require an output to be set!");
-    }
-
-    if(simulating && (treeOutput == "" || mcmcOutput == "")){
-        Msg::error("For simulation analyses, treeOut, mcmcOut are required arguments.");
     }
 
     if(sequentialTuningSim && !simulating){
@@ -215,10 +211,10 @@ void Settings::print(){
 
     std::cout << "Inference Model and Simulation:" << std::endl;
     std::cout << "   * -M0                : " << M0 << std::endl;
-    std::cout << "   * -CMM                : " << CMM << std::endl;
+    std::cout << "   * -CMM               : " << CMM << std::endl;
     std::cout << "   * -DPCMM             : " << DPCMM << std::endl;
     std::cout << "   * -simulateM0        : " << simulateM0 << std::endl;
-    std::cout << "   * -simulateCMM        : " << simulateCMM << std::endl;
+    std::cout << "   * -simulateCMM       : " << simulateCMM << std::endl;
     std::cout << "   * -simulateDPCMM     : " << simulateDPCMM << std::endl;
     std::cout << "   * -numSimulations    : " << numSimulations << std::endl;
     std::cout << std::endl;
@@ -272,10 +268,10 @@ void Settings::usage() {
     std::cout << "Inference Model and Simulation:" << std::endl;
     std::cout << "   * NOTE: By default, this software will run the M0 model." << std::endl;
     std::cout << "   * -M0                : Do inference under a normal codon phylogenetic model." << std::endl;
-    std::cout << "   * -CMM                : Do inference under the reversible jump Markov-modulated model." << std::endl;
+    std::cout << "   * -CMM               : Do inference under the reversible jump Markov-modulated model." << std::endl;
     std::cout << "   * -DPCMM             : Do inference with the reversible-jump DPP model." << std::endl;
     std::cout << "   * -simulateM0        : Directs the program to simulate under M0 and test against the selected inference model." << std::endl;
-    std::cout << "   * -simulateCMM        : Directs the program to simulate under the CMM model and test against the selected inference model." << std::endl;
+    std::cout << "   * -simulateCMM       : Directs the program to simulate under the CMM model and test against the selected inference model." << std::endl;
     std::cout << "   * -simulateDPCMM     : Directs the program to simulate under the CMM-DPP model and test against the selected inference model." << std::endl;
     std::cout << "   * -numSimulations    : The number of simulations to do inference under." << std::endl;
     std::cout << std::endl;
@@ -301,7 +297,7 @@ void Settings::usage() {
     std::cout << "   * -treeWeight        : How often to propose a move on the tree." << std::endl;
     std::cout << "   * -kWeight           : How often to propose a move on the K parameter." << std::endl;
     std::cout << "   * -rWeight           : How often to propose a move on the R parameter." << std::endl;
-    std::cout << "   * -rjWeight           : How often to propose a move on the dimension of the Markov modulated model." << std::endl;
+    std::cout << "   * -rjWeight          : How often to propose a move on the dimension of the Markov modulated model." << std::endl;
     std::cout << "   * -stationaryWeight  : How often to propose a move on the stationary distribution." << std::endl;
     std::cout << "   * -dppWeight         : How often to propose a move on the DPP partitions." << std::endl;
     std::cout << "   * -omegaWeight       : How often to propose a move on the omega parameters." << std::endl;

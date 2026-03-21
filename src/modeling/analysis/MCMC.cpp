@@ -54,7 +54,7 @@ double MCMC::GibbsIteration(double currentLnPosterior){
 
     double adjustedTotal = totalWeight;
     for(Move& mv : moves){
-        if(mv.condition && !mv.condition()){ // If our moves are conditional we don't want to include them in the total weight
+        if(!mv.condition()){ // If our condition is not satisfied we don't want to include them in the total weight
             adjustedTotal -= mv.weight;
         }
     }

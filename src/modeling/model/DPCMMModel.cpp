@@ -614,6 +614,9 @@ double DPCMMModel::updateDPP(){
     rateMatrix->regenerateCatPrior();
     rateMatrix->regenerateAssignments();
 
+    delete [] tempCLBuffer;
+    delete [] tempRescaleBuffer;
+
     return INFINITY;
 }
 

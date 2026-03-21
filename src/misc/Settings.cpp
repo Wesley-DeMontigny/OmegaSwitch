@@ -179,7 +179,7 @@ Settings::Settings(int argc,  char* argv[]) {
 
     if(simulating && simulationOutput == ""){
         usage();
-        Msg::warning("Simulation analyses require an output to be set!");
+        Msg::error("Simulation analyses require an output to be set!");
     }
 
     if(sequentialTuningSim && !simulating){
@@ -206,7 +206,7 @@ void Settings::print(){
     std::cout << "   * -ancestralStatesOut: " << ancestralStatesOutput << std::endl;
     std::cout << "   * -tree              : " << tree << std::endl;
     std::cout << "   * -simulationOutput  : " << simulationOutput << std::endl;
-    std::cout << "   * -threads           :" << threads << std::endl;
+    std::cout << "   * -threads           : " << threads << std::endl;
     std::cout << std::endl;
 
     std::cout << "Inference Model and Simulation:" << std::endl;

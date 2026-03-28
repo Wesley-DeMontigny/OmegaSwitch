@@ -317,6 +317,11 @@ void M0Model::tuneMoves(){
     rateMatrix->tune();
 }
 
+void M0Model::setCountTuningEvents(bool shouldCount) {
+    tree->setCountTuningEvents(shouldCount);
+    rateMatrix->setCountTuningEvents(shouldCount);
+}
+
 std::vector<double> M0Model::getTunableParameterRecord() const {
     std::vector<double> record = {
         rateMatrix->getK(), rateMatrix->getOmega()
@@ -331,20 +336,20 @@ std::vector<double> M0Model::getTunableParameterRecord() const {
 
 std::vector<double> M0Model::getTunableParameters() const {
     std::vector<double> returnVec(5, 0.0);
-    returnVec[0] = tree->branchAlpha;
-    returnVec[1] = tree->treeDelta;
-    returnVec[2] = rateMatrix->stationaryAlpha;
-    returnVec[3] = rateMatrix->kDelta;
-    returnVec[4] = rateMatrix->omegaDelta;
+    returnVec[0] = tree->getBranchAlpha();
+    returnVec[1] = tree->getTreeDelta();
+    returnVec[2] = rateMatrix->getStationaryAlpha();
+    returnVec[3] = rateMatrix->getKDelta();
+    returnVec[4] = rateMatrix->getOmegaDelta();
     return returnVec;
 }
 
 void M0Model::setTunableParameters(const std::vector<double> & v){
-    tree->branchAlpha = v[0];
-    tree->treeDelta = v[1];
-    rateMatrix->stationaryAlpha = v[2];
-    rateMatrix->kDelta = v[3];
-    rateMatrix->omegaDelta = v[4];
+    tree->setBranchAlpha(v[0]);
+    tree->setTreeDelta(v[1]);
+    rateMatrix->setStationaryAlpha(v[2]);
+    rateMatrix->setKDelta(v[3]);
+    rateMatrix->setOmegaDelta(v[4]);
 }
 
 void M0Model::printAcceptanceRates(){

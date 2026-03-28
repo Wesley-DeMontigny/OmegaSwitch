@@ -4,6 +4,7 @@
 #include "misc/Msg.hpp"
 #include "MatrixHelper.hpp"
 #include "modeling/parameters/Parameter.hpp"
+#include <memory>
 #include <array>
 #include <set>
 #include <vector>
@@ -21,11 +22,15 @@ class CMMMatrix : public Parameter {
 
         double                      getActiveOmegas() const {return currentActiveOmegas;}   //
         double                      getK() const {return currentParams[0];}                 //
+        double                      getKDelta() const {return tuningState->kDelta;}         //
         double                      getKRate() const;                                       //
         double                      getOmega(int i) const {return currentParams[2+i];}      // Get the ith Omega (or Omega increment)
+        double                      getOmegaDelta() const {return tuningState->omegaDelta;} //
         double                      getOmegaRate() const;                                   //
         double                      getR() const {return currentParams[1];}                 //
+        double                      getRDelta() const {return tuningState->rDelta;}         //
         double                      getRRate() const;                                       //
+        double                      getStationaryAlpha() const {return tuningState->stationaryAlpha;}//
         double                      getStationaryRate() const;                              //
         double                      lnPrior() override;                                     //
         double                      updateActiveOmegas();                                   //
@@ -39,17 +44,34 @@ class CMMMatrix : public Parameter {
         std::vector<double>         getStationary() const;                                  //
         void                        accept() override;                                      //
         void                        reject() override;                                      //
+        void                        setCountTuningEvents(bool shouldCount) {countTuningEvents = shouldCount;}//
         void                        setActiveOmegas(int o) {                                //
                                     currentActiveOmegas = o; 
                                     rebuildQMatrix();
                                     }
+        void                        setKDelta(double delta) {tuningState->kDelta = delta;}  //
+        void                        setOmegaDelta(double delta) {tuningState->omegaDelta = delta;}//
+        void                        setRDelta(double delta) {tuningState->rDelta = delta;}  //
+        void                        setStationaryAlpha(double alpha) {tuningState->stationaryAlpha = alpha;}//
+        void                        shareTuningWith(CMMMatrix& m) {tuningState = m.tuningState;}//
         void                        tune() override;                                        //
-
-        double                      kDelta;                                                 //
-        double                      omegaDelta;                                             //
-        double                      rDelta;                                                 //
-        double                      stationaryAlpha;                                        //
     private:
+        struct ProposalTuningStats {
+            int acceptCount = 0;
+            int count = 0;
+        };
+        
+        struct CMMTuningState {
+            double kDelta = 0.5;
+            double omegaDelta = 0.5;
+            double rDelta = 0.5;
+            double stationaryAlpha = 1000.0;
+            ProposalTuningStats kStats;
+            ProposalTuningStats omegaStats;
+            ProposalTuningStats rStats;
+            ProposalTuningStats stationaryStats;
+        };
+
         void                        rebuildQMatrix();                                       //
         double                      currentStationaryPrior = 0;                             //
         const double                kLambda;                                                //
@@ -59,6 +81,7 @@ class CMMMatrix : public Parameter {
         int                         currentActiveOmegas = 1;                                //
         int                         kAcceptCount = 0;                                       //
         int                         kCount = 0;                                             //
+        bool                        countTuningEvents = true;                               //
         int                         oldActiveOmegas = 1;                                    //
         int                         omegaAcceptCount = 0;                                   //
         int                         omegaCount = 0;                                         //
@@ -77,6 +100,7 @@ class CMMMatrix : public Parameter {
         std::vector<double>         oldStationary;                                          //
         std::vector<double>         stationaryPriorAlpha;                                   //
         std::vector<int>            randomStates;                                           //
+        std::shared_ptr<CMMTuningState> tuningState = std::make_shared<CMMTuningState>();  //
 };
 
 #endif

@@ -8,8 +8,8 @@
 
 CMMMatrix::CMMMatrix(Settings& settings) : 
                                    currentQMatrix(305, 305, 0.0), oldQMatrix(305, 305, 0.0), currentStationary(61, -1), oldStationary(61, -1), 
-                                   kLambda(settings.kLambda), rLambda(settings.rLambda), omegaLambda(settings.omegaLambda), rDelta(0.5),  
-                                   stationaryAlpha(1000), kDelta(0.5), omegaDelta(0.5), stationaryPriorAlpha(61, 2.0), randomStates(61, 0.0) {
+                                   kLambda(settings.kLambda), rLambda(settings.rLambda), omegaLambda(settings.omegaLambda),
+                                   stationaryPriorAlpha(61, 2.0), randomStates(61, 0.0) {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
@@ -84,15 +84,27 @@ void CMMMatrix::accept() {
 
     if(moveChoice == MatrixMoves::K_MOVE){
         kAcceptCount += 1;
+        if(countTuningEvents){
+            tuningState->kStats.acceptCount += 1;
+        }
     }
     else if(moveChoice == MatrixMoves::STATIONARY_MOVE){
         stationaryAcceptCount += 1;
+        if(countTuningEvents){
+            tuningState->stationaryStats.acceptCount += 1;
+        }
     }
     else if(moveChoice == MatrixMoves::OMEGA_MOVE){
         omegaAcceptCount += 1;
+        if(countTuningEvents){
+            tuningState->omegaStats.acceptCount += 1;
+        }
     }
     else if(moveChoice == MatrixMoves::R_MOVE){
         rAcceptCount += 1;
+        if(countTuningEvents){
+            tuningState->rStats.acceptCount += 1;
+        }
     }
 
     moveChoice = MatrixMoves::NO_MOVE;
@@ -133,9 +145,12 @@ double CMMMatrix::updateK() {
 
     moveChoice = MatrixMoves::K_MOVE;
     kCount += 1;
+    if(countTuningEvents){
+        tuningState->kStats.count += 1;
+    }
 
     double currentV = currentParams[0];
-    double scale = std::exp(kDelta * (rng.uniformRv() - 0.5));
+    double scale = std::exp(tuningState->kDelta * (rng.uniformRv() - 0.5));
     double newV = currentV * scale;
 
     currentParams[0] = newV;
@@ -160,11 +175,14 @@ double CMMMatrix::updateOmega() {
     if(randomMove < 0.6 || currentActiveOmegas == 1){ // Scale Move
         moveChoice = MatrixMoves::OMEGA_MOVE;
         omegaCount += 1;
+        if(countTuningEvents){
+            tuningState->omegaStats.count += 1;
+        }
 
         int randomOmega = (int)(currentActiveOmegas * rng.uniformRv());
 
         double currentV = currentParams[2 + randomOmega];
-        double scale = std::exp(omegaDelta * (rng.uniformRv() - 0.5));
+        double scale = std::exp(tuningState->omegaDelta * (rng.uniformRv() - 0.5));
         double newV = currentV * scale;
 
         currentParams[2 + randomOmega] =  newV;
@@ -230,9 +248,12 @@ double CMMMatrix::updateR() {
 
     moveChoice = MatrixMoves::R_MOVE;
     rCount += 1;
+    if(countTuningEvents){
+        tuningState->rStats.count += 1;
+    }
 
     double currentV = currentParams[1];
-    double scale = std::exp(rDelta * (rng.uniformRv() - 0.5));
+    double scale = std::exp(tuningState->rDelta * (rng.uniformRv() - 0.5));
     double newV = currentV * scale;
 
     currentParams[1] = newV;
@@ -394,6 +415,9 @@ double CMMMatrix::updateStationary() {
     int numElements = 1;
     moveChoice = MatrixMoves::STATIONARY_MOVE;
     stationaryCount += 1;
+    if(countTuningEvents){
+        tuningState->stationaryStats.count += 1;
+    }
 
     std::vector<int> drawSet(randomStates);
     std::vector<int> randomIndices;
@@ -421,13 +445,13 @@ double CMMMatrix::updateStationary() {
     }
 
     for(int i = 0; i < x.size(); i++) {
-        alphaForward[i] = (x[i] * stationaryAlpha) + 1.0;
+        alphaForward[i] = (x[i] * tuningState->stationaryAlpha) + 1.0;
     }
     
     Probability::Dirichlet::rv(&rng, alphaForward, z);
 
     for(int i = 0; i < z.size(); i++) {
-        alphaReverse[i] = (z[i] * stationaryAlpha) + 1.0;
+        alphaReverse[i] = (z[i] * tuningState->stationaryAlpha) + 1.0;
     }
 
     double factor = z[z.size()-1] / x[x.size()-1];
@@ -615,56 +639,56 @@ double CMMMatrix::getKRate() const {
 }
 
 void CMMMatrix::tune(){
-    if(kCount > 0){
-        double kRate = getKRate();
+    if(tuningState->kStats.count > 0){
+        double kRate = (double)tuningState->kStats.acceptCount / (double)tuningState->kStats.count;
 
-        if ( kRate > 0.33 ) {
-            kDelta *= (1.0 + ((kRate-0.33)/0.67));
+        if(kRate > 0.33){
+            tuningState->kDelta *= (1.0 + ((kRate-0.33)/0.67));
         }
-        else {
-            kDelta /= (2.0 - kRate/0.33);
+        else{
+            tuningState->kDelta /= (2.0 - kRate/0.33);
         }
-        kAcceptCount = 0;
-        kCount = 0;
+        tuningState->kStats.acceptCount = 0;
+        tuningState->kStats.count = 0;
     }
 
-    if(rCount > 0){
-        double rRate = getRRate();
+    if(tuningState->rStats.count > 0){
+        double rRate = (double)tuningState->rStats.acceptCount / (double)tuningState->rStats.count;
 
-        if ( rRate > 0.33 ) {
-            rDelta *= (1.0 + ((rRate-0.33)/0.67));
+        if( rRate > 0.33 ){
+            tuningState->rDelta *= (1.0 + ((rRate-0.33)/0.67));
         }
-        else {
-            rDelta /= (2.0 - rRate/0.33);
+        else{
+            tuningState->rDelta /= (2.0 - rRate/0.33);
         }
-        rAcceptCount = 0;
-        rCount = 0;
+        tuningState->rStats.acceptCount = 0;
+        tuningState->rStats.count = 0;
     }
 
-    if(stationaryCount > 0){
-        double stationaryRate = getStationaryRate();
+    if(tuningState->stationaryStats.count > 0){
+        double stationaryRate = (double)tuningState->stationaryStats.acceptCount / (double)tuningState->stationaryStats.count;
 
-        if ( stationaryRate > 0.33 ) {
-            stationaryAlpha /= (1.0 + ((stationaryRate-0.33)/0.67));
+        if(stationaryRate > 0.33 ){
+            tuningState->stationaryAlpha /= (1.0 + ((stationaryRate-0.33)/0.67));
         }
-        else {
-            stationaryAlpha *= (2.0 - stationaryRate/0.33);
+        else{
+            tuningState->stationaryAlpha *= (2.0 - stationaryRate/0.33);
         }
 
-        stationaryAcceptCount = 0;
-        stationaryCount = 0;
+        tuningState->stationaryStats.acceptCount = 0;
+        tuningState->stationaryStats.count = 0;
     }
 
-    if(omegaCount > 0){
-        double omegaRate = getOmegaRate();
+    if(tuningState->omegaStats.count > 0){
+        double omegaRate = (double)tuningState->omegaStats.acceptCount / (double)tuningState->omegaStats.count;
 
-        if ( omegaRate > 0.33 ) {
-            omegaDelta *= (1.0 + ((omegaRate-0.33)/0.67));
+        if(omegaRate > 0.33){
+            tuningState->omegaDelta *= (1.0 + ((omegaRate-0.33)/0.67));
         }
-        else {
-            omegaDelta /= (2.0 - omegaRate/0.33);
+        else{
+            tuningState->omegaDelta /= (2.0 - omegaRate/0.33);
         }
-        omegaAcceptCount = 0;
-        omegaCount = 0;
+        tuningState->omegaStats.acceptCount = 0;
+        tuningState->omegaStats.count = 0;
     }
 }

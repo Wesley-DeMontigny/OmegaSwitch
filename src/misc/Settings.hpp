@@ -24,6 +24,7 @@ struct Settings {
     bool                    simulateDPCMM = false;          // Simulate under a mixture of Markov-modulated models with 1-3 evolutionary regimes
     double                  dppWeight = 2.0;                // Weight associated with performing Neal's algorithm 8
     double                  expectedCat = 2.0;              // The expected number of categories under the Chinese restaurant process for CMM-DPP
+    double                  mcmcmcBeta = 1.0;               // Inverse temperature for the tempered chain; values below 1.0 enable MCMCMC
     double                  kLambda = 3.0;                  // The rate parameter for the transition/transversion exponential prior
     double                  kWeight = 1.0;                  // Weight associated with updating the transition/transversion rate parameter
     double                  omegaLambda = 3.0;              // The rate parameter for the non-synonymous/synonymous exponential prior
@@ -41,6 +42,7 @@ struct Settings {
     int                     numGibbs = 25;                  // How many sites to sample in a single iteration of Neal's algorithm 8
     int                     numIterations = 5000;           // How many MCMC iterations to sample for
     int                     numSimulations = 0;             // How many simulations to perform under the specified model
+    int                     mcmcmcSwapFrequency = 10;      // How many iterations between attempted swaps in MCMCMC
     int                     printFrequency = 10;            // How many MCMC iterations between printing the program state to the screen
     int                     sampleFrequency = 10;           // How many MCMC iterations between sampling events
     id_t                    threads = 15;                    // How many threads to use in the analysis

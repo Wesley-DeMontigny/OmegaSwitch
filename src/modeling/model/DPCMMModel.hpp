@@ -31,6 +31,7 @@ class DPCMMModel : public Model {
         void                    printTabular(int i) override;                                                           //
         void                    regenerateLikelihood() override;                                                        //
         void                    reject() override;                                                                      //
+        void                    setCountTuningEvents(bool shouldCount) override;                                        //
         void                    setTunableParameters(const std::vector<double> & v) override;                           //
         void                    tuneMoves() override;                                                                   //
         void                    writeLogData(int i) override;                                                           //

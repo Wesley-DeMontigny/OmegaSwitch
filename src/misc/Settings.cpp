@@ -18,19 +18,14 @@ Settings::Settings(int argc,  char* argv[]) {
         settings.push_back(arg);
     }
     #if TEST_RUN==1
-    settings.push_back("-treeOut");
-    settings.push_back("/workspaces/Varying_Selection_DPP/testing/trees.trees");
     settings.push_back("-mcmcOut");
     settings.push_back("/workspaces/Varying_Selection_DPP/testing/analysis.log");
     settings.push_back("-tipsOut");
     settings.push_back("/workspaces/Varying_Selection_DPP/testing/tips.log");
-    settings.push_back("-branchOut");
-    settings.push_back("/workspaces/Varying_Selection_DPP/tessting/branches.log");
-    settings.push_back("-tree");
-    settings.push_back("(((((((HBBCmydas:1,HBBPcastaneus:1):1,HBBCniloticus:1):1,(HBBAindicus:1,(HBBCminor:1,HBBGgallus:1):1):1):1,(HBBBtaurus:1,HBBHsapiens:1):1):1,(HBBBbombina:1,HBBXborealis:1):1):1,((HBBDrerio:1,HBBCcarpio:1):1,HBBSsalar:1):1):1,(((HBADrerio:1,HBACcarpio:1):1,HBASsalar:1):1,((HBABbombina:1,HBAXborealis:1):1,((HBABtaurus:1,HBAHsapiens:1):1,((HBAAindicus:1,(HBACminor:1,HBAGgallus:1):1):1,((HBACmydas:1,HBAPcastaneus:1):1,HBACniloticus:1):1):1):1):1):1);");
-    settings.push_back("-nexus");
-    settings.push_back("/workspaces/Varying_Selection_DPP/publication_analyses/globin_analysis/globins.nex");
-    settings.push_back("-M0");
+    settings.push_back("-CMM");
+    settings.push_back("-simulateCMM");
+    simulationOutput = "/workspaces/Varying_Selection_DPP/testing/sim.log";
+    mcmcmcBeta = 0.7;
     numIterations = 100000;
     burnInIterations = 10000;
     #endif
@@ -134,6 +129,10 @@ Settings::Settings(int argc,  char* argv[]) {
                 rLambda = stod(settings[i]);
             else if (currentArg == "-expectedCat")
                 expectedCat = stod(settings[i]);
+            else if (currentArg == "-mcmcmcBeta")
+                mcmcmcBeta = stod(settings[i]);
+            else if (currentArg == "-mcmcmcSwapFreq")
+                mcmcmcSwapFrequency = stoi(settings[i]);
              else if (currentArg == "-dppWeight")
                 dppWeight = stod(settings[i]);
             else if (currentArg == "-kWeight")
@@ -189,6 +188,14 @@ Settings::Settings(int argc,  char* argv[]) {
     if(simulating && numSimulations == 0)
         numSimulations = 1;
 
+    if(mcmcmcBeta <= 0.0 || mcmcmcBeta > 1.0){
+        Msg::error("The MCMCMC beta must be in the interval (0, 1].");
+    }
+
+    if(mcmcmcSwapFrequency < 1){
+        Msg::error("The MCMCMC swap frequency must be at least 1.");
+    }
+
     print();
 }
 
@@ -226,6 +233,7 @@ void Settings::print(){
     std::cout << "   * -kLambda           : " << kLambda << std::endl;
     std::cout << "   * -rLambda           : " << rLambda << std::endl;
     std::cout << "   * -expectedCat       : " << expectedCat << std::endl;
+    std::cout << "   * -mcmcmcBeta        : " << mcmcmcBeta << std::endl;
     std::cout << std::endl;
     
     std::cout << "Sampling Options:" << std::endl;
@@ -237,6 +245,7 @@ void Settings::print(){
     std::cout << "   * -bayesOpt          : " << bayesOpt << std::endl;
     std::cout << "   * -bayesOptFreq      : " << bayesOptFrequency << std::endl;
     std::cout << "   * -numGibbs          : " << numGibbs << std::endl;
+    std::cout << "   * -mcmcmcSwapFreq    : " << mcmcmcSwapFrequency << std::endl;
     std::cout << "   * -treeWeight        : " << treeWeight << std::endl;
     std::cout << "   * -kWeight           : " << kWeight << std::endl;
     std::cout << "   * -rWeight           : " << rWeight << std::endl;
@@ -283,6 +292,7 @@ void Settings::usage() {
     std::cout << "   * -kLambda           : Rate parameter for the transition/transversion rate's exponential prior." << std::endl;
     std::cout << "   * -rLambda           : Rate parameter for the matrix-swapping rate's exponential prior." << std::endl;
     std::cout << "   * -expectedCat       : The number of expected categories for the DPP." << std::endl;
+    std::cout << "   * -mcmcmcBeta        : Inverse temperature for the auxiliary heated chain; values below 1.0 enable MCMCMC." << std::endl;
     std::cout << std::endl;
     
     std::cout << "Sampling Options:" << std::endl;
@@ -294,6 +304,7 @@ void Settings::usage() {
     std::cout << "   * -bayesOpt          : (Experimental) The number of iterations to run Bayesian optimization on the MCMC moves after the burn-in." << std::endl;
     std::cout << "   * -bayesOptFreq      : (Experimental) How often to sample the trace for Bayesian optimization." << std::endl;
     std::cout << "   * -numGibbs          : How many Gibbs updates to perform on the DPP partitions." << std::endl;
+    std::cout << "   * -mcmcmcSwapFreq    : How many MCMC iterations between attempted swaps in MCMCMC." << std::endl;
     std::cout << "   * -treeWeight        : How often to propose a move on the tree." << std::endl;
     std::cout << "   * -kWeight           : How often to propose a move on the K parameter." << std::endl;
     std::cout << "   * -rWeight           : How often to propose a move on the R parameter." << std::endl;

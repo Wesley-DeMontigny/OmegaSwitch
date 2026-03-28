@@ -322,6 +322,11 @@ void CMMModel::tuneMoves(){
     rateMatrix->tune();
 }
 
+void CMMModel::setCountTuningEvents(bool shouldCount) {
+    tree->setCountTuningEvents(shouldCount);
+    rateMatrix->setCountTuningEvents(shouldCount);
+}
+
 std::vector<double> CMMModel::getTunableParameterRecord() const {
     std::vector<double> record = {
         rateMatrix->getK(), rateMatrix->getOmega(0), rateMatrix->getOmega(1), 
@@ -338,22 +343,22 @@ std::vector<double> CMMModel::getTunableParameterRecord() const {
 
 std::vector<double> CMMModel::getTunableParameters() const {
     std::vector<double> returnVec(6, 0.0);
-    returnVec[0] = tree->branchAlpha;
-    returnVec[1] = tree->treeDelta;
-    returnVec[2] = rateMatrix->stationaryAlpha;
-    returnVec[3] = rateMatrix->kDelta;
-    returnVec[4] = rateMatrix->omegaDelta;
-    returnVec[5] = rateMatrix->rDelta;
+    returnVec[0] = tree->getBranchAlpha();
+    returnVec[1] = tree->getTreeDelta();
+    returnVec[2] = rateMatrix->getStationaryAlpha();
+    returnVec[3] = rateMatrix->getKDelta();
+    returnVec[4] = rateMatrix->getOmegaDelta();
+    returnVec[5] = rateMatrix->getRDelta();
     return returnVec;
 }
 
 void CMMModel::setTunableParameters(const std::vector<double> & v){
-    tree->branchAlpha = v[0];
-    tree->treeDelta = v[1];
-    rateMatrix->stationaryAlpha = v[2];
-    rateMatrix->kDelta = v[3];
-    rateMatrix->omegaDelta = v[4];
-    rateMatrix->rDelta = v[5];
+    tree->setBranchAlpha(v[0]);
+    tree->setTreeDelta(v[1]);
+    rateMatrix->setStationaryAlpha(v[2]);
+    rateMatrix->setKDelta(v[3]);
+    rateMatrix->setOmegaDelta(v[4]);
+    rateMatrix->setRDelta(v[5]);
 }
 
 void CMMModel::printAcceptanceRates() {

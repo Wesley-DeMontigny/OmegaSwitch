@@ -625,6 +625,11 @@ void DPCMMModel::tuneMoves(){
     rateMatrix->tune();
 }
 
+void DPCMMModel::setCountTuningEvents(bool shouldCount) {
+    tree->setCountTuningEvents(shouldCount);
+    rateMatrix->setCountTuningEvents(shouldCount);
+}
+
 
 std::vector<double> DPCMMModel::getTunableParameterRecord() const {
     std::vector<double> record = {
@@ -640,20 +645,20 @@ std::vector<double> DPCMMModel::getTunableParameterRecord() const {
 
 std::vector<double> DPCMMModel::getTunableParameters() const {
     std::vector<double> returnVec(5, 0.0);
-    returnVec[0] = tree->branchAlpha;
-    returnVec[1] = tree->treeDelta;
-    returnVec[2] = rateMatrix->stationaryAlpha;
-    returnVec[3] = rateMatrix->kDelta;
-    returnVec[4] = rateMatrix->rDelta;
+    returnVec[0] = tree->getBranchAlpha();
+    returnVec[1] = tree->getTreeDelta();
+    returnVec[2] = rateMatrix->getStationaryAlpha();
+    returnVec[3] = rateMatrix->getKDelta();
+    returnVec[4] = rateMatrix->getRDelta();
     return returnVec;
 }
 
 void DPCMMModel::setTunableParameters(const std::vector<double> & v){
-    tree->branchAlpha= v[0];
-    tree->treeDelta = v[1];
-    rateMatrix->stationaryAlpha = v[2];
-    rateMatrix->kDelta = v[3];
-    rateMatrix->rDelta = v[4];
+    tree->setBranchAlpha(v[0]);
+    tree->setTreeDelta(v[1]);
+    rateMatrix->setStationaryAlpha(v[2]);
+    rateMatrix->setKDelta(v[3]);
+    rateMatrix->setRDelta(v[4]);
 }
 
 void DPCMMModel::printAcceptanceRates(){

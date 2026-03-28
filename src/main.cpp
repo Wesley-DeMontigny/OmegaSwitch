@@ -30,6 +30,10 @@
 #endif
 
 void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, bool disableBayesOpt, tf::Executor& executor){
+    bool useMCMCMC = settings.mcmcmcBeta < 1.0;
+    double alphaLength = (settings.treeLengthMean * settings.treeLengthMean) / (settings.treeLengthSD * settings.treeLengthSD);
+    double betaLength = settings.treeLengthMean / (settings.treeLengthSD * settings.treeLengthSD);
+    double treeLengthParams[2] = {alphaLength, betaLength};
 
     if(settings.CMM){
         std::cout << "Initializing the CMM model..." << std::endl;
@@ -76,11 +80,64 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
             [&rateMatrix]() {return rateMatrix.getActiveOmegas() > 1;}
         });
 
-        MCMC mcmc(&model, moves, settings, disableBayesOpt);
-        
-        std::cout << "Starting MCMC..." << std::endl;
-        mcmc.burnin();
-        mcmc.run();
+        if(useMCMCMC){
+            TreeParameter temperedTree(treeParam);
+            temperedTree.shareTuningWith(treeParam);
+            CMMMatrix temperedRateMatrix(settings);
+            temperedRateMatrix.shareTuningWith(rateMatrix);
+            CMMModel temperedModel(&settings, &aln, &temperedTree, &temperedRateMatrix, executor);
+
+            std::vector<Move> temperedMoves;
+            temperedMoves.emplace_back(Move{
+                settings.treeWeight,
+                static_cast<int>(aln.getNumTaxa() / 2.0),
+                [&temperedTree]() {return temperedTree.update();},
+                []() {return true;}
+            });
+            temperedMoves.emplace_back(Move{
+                settings.omegaWeight,
+                5,
+                [&temperedRateMatrix]() {return temperedRateMatrix.updateOmega();},
+                []() {return true;}
+            });
+            temperedMoves.emplace_back(Move{
+                settings.kWeight,
+                3,
+                [&temperedRateMatrix]() {return temperedRateMatrix.updateK();},
+                []() {return true;}
+            });
+            temperedMoves.emplace_back(Move{
+                settings.stationaryWeight,
+                10,
+                [&temperedRateMatrix]() {return temperedRateMatrix.updateStationary();},
+                []() {return true;}
+            });
+            temperedMoves.emplace_back(Move{
+                settings.rjWeight,
+                10,
+                [&temperedRateMatrix]() {return temperedRateMatrix.updateActiveOmegas();},
+                []() {return true;}
+            });
+            temperedMoves.emplace_back(Move{
+                settings.rWeight,
+                5,
+                [&temperedRateMatrix]() {return temperedRateMatrix.updateR();},
+                [&temperedRateMatrix]() {return temperedRateMatrix.getActiveOmegas() > 1;}
+            });
+
+            MCMC mcmc(&model, moves, &temperedModel, temperedMoves, settings, disableBayesOpt);
+            std::cout << "Starting MCMCMC with beta " << settings.mcmcmcBeta
+                      << " and swap frequency " << settings.mcmcmcSwapFrequency << "..." << std::endl;
+            mcmc.burnin();
+            mcmc.run();
+        }
+        else{
+            MCMC mcmc(&model, moves, settings, disableBayesOpt);
+            
+            std::cout << "Starting MCMC..." << std::endl;
+            mcmc.burnin();
+            mcmc.run();
+        }
     }
     else if(settings.DPCMM){
         std::cout << "Initializing the DPCMM model..." << std::endl;
@@ -135,11 +192,72 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
         });
         #endif
 
-        MCMC mcmc(&model, moves, settings, disableBayesOpt);
-        
-        std::cout << "Starting MCMC..." << std::endl;
-        mcmc.burnin();
-        mcmc.run();
+        if(useMCMCMC){
+            TreeParameter temperedTree(treeParam);
+            temperedTree.shareTuningWith(treeParam);
+            DPCMMMatrix temperedRateMatrix(settings, aln.getNumChar());
+            temperedRateMatrix.shareTuningWith(rateMatrix);
+            DPCMMModel temperedModel(&settings, &aln, &temperedTree, &temperedRateMatrix, executor);
+
+            std::vector<Move> temperedMoves;
+            temperedMoves.emplace_back(Move{
+                settings.treeWeight,
+                static_cast<int>(aln.getNumTaxa() / 2.0),
+                [&temperedTree]() {return temperedTree.update();},
+                []() {return true;}
+            });
+            temperedMoves.emplace_back(Move{
+                settings.omegaWeight,
+                10,
+                [&temperedRateMatrix]() {return temperedRateMatrix.updateOmega();},
+                []() {return true;}
+            });
+            temperedMoves.emplace_back(Move{
+                settings.kWeight,
+                5,
+                [&temperedRateMatrix]() {return temperedRateMatrix.updateK();},
+                []() {return true;}
+            });
+            temperedMoves.emplace_back(Move{
+                settings.stationaryWeight,
+                10,
+                [&temperedRateMatrix]() {return temperedRateMatrix.updateStationary();},
+                []() {return true;}
+            });
+            temperedMoves.emplace_back(Move{
+                settings.rjWeight,
+                10,
+                [&temperedRateMatrix]() {return temperedRateMatrix.updateActiveOmegas();},
+                []() {return true;}
+            });
+            temperedMoves.emplace_back(Move{
+                settings.rWeight,
+                5,
+                [&temperedRateMatrix]() {return temperedRateMatrix.updateR();},
+                [&temperedRateMatrix]() {return temperedRateMatrix.getActiveOmegas() > 1;}
+            });
+            #ifndef SAMPLE_PRIOR
+            temperedMoves.emplace_back(Move{
+                settings.dppWeight,
+                1,
+                [&temperedModel]() {return temperedModel.updateDPP();},
+                []() {return true;}
+            });
+            #endif
+
+            MCMC mcmc(&model, moves, &temperedModel, temperedMoves, settings, disableBayesOpt);
+            std::cout << "Starting MCMCMC with beta " << settings.mcmcmcBeta
+                      << " and swap frequency " << settings.mcmcmcSwapFrequency << "..." << std::endl;
+            mcmc.burnin();
+            mcmc.run();
+        }
+        else{
+            MCMC mcmc(&model, moves, settings, disableBayesOpt);
+            
+            std::cout << "Starting MCMC..." << std::endl;
+            mcmc.burnin();
+            mcmc.run();
+        }
     }
     else { // Default to the M0 model
         std::cout << "Initializing the M0 model..." << std::endl;
@@ -174,11 +292,52 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
             []() {return true;}
         });
 
-        MCMC mcmc(&model, moves, settings, disableBayesOpt);
-        
-        std::cout << "Starting MCMC..." << std::endl;
-        mcmc.burnin();
-        mcmc.run();
+        if(useMCMCMC){
+            TreeParameter temperedTree(treeParam);
+            temperedTree.shareTuningWith(treeParam);
+            M0Matrix temperedRateMatrix(settings);
+            temperedRateMatrix.shareTuningWith(rateMatrix);
+            M0Model temperedModel(&settings, &aln, &temperedTree, &temperedRateMatrix, executor);
+
+            std::vector<Move> temperedMoves;
+            temperedMoves.emplace_back(Move{
+                settings.treeWeight,
+                aln.getNumTaxa(),
+                [&temperedTree]() {return temperedTree.update();},
+                []() {return true;}
+            });
+            temperedMoves.emplace_back(Move{
+                settings.omegaWeight,
+                5,
+                [&temperedRateMatrix]() {return temperedRateMatrix.updateOmega();},
+                []() {return true;}
+            });
+            temperedMoves.emplace_back(Move{
+                settings.kWeight,
+                3,
+                [&temperedRateMatrix]() {return temperedRateMatrix.updateK();},
+                []() {return true;}
+            });
+            temperedMoves.emplace_back(Move{
+                settings.stationaryWeight,
+                10,
+                [&temperedRateMatrix]() {return temperedRateMatrix.updateStationary();},
+                []() {return true;}
+            });
+
+            MCMC mcmc(&model, moves, &temperedModel, temperedMoves, settings, disableBayesOpt);
+            std::cout << "Starting MCMCMC with beta " << settings.mcmcmcBeta
+                      << " and swap frequency " << settings.mcmcmcSwapFrequency << "..." << std::endl;
+            mcmc.burnin();
+            mcmc.run();
+        }
+        else{
+            MCMC mcmc(&model, moves, settings, disableBayesOpt);
+            
+            std::cout << "Starting MCMC..." << std::endl;
+            mcmc.burnin();
+            mcmc.run();
+        }
     }
 }
 

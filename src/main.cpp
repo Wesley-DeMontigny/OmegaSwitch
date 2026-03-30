@@ -71,7 +71,7 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
             settings.rjWeight,
             10,
             [&rateMatrix]() {return rateMatrix.updateActiveOmegas();},
-            []() {return true;}
+            [&rateMatrix]() {return !rateMatrix.isRegimeCountFixed();}
         });
         moves.emplace_back(Move{
             settings.rWeight,
@@ -116,7 +116,7 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
                 settings.rjWeight,
                 10,
                 [&temperedRateMatrix]() {return temperedRateMatrix.updateActiveOmegas();},
-                []() {return true;}
+                [&temperedRateMatrix]() {return !temperedRateMatrix.isRegimeCountFixed();}
             });
             temperedMoves.emplace_back(Move{
                 settings.rWeight,
@@ -175,7 +175,7 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
             settings.rjWeight,
             10,
             [&rateMatrix]() {return rateMatrix.updateActiveOmegas();},
-            []() {return true;}
+            [&rateMatrix]() {return !rateMatrix.isRegimeCountFixed();}
         });
         moves.emplace_back(Move{
             settings.rWeight,
@@ -228,7 +228,7 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
                 settings.rjWeight,
                 10,
                 [&temperedRateMatrix]() {return temperedRateMatrix.updateActiveOmegas();},
-                []() {return true;}
+                [&temperedRateMatrix]() {return !temperedRateMatrix.isRegimeCountFixed();}
             });
             temperedMoves.emplace_back(Move{
                 settings.rWeight,

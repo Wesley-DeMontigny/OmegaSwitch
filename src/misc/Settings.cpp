@@ -23,9 +23,9 @@ Settings::Settings(int argc,  char* argv[]) {
     settings.push_back("-tipsOut");
     settings.push_back("/workspaces/Varying_Selection_DPP/testing/tips.log");
     settings.push_back("-CMM");
-    settings.push_back("-simulateCMM");
+    settings.push_back("-simulateDPCMM");
     simulationOutput = "/workspaces/Varying_Selection_DPP/testing/sim.log";
-    mcmcmcBeta = 0.7;
+    fixedRegimes = 1;
     numIterations = 100000;
     burnInIterations = 10000;
     #endif
@@ -111,6 +111,8 @@ Settings::Settings(int argc,  char* argv[]) {
                 sampleFrequency = stoi(settings[i]);
             else if (currentArg == "-burnInIter")
                 burnInIterations = stoi(settings[i]);
+            else if (currentArg == "-fixedRegimes")
+                fixedRegimes = stoi(settings[i]);
             else if (currentArg == "-tuneFreq")
                 tuneFrequency = stoi(settings[i]);
             else if (currentArg == "-bayesOpt")
@@ -196,6 +198,26 @@ Settings::Settings(int argc,  char* argv[]) {
         Msg::error("The MCMCMC swap frequency must be at least 1.");
     }
 
+    if(fixedRegimes < 0){
+        Msg::error("The fixed regime count must be non-negative.");
+    }
+
+    if(fixedRegimes > 0){
+        if(CMM){
+            if(fixedRegimes < 1 || fixedRegimes > 5){
+                Msg::error("The fixed regime count for CMM must be in the interval [1, 5].");
+            }
+        }
+        else if(DPCMM){
+            if(fixedRegimes < 1 || fixedRegimes > 3){
+                Msg::error("The fixed regime count for DPCMM must be in the interval [1, 3].");
+            }
+        }
+        else{
+            Msg::error("A fixed regime count can only be used with the CMM or DPCMM inference models.");
+        }
+    }
+
     print();
 }
 
@@ -233,6 +255,7 @@ void Settings::print(){
     std::cout << "   * -kLambda           : " << kLambda << std::endl;
     std::cout << "   * -rLambda           : " << rLambda << std::endl;
     std::cout << "   * -expectedCat       : " << expectedCat << std::endl;
+    std::cout << "   * -fixedRegimes      : " << fixedRegimes << std::endl;
     std::cout << "   * -mcmcmcBeta        : " << mcmcmcBeta << std::endl;
     std::cout << std::endl;
     
@@ -292,6 +315,7 @@ void Settings::usage() {
     std::cout << "   * -kLambda           : Rate parameter for the transition/transversion rate's exponential prior." << std::endl;
     std::cout << "   * -rLambda           : Rate parameter for the matrix-swapping rate's exponential prior." << std::endl;
     std::cout << "   * -expectedCat       : The number of expected categories for the DPP." << std::endl;
+    std::cout << "   * -fixedRegimes      : Fix the number of hidden regimes for CMM or DPCMM and disable RJ-MCMC over regime count." << std::endl;
     std::cout << "   * -mcmcmcBeta        : Inverse temperature for the auxiliary heated chain; values below 1.0 enable MCMCMC." << std::endl;
     std::cout << std::endl;
     

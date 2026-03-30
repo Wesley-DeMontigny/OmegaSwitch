@@ -9,6 +9,7 @@
 CMMMatrix::CMMMatrix(Settings& settings) : 
                                    currentQMatrix(305, 305, 0.0), oldQMatrix(305, 305, 0.0), currentStationary(61, -1), oldStationary(61, -1), 
                                    kLambda(settings.kLambda), rLambda(settings.rLambda), omegaLambda(settings.omegaLambda),
+                                   fixedRegimes(settings.fixedRegimes),
                                    stationaryPriorAlpha(61, 2.0), randomStates(61, 0.0) {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
@@ -32,6 +33,11 @@ CMMMatrix::CMMMatrix(Settings& settings) :
     oldStationary = currentStationary;
     currentStationaryPrior = Probability::Dirichlet::lnPdf(stationaryPriorAlpha, currentStationary);
     oldStationaryPrior = currentStationaryPrior;
+
+    if(fixedRegimes > 0){
+        currentActiveOmegas = fixedRegimes;
+        oldActiveOmegas = fixedRegimes;
+    }
 
     rebuildQMatrix();
     
@@ -268,6 +274,10 @@ double CMMMatrix::updateR() {
  * @brief 
  */
 double CMMMatrix::updateActiveOmegas(){
+    if(isRegimeCountFixed()){
+        return -1 * INFINITY;
+    }
+
     RandomVariable& rng = RandomVariable::randomVariableInstance();
     this->dirty();
     double hastings = 0.0;

@@ -39,6 +39,7 @@ struct Settings {
     int                     bayesOpt = 0;                   // How many iterations of Bayesian optimization to perform on the tunable parameters
     int                     bayesOptFrequency = 0;          // How many MCMC iterations a single iteration of Bayesian optimization uses
     int                     burnInIterations = 1000;        // How many MCMC iterations to discard before beginning sampling
+    int                     fixedRegimes = 0;               // Fix the number of hidden regimes for CMM or DPCMM; 0 means infer it with RJ-MCMC
     int                     numGibbs = 25;                  // How many sites to sample in a single iteration of Neal's algorithm 8
     int                     numIterations = 5000;           // How many MCMC iterations to sample for
     int                     numSimulations = 0;             // How many simulations to perform under the specified model

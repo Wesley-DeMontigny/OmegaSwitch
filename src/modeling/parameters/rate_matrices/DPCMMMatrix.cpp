@@ -11,7 +11,7 @@
 DPCMMMatrix::DPCMMMatrix(Settings& settings, int nC) : 
                                    currentQMatrix(183, 183, 0.0), oldQMatrix(183, 183, 0.0), currentStationary(61, -1), oldStationary(61, -1), 
                                    kLambda(settings.kLambda), rLambda(settings.rLambda),
-                                   stationaryPriorAlpha(61, 2.0), numChar(nC), omegaLambda(settings.omegaLambda), assignments(nC, 0), randomStates(61, 0.0) {
+                                   stationaryPriorAlpha(61, 2.0), numChar(nC), omegaLambda(settings.omegaLambda), fixedRegimes(settings.fixedRegimes), assignments(nC, 0), randomStates(61, 0.0) {
 
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
@@ -30,6 +30,11 @@ DPCMMMatrix::DPCMMMatrix(Settings& settings, int nC) :
     oldStationary = currentStationary;
     currentStationaryPrior = Probability::Dirichlet::lnPdf(stationaryPriorAlpha, currentStationary);
     oldStationaryPrior = currentStationaryPrior;
+
+    if(fixedRegimes > 0){
+        currentActiveOmegas = fixedRegimes;
+        oldActiveOmegas = fixedRegimes;
+    }
 
     dpAlpha = calculateAlpha(settings.expectedCat, numChar);
 
@@ -364,6 +369,10 @@ double DPCMMMatrix::updateOmega() {
 
 
 double DPCMMMatrix::updateActiveOmegas() {
+    if(isRegimeCountFixed()){
+        return -1 * INFINITY;
+    }
+
     RandomVariable& rng = RandomVariable::randomVariableInstance();
     double hastings = 0.0;
     this->dirty();

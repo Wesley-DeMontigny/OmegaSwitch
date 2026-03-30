@@ -1,8 +1,12 @@
-# About
+# OmegaSwitch
 
-This software samples from the conditional distribution of evolutionary selection (*dN/dS*) on protein sequences or taxa, given a multiple sequence alignment (MSA, in Nexus format) and a fixed tree topology. This conditional distribution (known as the posterior distribution) does not have a closed form, so we approximate it using Markov Chain Monte Carlo [MCMC](https://en.wikipedia.org/wiki/Markov_chain_Monte_Carlo) sampling. The primary goal is to estimate how selection varies both across taxa and among sites in a sequence alignment. To achieve this, the model combines [Reversible-Jump MCMC](https://en.wikipedia.org/wiki/Reversible-jump_Markov_chain_Monte_Carlo) to infer heterogeneity in evolutionary regimes over time with a [Chinese Restaurant Process](https://en.wikipedia.org/wiki/Reversible-jump_Markov_chain_Monte_Carlo) prior to infer heterogeneity in regime evolution across protein residues. We utilize ancestral sampling over the course of the MCMC algorithm to produce posterior distributions of *dN/dS* at each entry in the alignment. For example, this is the posterior mean *dN/dS* acting on a particular alpha-helix in alpha-hemoglobin (grey indicates a low *dN/dS*, while red indicates a high one.).
+This software samples from the conditional distribution of evolutionary selection (*dN/dS*) on protein sequences or taxa, given a multiple sequence alignment (MSA, in Nexus format) and a fixed tree topology. This conditional distribution (known as the posterior distribution) does not have a closed form, so we approximate it using Markov Chain Monte Carlo [MCMC](https://en.wikipedia.org/wiki/Markov_chain_Monte_Carlo) sampling. The primary goal is to estimate how selection varies both across taxa and among sites in a sequence alignment. To achieve this, the model combines [Reversible-Jump MCMC](https://en.wikipedia.org/wiki/Reversible-jump_Markov_chain_Monte_Carlo) to infer heterogeneity in evolutionary regimes over time with a [Dirichlet process](https://en.wikipedia.org/wiki/Dirichlet_process) prior to infer heterogeneity in regime evolution across protein residues. We utilize ancestral sampling over the course of the MCMC algorithm to produce posterior distributions of *dN/dS* at each entry in the alignment. For example, this is the posterior mean *dN/dS* acting on a particular alpha-helix in alpha-hemoglobin (grey indicates a low *dN/dS*, while red indicates a high one.).
 
 ![Alpha Globin](/publication_analyses/globin_analysis/dpcmm/alpha_solv_dpcmm.png)
+
+This software implements three different models: M0, CMM, and DPCMM. The M0 model is a typical codon phylogenetic model. The CMM model is a Codon Markov Modulated model, which uses RJ-MCMC to select the number of hidden evolutionary regimes that Markov-Modulated CTMC can swap between. The DPCMM model takes this further, using RJ-MCMC to infer the number of hidden evolutionary regimes and modeling the data as an infinite mixture of these processes trhough the dirichlet process. This final model is an incredibly computationally intensive model, and to ensure proper sampling from the posterior, we recommend using our Metropolis-Coupled MCMC (MCMCMC) sampler. In our experience, a beta of about 0.8 results in around a 10% acceptance rate for MCMCMC chain swaps under this model. Additionally, inferring the mixture over Markov-modulated processes, while simultaneously inferring the number of regimes can result in some non-identifiability between the two parameters. However, in this case the model should still recover correct posterior distributions for the *dN/dS* across the tree.
+
+If you want to disable RJ-MCMC over the hidden regime count, you can provide `-fixedRegimes` during `CMM` or `DPCMM` inference. This initializes the model at the requested number of regimes and prevents any regime-count RJ proposals for the rest of the run. Valid bounds are `1-5` for `CMM` and `1-3` for `DPCMM`.
 
 Something important to note about our software is that we do not support ambiguous codons currently - all incomplete codons will be treated as gaps (completely ambiguous data). This may not be desirable if your alignments have a lot of incomplete codons (e.g., ATN, GNT).
 
@@ -42,7 +46,8 @@ Model Parameters:
    * -kLambda           : Rate parameter for the transition/transversion rate's exponential prior.
    * -rLambda           : Rate parameter for the matrix-swapping rate's exponential prior.
    * -expectedCat       : The number of expected categories for the DPP.
-   * -mcmcmcBeta        : Inverse temperature for the auxiliary heated chain; values below 1.0 enable MCMCMC.
+   * -fixedRegimes      : Fix the number of hidden regimes for CMM or DPCMM and disable RJ-MCMC over regime count.
+   * -mcmcmcBeta        : Inverse temperature for the auxiliary heated chain (setting this enables MCMCMC).
 
 Sampling Options:
    * -numIter           : The number of iterations for the MCMC.

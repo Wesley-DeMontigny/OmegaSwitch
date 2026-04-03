@@ -8,9 +8,11 @@ This software implements three different models: M0, CMM, and DPCMM. The M0 mode
 
 If you want to disable RJ-MCMC over the hidden regime count, you can provide `-fixedRegimes` during `CMM` or `DPCMM` inference. This initializes the model at the requested number of regimes and prevents any regime-count RJ proposals for the rest of the run. Valid bounds are `1-5` for `CMM` and `1-3` for `DPCMM`.
 
+For simulation studies, `-fixCorrectRegime` will automatically fix inference to the true simulated regime count for `CMM` or `DPCMM`, and `-fixCorrectDP` will fix `DPCMM` inference to the true simulated site-to-category assignments.
+
 Something important to note about our software is that we do not support ambiguous codons currently - all incomplete codons will be treated as gaps (completely ambiguous data). This may not be desirable if your alignments have a lot of incomplete codons (e.g., ATN, GNT).
 
-
+NOTE: This software is currently in a pre-release state accompanying an upcoming manuscript. Interfaces and default parameters are subject to change.
 
 # Installation
 ...
@@ -37,6 +39,8 @@ Inference Model and Simulation:
    * -simulateM0        : Directs the program to simulate under M0 and test against the selected inference model.
    * -simulateCMM       : Directs the program to simulate under the CMM model and test against the selected inference model.
    * -simulateDPCMM     : Directs the program to simulate under the CMM-DPP model and test against the selected inference model.
+   * -fixCorrectRegime  : During CMM or DPCMM simulations, fix inference to the true simulated regime count.
+   * -fixCorrectDP      : During DPCMM simulations, fix inference to the true simulated DPP assignments.
    * -numSimulations    : The number of simulations to do inference under.
 
 Model Parameters:

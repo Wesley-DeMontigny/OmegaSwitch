@@ -350,6 +350,10 @@ void DPCMMModel::regenerateTransitionProbs(int category){
 }
 
 double DPCMMModel::updateDPP(){
+    if(rateMatrix->isAssignmentFixed()){
+        return -1 * INFINITY;
+    }
+
     RandomVariable& rng = RandomVariable::randomVariableInstance();
     TreeObject* activeT = tree->getTree();
     std::vector<Node*> poSeq = activeT->getPostOrderSeq();

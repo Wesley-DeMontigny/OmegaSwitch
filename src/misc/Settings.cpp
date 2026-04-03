@@ -22,14 +22,14 @@ Settings::Settings(int argc,  char* argv[]) {
     settings.push_back("/workspaces/Varying_Selection_DPP/testing/analysis.log");
     settings.push_back("-tipsOut");
     settings.push_back("/workspaces/Varying_Selection_DPP/testing/tips.log");
-    settings.push_back("-CMM");
+    settings.push_back("-DPCMM");
     settings.push_back("-simulateDPCMM");
+    settings.push_back("-fixCorrectDP");
     simulationOutput = "/workspaces/Varying_Selection_DPP/testing/sim.log";
-    fixedRegimes = 1;
     numIterations = 100000;
     burnInIterations = 10000;
     #endif
-    if (settings.size() == 0) {
+    if(settings.size() == 0) {
         usage();
         Msg::error("Expected command line arguments");
     }
@@ -84,74 +84,80 @@ Settings::Settings(int argc,  char* argv[]) {
         else if(settings[i] == "-sequentialTuningSim"){
             sequentialTuningSim = true;
         }
-        else if (currentArg == "")
+        else if(settings[i] == "-fixCorrectRegime"){
+            fixCorrectRegime = true;
+        }
+        else if(settings[i] == "-fixCorrectDP"){
+            fixCorrectDP = true;
+        }
+        else if(currentArg == "")
             currentArg = settings[i];
         else {
-            if (currentArg == "-nexus")
+            if(currentArg == "-nexus")
                 nexusInput = settings[i];
-            else if (currentArg == "-treeOut")
+            else if(currentArg == "-treeOut")
                 treeOutput = settings[i];
-            else if (currentArg == "-mcmcOut")
+            else if(currentArg == "-mcmcOut")
                 mcmcOutput = settings[i];
-            else if (currentArg == "-dppOut")
+            else if(currentArg == "-dppOut")
                 dppOutput = settings[i];
-            else if (currentArg == "-tipsOut")
+            else if(currentArg == "-tipsOut")
                 tipsOutput = settings[i];
-            else if (currentArg == "-branchOut")
+            else if(currentArg == "-branchOut")
                 branchOutput = settings[i];
-            else if (currentArg == "-ancestralStatesOut")
+            else if(currentArg == "-ancestralStatesOut")
                 ancestralStatesOutput = settings[i];
-            else if (currentArg == "-numIter")
+            else if(currentArg == "-numIter")
                 numIterations = stoi(settings[i]);
-            else if (currentArg == "-numGibbs")
+            else if(currentArg == "-numGibbs")
                 numGibbs = stoi(settings[i]);
-            else if (currentArg == "-printFreq")
+            else if(currentArg == "-printFreq")
                 printFrequency = stoi(settings[i]);
-            else if (currentArg == "-sampleFreq")
+            else if(currentArg == "-sampleFreq")
                 sampleFrequency = stoi(settings[i]);
-            else if (currentArg == "-burnInIter")
+            else if(currentArg == "-burnInIter")
                 burnInIterations = stoi(settings[i]);
-            else if (currentArg == "-fixedRegimes")
+            else if(currentArg == "-fixedRegimes")
                 fixedRegimes = stoi(settings[i]);
-            else if (currentArg == "-tuneFreq")
+            else if(currentArg == "-tuneFreq")
                 tuneFrequency = stoi(settings[i]);
-            else if (currentArg == "-bayesOpt")
+            else if(currentArg == "-bayesOpt")
                 bayesOpt = stoi(settings[i]);
-            else if (currentArg == "-bayesOptFreq")
+            else if(currentArg == "-bayesOptFreq")
                 bayesOptFrequency = stoi(settings[i]);
-            else if (currentArg == "-treeMean")
+            else if(currentArg == "-treeMean")
                 treeLengthMean = stod(settings[i]);
-            else if (currentArg == "-treeSD")
+            else if(currentArg == "-treeSD")
                 treeLengthSD = stod(settings[i]);
-            else if (currentArg == "-omegaLambda")
+            else if(currentArg == "-omegaLambda")
                 omegaLambda = stod(settings[i]);
-            else if (currentArg == "-kLambda")
+            else if(currentArg == "-kLambda")
                 kLambda = stod(settings[i]);
-            else if (currentArg == "-rLambda")
+            else if(currentArg == "-rLambda")
                 rLambda = stod(settings[i]);
-            else if (currentArg == "-expectedCat")
+            else if(currentArg == "-expectedCat")
                 expectedCat = stod(settings[i]);
-            else if (currentArg == "-mcmcmcBeta")
+            else if(currentArg == "-mcmcmcBeta")
                 mcmcmcBeta = stod(settings[i]);
-            else if (currentArg == "-mcmcmcSwapFreq")
+            else if(currentArg == "-mcmcmcSwapFreq")
                 mcmcmcSwapFrequency = stoi(settings[i]);
-             else if (currentArg == "-dppWeight")
+             else if(currentArg == "-dppWeight")
                 dppWeight = stod(settings[i]);
-            else if (currentArg == "-kWeight")
+            else if(currentArg == "-kWeight")
                 kWeight = stod(settings[i]);
-            else if (currentArg == "-rWeight")
+            else if(currentArg == "-rWeight")
                 rWeight = stod(settings[i]);
-            else if (currentArg == "-stationaryWeight")
+            else if(currentArg == "-stationaryWeight")
                 stationaryWeight = stod(settings[i]);
-            else if (currentArg == "-treeWeight")
+            else if(currentArg == "-treeWeight")
                 treeWeight = stod(settings[i]);
-            else if (currentArg == "-omegaWeight")
+            else if(currentArg == "-omegaWeight")
                 omegaWeight = stod(settings[i]);
-            else if (currentArg == "-tree")
+            else if(currentArg == "-tree")
                 tree = settings[i];
-            else if (currentArg == "-numSimulations")
+            else if(currentArg == "-numSimulations")
                 numSimulations = stoi(settings[i]);
-            else if (currentArg == "-simulationOutput")
+            else if(currentArg == "-simulationOutput")
                 simulationOutput = settings[i];
             else if(currentArg == "-threads")
                 threads = stoi(settings[i]);
@@ -185,6 +191,30 @@ Settings::Settings(int argc,  char* argv[]) {
 
     if(sequentialTuningSim && !simulating){
         Msg::error("For a sequential tuning simulation, the software must be in simulation mode.");
+    }
+
+    if(fixCorrectRegime && !simulating){
+        Msg::error("-fixCorrectRegime can only be used during simulation analyses.");
+    }
+
+    if(fixCorrectRegime && !simulateCMM && !simulateDPCMM){
+        Msg::error("-fixCorrectRegime requires simulating under CMM or DPCMM.");
+    }
+
+    if(fixCorrectRegime && !CMM && !DPCMM){
+        Msg::error("-fixCorrectRegime requires inference under CMM or DPCMM.");
+    }
+
+    if(fixCorrectDP && !simulating){
+        Msg::error("-fixCorrectDP can only be used during simulation analyses.");
+    }
+
+    if(fixCorrectDP && !simulateDPCMM){
+        Msg::error("-fixCorrectDP requires simulating under DPCMM.");
+    }
+
+    if(fixCorrectDP && !DPCMM){
+        Msg::error("-fixCorrectDP requires DPCMM inference.");
     }
 
     if(simulating && numSimulations == 0)
@@ -245,6 +275,8 @@ void Settings::print(){
     std::cout << "   * -simulateM0        : " << simulateM0 << std::endl;
     std::cout << "   * -simulateCMM       : " << simulateCMM << std::endl;
     std::cout << "   * -simulateDPCMM     : " << simulateDPCMM << std::endl;
+    std::cout << "   * -fixCorrectRegime  : " << fixCorrectRegime << std::endl;
+    std::cout << "   * -fixCorrectDP      : " << fixCorrectDP << std::endl;
     std::cout << "   * -numSimulations    : " << numSimulations << std::endl;
     std::cout << std::endl;
     
@@ -305,6 +337,8 @@ void Settings::usage() {
     std::cout << "   * -simulateM0        : Directs the program to simulate under M0 and test against the selected inference model." << std::endl;
     std::cout << "   * -simulateCMM       : Directs the program to simulate under the CMM model and test against the selected inference model." << std::endl;
     std::cout << "   * -simulateDPCMM     : Directs the program to simulate under the CMM-DPP model and test against the selected inference model." << std::endl;
+    std::cout << "   * -fixCorrectRegime  : During CMM or DPCMM simulations, fix inference to the true simulated regime count." << std::endl;
+    std::cout << "   * -fixCorrectDP      : During DPCMM simulations, fix inference to the true simulated DPP assignments." << std::endl;
     std::cout << "   * -numSimulations    : The number of simulations to do inference under." << std::endl;
     std::cout << std::endl;
 

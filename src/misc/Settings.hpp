@@ -22,6 +22,8 @@ struct Settings {
     bool                    simulateM0 = false;             // Simulate under a standard codon model
     bool                    simulateCMM = false;             // Simulate under a Markov-modulated model with 1-5 evolutionary regimes
     bool                    simulateDPCMM = false;          // Simulate under a mixture of Markov-modulated models with 1-3 evolutionary regimes
+    bool                    fixCorrectRegime = false;       // When simulating fix the correct regime you are simulating under.
+    bool                    fixCorrectDP = false;           // When simulating under DPCMM fix the true DPP assignments during inference.
     double                  dppWeight = 2.0;                // Weight associated with performing Neal's algorithm 8
     double                  expectedCat = 2.0;              // The expected number of categories under the Chinese restaurant process for CMM-DPP
     double                  mcmcmcBeta = 1.0;               // Inverse temperature for the tempered chain; values below 1.0 enable MCMCMC
@@ -58,6 +60,7 @@ struct Settings {
     std::string             simulationOutput = "";          // The file to output the true simulated states to
     std::string             tipsOutput = "";                // The file to output the tip dN/dS trace to
     std::string             treeOutput = "";                // The file to output the newick trace to
+    std::vector<int>        fixedDPAssignments;             // Fixed DPP assignments to use during simulation-based inference.
 };
 
 #endif

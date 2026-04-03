@@ -11,7 +11,7 @@
 DPCMMMatrix::DPCMMMatrix(Settings& settings, int nC) : 
                                    currentQMatrix(183, 183, 0.0), oldQMatrix(183, 183, 0.0), currentStationary(61, -1), oldStationary(61, -1), 
                                    kLambda(settings.kLambda), rLambda(settings.rLambda),
-                                   stationaryPriorAlpha(61, 2.0), numChar(nC), omegaLambda(settings.omegaLambda), fixedRegimes(settings.fixedRegimes), assignments(nC, 0), randomStates(61, 0.0) {
+                                   stationaryPriorAlpha(61, 2.0), numChar(nC), omegaLambda(settings.omegaLambda), fixedRegimes(settings.fixedRegimes), fixedAssignments(settings.fixCorrectDP && !settings.fixedDPAssignments.empty()), assignments(nC, 0), randomStates(61, 0.0) {
 
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
@@ -38,27 +38,55 @@ DPCMMMatrix::DPCMMMatrix(Settings& settings, int nC) :
 
     dpAlpha = calculateAlpha(settings.expectedCat, numChar);
 
-    for(int i = 0; i < numChar; i++){
-        double randomVal = rng.uniformRv();
-        double total = dpAlpha/(i + dpAlpha);
+    if(fixedAssignments){
+        if(settings.fixedDPAssignments.size() != numChar){
+            Msg::error("Expected " + std::to_string(numChar) + " fixed DPP assignments, but found " + std::to_string(settings.fixedDPAssignments.size()) + ".");
+        }
 
-        // If new category
-        if(total > randomVal){
+        int maxAssignment = *std::max_element(settings.fixedDPAssignments.begin(), settings.fixedDPAssignments.end());
+        if(maxAssignment < 0){
+            Msg::error("Fixed DPP assignments must be non-negative.");
+        }
+
+        currentCategories.reserve(maxAssignment + 1);
+        for(int i = 0; i <= maxAssignment; i++){
             double omega1 = Probability::Exponential::rv(&rng, omegaLambda);
             double omegaInc1 = Probability::Exponential::rv(&rng, omegaLambda);
             double omegaInc2 = Probability::Exponential::rv(&rng, omegaLambda);
-            Category newCat = {omega1, omegaInc1, omegaInc2, {i}, true};
-            currentCategories.push_back(newCat);
-            continue;
+            currentCategories.push_back(Category{{omega1, omegaInc1, omegaInc2}, {}, true});
         }
 
-        for(Category &c : currentCategories){
-            total += c.members.size()/(i+dpAlpha);
+        for(int i = 0; i < numChar; i++){
+            int assignment = settings.fixedDPAssignments[i];
+            if(assignment < 0 || assignment >= currentCategories.size()){
+                Msg::error("Encountered an invalid fixed DPP assignment.");
+            }
+            currentCategories[assignment].members.push_back(i);
+        }
+    }
+    else{
+        for(int i = 0; i < numChar; i++){
+            double randomVal = rng.uniformRv();
+            double total = dpAlpha/(i + dpAlpha);
 
-            //If old category
+            // If new category
             if(total > randomVal){
-                c.members.push_back(i);
-                break;
+                double omega1 = Probability::Exponential::rv(&rng, omegaLambda);
+                double omegaInc1 = Probability::Exponential::rv(&rng, omegaLambda);
+                double omegaInc2 = Probability::Exponential::rv(&rng, omegaLambda);
+                Category newCat = {omega1, omegaInc1, omegaInc2, {i}, true};
+                currentCategories.push_back(newCat);
+                continue;
+            }
+
+            for(Category &c : currentCategories){
+                total += c.members.size()/(i+dpAlpha);
+
+                //If old category
+                if(total > randomVal){
+                    c.members.push_back(i);
+                    break;
+                }
             }
         }
     }

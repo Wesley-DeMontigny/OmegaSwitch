@@ -188,7 +188,7 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
             settings.dppWeight,
             1,
             [&model]() {return model.updateDPP();},
-            []() {return true;}
+            [&rateMatrix]() {return !rateMatrix.isAssignmentFixed();}
         });
         #endif
 
@@ -241,7 +241,7 @@ void inference(Settings& settings, Alignment& aln, TreeParameter& treeParam, boo
                 settings.dppWeight,
                 1,
                 [&temperedModel]() {return temperedModel.updateDPP();},
-                []() {return true;}
+                [&temperedRateMatrix]() {return !temperedRateMatrix.isAssignmentFixed();}
             });
             #endif
 
@@ -380,7 +380,7 @@ int randomTransition(RandomVariable& rng, const int ancestralState, const Matrix
     return -1;
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[]){
 
     Settings settings(argc, argv);
     tf::Executor executor(settings.threads);
@@ -407,6 +407,8 @@ int main(int argc, char* argv[]) {
         std::string ancestralStatesOutput = settings.ancestralStatesOutput;
         std::string treeOutput = settings.treeOutput;
         std::string branchOutput = settings.branchOutput;
+        int fixedRegimes = settings.fixedRegimes;
+        std::vector<int> fixedDPAssignments = settings.fixedDPAssignments;
         
         std::string modelClass = "";
         if(settings.simulateM0)
@@ -440,6 +442,8 @@ int main(int argc, char* argv[]) {
             for(int t = 0; t < numTaxa * numSites; t++){
                 tipSites[t] = 0;
             }
+            int trueActiveOmegas = 0;
+            std::vector<int> trueDPAssignments;
 
             if(settings.simulateM0){
                 TransitionProbability transProb(numNodes, 61);
@@ -507,6 +511,7 @@ int main(int argc, char* argv[]) {
                 TransitionProbability transProb(numNodes, 305);
                 CMMMatrix rateMatrix(settings);
                 int activeOmegas = (int)(rng.uniformRv() * 5) + 1;
+                trueActiveOmegas = activeOmegas;
 
                 rateMatrix.setActiveOmegas(activeOmegas);
                 std::vector<double> stationary = rateMatrix.getStationary();
@@ -576,12 +581,14 @@ int main(int argc, char* argv[]) {
                 TransitionProbability transProb(numNodes, 183);
                 DPCMMMatrix rateMatrix(settings, numSites);
                 int activeOmegas = (int)(rng.uniformRv() * 3) + 1;
+                trueActiveOmegas = activeOmegas;
 
                 rateMatrix.setActiveOmegas(activeOmegas);
                 std::vector<double> stationary = rateMatrix.getStationary(activeOmegas);
                 std::vector<double> rawStationary = rateMatrix.getRawStationary();
                 std::vector<Category> categories = rateMatrix.getCategories();
                 std::vector<int> assignments = rateMatrix.getAssignments();
+                trueDPAssignments = assignments;
                 std::vector<std::array<double, 3>> dNdSVec;
 
                 transProb.allocateQ(categories.size());
@@ -657,6 +664,15 @@ int main(int argc, char* argv[]) {
             delete [] sites;
             delete [] tipSites;
             delete [] truedNdS;
+
+            settings.fixedRegimes = fixedRegimes;
+            settings.fixedDPAssignments = fixedDPAssignments;
+            if(settings.fixCorrectRegime){
+                settings.fixedRegimes = trueActiveOmegas;
+            }
+            if(settings.fixCorrectDP && settings.simulateDPCMM){
+                settings.fixedDPAssignments = trueDPAssignments; //Theoretically, we could have users able to set this themselves, but there is no point
+            }
 
             //Change the name I am logging to according to the number simulation it is
             if(!settings.sequentialTuningSim){

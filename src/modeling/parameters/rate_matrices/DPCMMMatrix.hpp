@@ -38,6 +38,7 @@ class DPCMMMatrix : public Parameter {
         double                          getRDelta() const {return tuningState->rDelta;}                 //
         double                          getRRate()const ;                                               //
         bool                            isRegimeCountFixed() const {return fixedRegimes > 0;}          //
+        bool                            isAssignmentFixed() const {return fixedAssignments;}            //
         double                          getStationaryAlpha() const {return tuningState->stationaryAlpha;}// 
         double                          getStationaryRate() const;                                      //
         double                          lnPrior() override;                                             //
@@ -106,6 +107,7 @@ class DPCMMMatrix : public Parameter {
         const double                    omegaLambda;                                                    //
         const double                    rLambda;                                                        //
         const int                       fixedRegimes;                                                   //
+        const bool                      fixedAssignments;                                               //
         id_t                            omegaCount = 0;                                                 //
         int                             currentActiveOmegas = 1;                                        //
         int                             kAcceptCount = 0;                                               //

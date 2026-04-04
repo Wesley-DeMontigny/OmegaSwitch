@@ -584,7 +584,7 @@ int main(int argc, char* argv[]){
                 trueActiveOmegas = activeOmegas;
 
                 rateMatrix.setActiveOmegas(activeOmegas);
-                std::vector<double> stationary = rateMatrix.getStationary(activeOmegas);
+                std::vector<double> stationary = rateMatrix.getStationary();
                 std::vector<double> rawStationary = rateMatrix.getRawStationary();
                 std::vector<Category> categories = rateMatrix.getCategories();
                 std::vector<int> assignments = rateMatrix.getAssignments();

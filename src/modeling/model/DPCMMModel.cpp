@@ -303,7 +303,7 @@ void DPCMMModel::regenerateLikelihood(){
 
     int rIndex = activeT->getRoot()->getIndex();
     double* pR = (*postOrder)(rIndex, activeCL[rIndex], 0);
-    std::vector<double> f = rateMatrix->getStationary(numClasses);
+    std::vector<double> f = rateMatrix->getStationary();
     double lnL = 0.0;
 
     for(int c = 0; c < numChar; c++){
@@ -540,7 +540,7 @@ double DPCMMModel::updateDPP(){
 
 
         int rIndex = activeT->getRoot()->getIndex();
-        std::vector<double> f = rateMatrix->getStationary(numClasses);
+        std::vector<double> f = rateMatrix->getStationary();
         std::vector<double> likelihoodVec(numTestableCats, 0.0);
         double* siteRoot = tempCLBuffer + (rIndex * nodeSpacer);
 

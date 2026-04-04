@@ -712,7 +712,7 @@ Matrix<double> DPCMMMatrix::Q(const std::array<double, 3>& omegas) const {
     return returnMatrix;
 }
 
-std::vector<double> DPCMMMatrix::getStationary(int omegaCount){
+std::vector<double> DPCMMMatrix::getStationary(){
     std::vector<double> returnStationary;
 
     double factor = 1.0/(double)(currentActiveOmegas);

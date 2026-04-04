@@ -56,7 +56,7 @@ class DPCMMMatrix : public Parameter {
         std::array<double, 3>           dNdS(int i) const;                                              //
         const std::vector<Category>&    getCategories() const {return currentCategories;}               //
         const std::vector<double>&      getRawStationary() const {return currentStationary;}            //
-        std::vector<double>             getStationary(int omegaCount);                                  //
+        std::vector<double>             getStationary();                                                //
         const std::vector<int>&         getAssignments() const { return assignments;}                   //
         void                            accept() override;                                              //
         void                            reject() override;                                              //

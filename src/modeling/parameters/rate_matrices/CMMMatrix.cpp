@@ -589,7 +589,7 @@ std::array<double, 5> CMMMatrix::dNdS() const {
 
     double omegas[5] = {currentParams[2],0,0,0,0};
     for(int i = 1; i < 5; i++){
-        omegas[i] = omegas[i-1] + currentParams[i+1];
+        omegas[i] = omegas[i-1] + currentParams[i+2];
     }
 
     for(const auto& [c1, c2] : MatrixHelper::validPairs){

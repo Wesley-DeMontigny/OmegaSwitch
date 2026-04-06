@@ -1,6 +1,6 @@
 # OmegaSwitch
 
-This software samples from the conditional distribution of evolutionary selection (*dN/dS*) on protein sequences or taxa, given a multiple sequence alignment (MSA, in Nexus format) and a fixed tree topology. This conditional distribution (known as the posterior distribution) does not have a closed form, so we approximate it using Markov Chain Monte Carlo [MCMC](https://en.wikipedia.org/wiki/Markov_chain_Monte_Carlo) sampling. The primary goal is to estimate how selection varies both across taxa and among sites in a sequence alignment. To achieve this, the model combines [Reversible-Jump MCMC](https://en.wikipedia.org/wiki/Reversible-jump_Markov_chain_Monte_Carlo) to infer heterogeneity in evolutionary regimes over time with a [Dirichlet process](https://en.wikipedia.org/wiki/Dirichlet_process) prior to infer heterogeneity in regime evolution across protein residues. We utilize ancestral sampling over the course of the MCMC algorithm to produce posterior distributions of *dN/dS* at each entry in the alignment. For example, this is the posterior mean *dN/dS* painted on to the human hemoglobin tetramer (grey indicates a low *dN/dS*, while red indicates a high one.).
+This software samples from the conditional distribution on the strength evolutionary selection (*dN/dS*) on protein sequences, given a multiple sequence alignment (MSA, in Nexus format) and a fixed tree topology. This conditional distribution (known as the posterior distribution) does not have a closed form, so we approximate it using Markov Chain Monte Carlo [MCMC](https://en.wikipedia.org/wiki/Markov_chain_Monte_Carlo) sampling. The primary goal is to estimate how selection varies both across taxa and among sites in a sequence alignment. To achieve this, the model combines [Reversible-Jump MCMC](https://en.wikipedia.org/wiki/Reversible-jump_Markov_chain_Monte_Carlo) to infer heterogeneity in evolutionary regimes over time with a [Dirichlet process](https://en.wikipedia.org/wiki/Dirichlet_process) prior to infer heterogeneity in regime evolution across protein residues. We utilize ancestral sampling over the course of the MCMC algorithm to produce posterior distributions of *dN/dS* at each entry in the alignment. For example, this is the posterior mean *dN/dS* painted on to the human hemoglobin tetramer (grey indicates a low *dN/dS*, while red indicates a high one).
 
 ![Alpha Globin](/assets/globin_tetramer.png)
 
@@ -29,8 +29,6 @@ cmake --build build
 This produces the executable `main` in the build directory.
 
 # Usage
-
-The command-line options below mirror the text printed by `Settings.cpp`.
 
 | Category | Option | Description |
 | --- | --- | --- |

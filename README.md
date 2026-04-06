@@ -80,4 +80,4 @@ This produces the executable `main` in the build directory.
 A manuscript for this software is forthcoming.
 
 # Acknowledgements
-Some source files (mainly within `src/misc/`) originated from a codebase I worked on with Dr. John Huelsenbeck, particularly those involving Eigen decomposition and linear algebra routines. As this project evolved beyond the original scope, these components were adapted and extended, though the modifications remain relatively minor.
+Some source files (mainly within `src/misc/`) originated from a codebase I worked on with Dr. John Huelsenbeck or from a version of MrBayes, particularly those involving Eigen decomposition and linear algebra routines. As this project evolved beyond the original scope, these components were adapted and extended, though the modifications remain relatively minor.

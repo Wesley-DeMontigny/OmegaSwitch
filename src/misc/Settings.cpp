@@ -24,7 +24,6 @@ Settings::Settings(int argc,  char* argv[]) {
     settings.push_back("/workspaces/Varying_Selection_DPP/testing/tips.log");
     settings.push_back("-DPCMM");
     settings.push_back("-simulateDPCMM");
-    settings.push_back("-fixCorrectDP");
     simulationOutput = "/workspaces/Varying_Selection_DPP/testing/sim.log";
     numIterations = 100000;
     burnInIterations = 10000;
@@ -320,10 +319,10 @@ void Settings::usage() {
     std::cout << "Inference Input/Output:" << std::endl;
     std::cout << "   * -nexus             : Input nexus file containing the nculeotide alignment." << std::endl;
     std::cout << "   * -treeOut           : The output file name for the tree trace." << std::endl;
-    std::cout << "   * -mcmcOut           : The output file name for the bulk of the MCMC trace, excluding the tree and DPP parameters." << std::endl;
-    std::cout << "   * -dppOut            : The output file name for the DPP parameters." << std::endl;
-    std::cout << "   * -tipsOut           : The output file name for the reconstructed tip dNdS ratios." << std::endl;
-    std::cout << "   * -ancestralStatesOut: The output file name for the all ancestral dNdS ratios." << std::endl;
+    std::cout << "   * -mcmcOut           : The output file name for the bulk of the MCMC trace, excluding the tree and DP parameters." << std::endl;
+    std::cout << "   * -dppOut            : The output file name for the DP parameters." << std::endl;
+    std::cout << "   * -tipsOut           : The output file name for the reconstructed tip dN/dS ratios." << std::endl;
+    std::cout << "   * -ancestralStatesOut: The output file name for the all ancestral dN/dS ratios." << std::endl;
     std::cout << "   * -tree              : The NEWICK string corresponding to the fixed tree you wish to analyze." << std::endl;
     std::cout << "   * -simulationOutput  : The output file name for the true simulation parameters." << std::endl;
     std::cout << "   * -threads           : The number of threads to use during the analysis." << std::endl;
@@ -333,12 +332,12 @@ void Settings::usage() {
     std::cout << "   * NOTE: By default, this software will run the M0 model." << std::endl;
     std::cout << "   * -M0                : Do inference under a normal codon phylogenetic model." << std::endl;
     std::cout << "   * -CMM               : Do inference under the reversible jump Markov-modulated model." << std::endl;
-    std::cout << "   * -DPCMM             : Do inference with the reversible-jump DPP model." << std::endl;
+    std::cout << "   * -DPCMM             : Do inference with the reversible-jump DP model." << std::endl;
     std::cout << "   * -simulateM0        : Directs the program to simulate under M0 and test against the selected inference model." << std::endl;
     std::cout << "   * -simulateCMM       : Directs the program to simulate under the CMM model and test against the selected inference model." << std::endl;
-    std::cout << "   * -simulateDPCMM     : Directs the program to simulate under the CMM-DPP model and test against the selected inference model." << std::endl;
+    std::cout << "   * -simulateDPCMM     : Directs the program to simulate under the DPCMM model and test against the selected inference model." << std::endl;
     std::cout << "   * -fixCorrectRegime  : During CMM or DPCMM simulations, fix inference to the true simulated regime count." << std::endl;
-    std::cout << "   * -fixCorrectDP      : During DPCMM simulations, fix inference to the true simulated DPP assignments." << std::endl;
+    std::cout << "   * -fixCorrectDP      : During DPCMM simulations, fix inference to the true simulated DP assignments." << std::endl;
     std::cout << "   * -numSimulations    : The number of simulations to do inference under." << std::endl;
     std::cout << std::endl;
 
@@ -348,7 +347,7 @@ void Settings::usage() {
     std::cout << "   * -omegaLambda       : Rate parameter for the nonsynonymous mutation rate's exponential prior." << std::endl;
     std::cout << "   * -kLambda           : Rate parameter for the transition/transversion rate's exponential prior." << std::endl;
     std::cout << "   * -rLambda           : Rate parameter for the matrix-swapping rate's exponential prior." << std::endl;
-    std::cout << "   * -expectedCat       : The number of expected categories for the DPP." << std::endl;
+    std::cout << "   * -expectedCat       : The number of expected categories for the DP." << std::endl;
     std::cout << "   * -fixedRegimes      : Fix the number of hidden regimes for CMM or DPCMM and disable RJ-MCMC over regime count." << std::endl;
     std::cout << "   * -mcmcmcBeta        : Inverse temperature for the auxiliary heated chain; values below 1.0 enable MCMCMC." << std::endl;
     std::cout << std::endl;
@@ -361,14 +360,14 @@ void Settings::usage() {
     std::cout << "   * -tuneFreq          : How often to tune the acceptance rate of the MCMC moves during the burn-in." << std::endl;
     std::cout << "   * -bayesOpt          : (Experimental) The number of iterations to run Bayesian optimization on the MCMC moves after the burn-in." << std::endl;
     std::cout << "   * -bayesOptFreq      : (Experimental) How often to sample the trace for Bayesian optimization." << std::endl;
-    std::cout << "   * -numGibbs          : How many Gibbs updates to perform on the DPP partitions." << std::endl;
+    std::cout << "   * -numGibbs          : How many Gibbs updates to perform on the DP clusters." << std::endl;
     std::cout << "   * -mcmcmcSwapFreq    : How many MCMC iterations between attempted swaps in MCMCMC." << std::endl;
     std::cout << "   * -treeWeight        : How often to propose a move on the tree." << std::endl;
     std::cout << "   * -kWeight           : How often to propose a move on the K parameter." << std::endl;
     std::cout << "   * -rWeight           : How often to propose a move on the R parameter." << std::endl;
     std::cout << "   * -rjWeight          : How often to propose a move on the dimension of the Markov modulated model." << std::endl;
     std::cout << "   * -stationaryWeight  : How often to propose a move on the stationary distribution." << std::endl;
-    std::cout << "   * -dppWeight         : How often to propose a move on the DPP partitions." << std::endl;
+    std::cout << "   * -dppWeight         : How often to propose a move on the DP clusters." << std::endl;
     std::cout << "   * -omegaWeight       : How often to propose a move on the omega parameters." << std::endl;
     std::cout << std::endl;
 }

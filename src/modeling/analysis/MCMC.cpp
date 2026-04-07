@@ -150,6 +150,7 @@ double MCMC::GibbsIteration(Model* activeModel, std::vector<Move>& activeMoves,
     #endif
 
     for(int i = 0; i < numUpdates; i++){
+        activeModel->setPower(beta);
         double lnProposalRatio = updater();
         activeModel->regenerateLikelihood();
 

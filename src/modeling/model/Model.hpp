@@ -20,6 +20,7 @@ class Model{
         virtual void                    regenerateLikelihood() = 0;                             //
         virtual void                    reject() = 0;                                           //
         virtual void                    setCountTuningEvents(bool shouldCount) = 0;             //
+        virtual void                    setPower(double) {}                                     //
         virtual void                    setTunableParameters(const std::vector<double> & v) = 0;//
         virtual void                    tuneMoves() = 0;                                        //
         virtual void                    writeLogData(int i) = 0;                                //

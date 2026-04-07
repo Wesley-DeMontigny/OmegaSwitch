@@ -12,15 +12,15 @@ class DPCMMMatrix;
 class Settings;
 
 /**
- * @brief 
- * 
+ * @brief
+ *
  */
 class DPCMMModel : public Model {
     public:
         DPCMMModel(void) = delete;
         DPCMMModel(Settings* s, Alignment* a, TreeParameter* t, DPCMMMatrix* m, tf::Executor& e);
         ~DPCMMModel();
-        
+
         double                  lnLikelihood() override {return currentLikelihood; }                                    //
         double                  lnPrior() override;                                                                     //
         double updateDPP();
@@ -32,6 +32,7 @@ class DPCMMModel : public Model {
         void                    regenerateLikelihood() override;                                                        //
         void                    reject() override;                                                                      //
         void                    setCountTuningEvents(bool shouldCount) override;                                        //
+        void                    setPower(double power) override {samplingPower = power;}                               //
         void                    setTunableParameters(const std::vector<double> & v) override;                           //
         void                    tuneMoves() override;                                                                   //
         void                    writeLogData(int i) override;                                                           //
@@ -45,6 +46,7 @@ class DPCMMModel : public Model {
         double currentLikelihood;
         double oldLikelihood;
         double omegaLambda;
+        double samplingPower;
         double* rescaling;
         int numChar;
         int numGibbsUpdate;

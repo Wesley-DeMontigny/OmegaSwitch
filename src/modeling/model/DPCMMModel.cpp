@@ -28,7 +28,7 @@
 DPCMMModel::DPCMMModel(Settings* s, Alignment* a, TreeParameter* t, DPCMMMatrix* m, tf::Executor& e) : 
             aln(a), tree(t), rateMatrix(m), oldLikelihood(0.0), currentLikelihood(0.0), numChar(0), executor(e), numGibbsUpdate(s->numGibbs),
             tipsLog(s->tipsOutput), ancestralLog(s->ancestralStatesOutput), treeLog(s->treeOutput),
-            analysisLog(s->mcmcOutput), dppLog(s->dppOutput), omegaLambda(s->omegaLambda) {
+            analysisLog(s->mcmcOutput), dppLog(s->dppOutput), omegaLambda(s->omegaLambda), samplingPower(1.0) {
 
     RandomVariable& rng = RandomVariable::randomVariableInstance();
 
@@ -563,12 +563,16 @@ double DPCMMModel::updateDPP(){
         std::vector<double> likelihoodVec(numTestableCats, 0.0);
         #endif
 
+        for(double& d : likelihoodVec){
+            d *= samplingPower;
+        }
+
         for(int c = 0; c < numCurrentCats; c++){
-            likelihoodVec[c] += std::log(currentCategories[c].members.size());
+            likelihoodVec[c] += samplingPower * std::log(currentCategories[c].members.size());
         }
 
         for(int c = numCurrentCats; c < numTestableCats; c++){
-            likelihoodVec[c] += alphaSplit; 
+            likelihoodVec[c] += samplingPower * alphaSplit;
         }
 
         double maxL = *std::max_element(likelihoodVec.begin(), likelihoodVec.end());

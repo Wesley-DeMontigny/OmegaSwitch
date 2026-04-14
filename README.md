@@ -41,8 +41,7 @@ This produces the executable `main` in the build directory.
 | Inference Input/Output | `-tree` | The NEWICK string corresponding to the fixed tree you wish to analyze. |
 | Inference Input/Output | `-simulationOutput` | The output file name for the true simulation parameters. |
 | Inference Input/Output | `-threads` | The number of threads to use during the analysis. |
-| Inference Model and Simulation | Note | By default, this software will run the M0 model. |
-| Inference Model and Simulation | `-M0` | Do inference under a normal codon phylogenetic model. |
+| Inference Model and Simulation | `-M0` | Do inference under a normal codon phylogenetic model. Note that by default, this software will run the M0 model. |
 | Inference Model and Simulation | `-CMM` | Do inference under the reversible jump Markov-modulated model. |
 | Inference Model and Simulation | `-DPCMM` | Do inference with the reversible-jump DP model. |
 | Inference Model and Simulation | `-simulateM0` | Directs the program to simulate under M0 and test against the selected inference model. |

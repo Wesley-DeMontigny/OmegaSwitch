@@ -647,7 +647,7 @@ int main(int argc, char* argv[]){
                 fs << std::endl;
                 fs << treeLength << "\t" << activeOmegas << "\t" << rateMatrix.getK() << "\t" << rateMatrix.getR() << "\t" << categories.size();
                 for(int element = 0; element < 61; element++){
-                    fs << "\t" << stationary[element];
+                    fs << "\t" << rawStationary[element];
                 }
                 fs << "\t" << tree.getNewick();
                 for(int taxon = 0; taxon < numTaxa; taxon++){

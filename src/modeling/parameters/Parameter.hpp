@@ -4,6 +4,19 @@
 #include <string>
 
 /**
+ * @brief We want to keep track of tunable moves in a struct that can allow them to be tied together when doing MCMCMC.
+ * I don't love the way I currently have this implemented, but MCMCMC was something I decided to support later on, so it 
+ * is good enough for now. The way it is implemented now, there are both local acceptance counters per chain, which could
+ * not contribute to the total acceptance count (depending on the state of countTuningEvents), and global tunable stats. 
+ * I think it is worthwhile keeping track of both, but not pretty.
+ */
+struct ProposalTuningStats {
+    int acceptCount = 0;
+    int count = 0;
+};
+        
+
+/**
  * @brief The base class for all parameter types. We leave everything virtual except for the
  * things related to the "dirtyness" of a parameter (which indicates to the Model if it has
  * been updated).

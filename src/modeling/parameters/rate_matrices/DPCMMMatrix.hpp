@@ -78,11 +78,6 @@ class DPCMMMatrix : public Parameter {
         void                            removeCategory(int index);                                      //
         void                            regenerateCatPrior();                                           //
     private:
-        struct ProposalTuningStats {
-            int acceptCount = 0;
-            int count = 0;
-        };
-        
         struct DPCMMTuningState {
             double kDelta = 0.5;
             double rDelta = 0.5;

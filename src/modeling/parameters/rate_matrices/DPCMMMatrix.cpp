@@ -556,7 +556,7 @@ double DPCMMMatrix::expectedCategories(double a, int members) const {
     return a * std::log(1 + (members/a));
 }
 
-// From John's code
+// From John's AutoParts code
 double DPCMMMatrix::calculateAlpha(double expectedCat, int members) const {
 
     if (expectedCat > members)

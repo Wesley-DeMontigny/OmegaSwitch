@@ -57,11 +57,7 @@ class CMMMatrix : public Parameter {
         void                        shareTuningWith(CMMMatrix& m) {tuningState = m.tuningState;}//
         void                        tune() override;                                        //
     private:
-        struct ProposalTuningStats {
-            int acceptCount = 0;
-            int count = 0;
-        };
-        
+
         struct CMMTuningState {
             double kDelta = 0.5;
             double omegaDelta = 0.5;

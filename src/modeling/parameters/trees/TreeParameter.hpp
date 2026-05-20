@@ -44,11 +44,6 @@ class TreeParameter : public Parameter{
         void                shareTuningWith(TreeParameter& t) {tuningState = t.tuningState;}    // Share burn-in tuning state with another tree parameter
         void                tune() override;                                                    // Tune proposals that update the tree
     private:
-        struct ProposalTuningStats {
-            int acceptCount = 0;
-            int count = 0;
-        };
-        
         struct TreeTuningState {
             double treeDelta = 1.0;
             double branchAlpha = 1000.0;

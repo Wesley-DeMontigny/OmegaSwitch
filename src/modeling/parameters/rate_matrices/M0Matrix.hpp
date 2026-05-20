@@ -46,11 +46,6 @@ class M0Matrix : public Parameter {
         void                        shareTuningWith(M0Matrix& m) {tuningState = m.tuningState;}                 //
         void                        tune() override;                                                            //
     private:
-        struct ProposalTuningStats {
-            int acceptCount = 0;
-            int count = 0;
-        };
-
         struct M0TuningState {
             double kDelta = 0.5;
             double omegaDelta = 0.5;

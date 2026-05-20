@@ -480,6 +480,7 @@ void CMMModel::writeLogData(int i) {
         std::array<double, 5> dNdS = rateMatrix->dNdS();
         int numClasses = rateMatrix->getActiveOmegas();
         int activeSubspace = 61*numClasses;
+        std::vector<double> f = rateMatrix->getStationary();
 
         int* reconstructedStates = new int[numNodes*numChar];
         double* reconstructeddNdS = new double[numNodes*numChar];
@@ -491,7 +492,7 @@ void CMMModel::writeLogData(int i) {
         std::unordered_map<int, tf::Task> taskMap;
 
         Node* root = activeT->getRoot();
-        taskMap.insert(std::make_pair(root->getIndex(), phyloTaskflow.emplace([this, root, &rng, reconstructedStates, reconstructeddNdS, dNdS, numClasses, activeSubspace](){
+        taskMap.insert(std::make_pair(root->getIndex(), phyloTaskflow.emplace([this, root, &rng, reconstructedStates, reconstructeddNdS, dNdS, numClasses, f, activeSubspace](){
             int rIndex = root->getIndex();
             double* pR = (*postOrder)(rIndex, activeCL[rIndex], 0);
             int* reconstructedP = reconstructedStates + rIndex*numChar;
@@ -500,7 +501,7 @@ void CMMModel::writeLogData(int i) {
             for(int c = 0; c < numChar; c++){
                 double total = 0;
                 for(int i = 0; i < activeSubspace; i++){
-                    total += pR[i];
+                    total += pR[i] * f[i];
                 }
 
                 double draw = rng.uniformRv() * total;
@@ -508,7 +509,7 @@ void CMMModel::writeLogData(int i) {
                 double sum = 0;
                 bool success = false;
                 for(int i = 0; i < activeSubspace; i++){
-                    sum += pR[i];
+                    sum += pR[i] * f[i];
 
                     if(sum >= draw){
                         *reconstructedP = i;

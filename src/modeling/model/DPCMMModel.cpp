@@ -813,6 +813,7 @@ void DPCMMModel::writeLogData(int i) {
             std::array<double, 3> dNdS = rateMatrix->dNdS(i);
             dNdSVec.push_back(dNdS);
         }
+        std::vector<double> f = rateMatrix->getStationary();
 
         int numClasses = rateMatrix->getActiveOmegas();
 
@@ -826,7 +827,7 @@ void DPCMMModel::writeLogData(int i) {
         std::unordered_map<int, tf::Task> taskMap;
 
         Node* root = activeT->getRoot();
-        taskMap.insert(std::make_pair(root->getIndex(), phyloTaskflow.emplace([this, root, &rng, reconstructedStates, reconstructeddNdS, assignments, dNdSVec, numClasses](){
+        taskMap.insert(std::make_pair(root->getIndex(), phyloTaskflow.emplace([this, root, &rng, reconstructedStates, reconstructeddNdS, assignments, dNdSVec, f, numClasses](){
             int rIndex = root->getIndex();
             double* pR = (*postOrder)(rIndex, activeCL[rIndex], 0);
             int* reconstructedP = reconstructedStates + rIndex*numChar;
@@ -835,7 +836,7 @@ void DPCMMModel::writeLogData(int i) {
             for(int c = 0; c < numChar; c++){
                 double total = 0;
                 for(int i = 0; i < numClasses * 61; i++){
-                    total += pR[i];
+                    total += pR[i] * f[i];
                 }
 
                 double draw = rng.uniformRv() * total;
@@ -843,7 +844,7 @@ void DPCMMModel::writeLogData(int i) {
                 double sum = 0;
                 bool success = false;
                 for(int i = 0; i < numClasses * 61; i++){
-                    sum += pR[i];
+                    sum += pR[i] * f[i];
 
                     if(sum >= draw){
                         *reconstructedP = i;

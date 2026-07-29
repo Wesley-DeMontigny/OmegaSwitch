@@ -288,6 +288,7 @@ void DPCMMModel::regenerateLikelihood(){
                             *pNN /= max;
                             pNN++;
                         }
+                        pNN += stateSpace - activeSubspace;
                         *rescalePointer = std::log(max);
                         rescalePointer++;
                     }
@@ -522,6 +523,7 @@ double DPCMMModel::updateDPP(){
                         *pNN /= max;
                         pNN++;
                     }
+                    pNN += stateSpace - activeSubspace;
                     *rescalePointer = std::log(max);
                     rescalePointer++;
                 }

@@ -275,6 +275,7 @@ void CMMModel::regenerateLikelihood(){
                             *pNN /= max;
                             pNN++;
                         }
+                        pNN += stateSpace - activeSubspace;
                         *rescalePointer = std::log(max);
                         rescalePointer++;
                     }

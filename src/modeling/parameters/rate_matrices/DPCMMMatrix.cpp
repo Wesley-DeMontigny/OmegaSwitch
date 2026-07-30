@@ -362,16 +362,32 @@ double DPCMMMatrix::updateOmega() {
         }
         while(randomOmega2 == randomOmega1);
         
-        double forwardU = Probability::Beta::rv(&rng, 1.0, 5.0);
+        double forwardU = rng.uniformRv();
         double originalO1 = currentCategories[randomCategory].omegas[randomOmega1];
 
         currentCategories[randomCategory].omegas[randomOmega1] *= (1-forwardU);
         currentCategories[randomCategory].omegas[randomOmega2] += forwardU * originalO1;
 
-        double reverseU = (originalO1 - currentCategories[randomCategory].omegas[randomOmega1]) / currentCategories[randomCategory].omegas[randomOmega2];
+        hastings += std::log(originalO1) - std::log(currentCategories[randomCategory].omegas[randomOmega2]);
+        /*
+        The Jacobain correction is complicated, but it uses standard RJ-MCMC logic. I wrote it out in LaTeX:
 
-        hastings = Probability::Beta::lnPdf(1.0, 5.0, reverseU) - Probability::Beta::lnPdf(1.0, 5.0, forwardU);
-        hastings += std::log(originalO1); // Add the Jacobain correction |(1-U, -O1), (U, O1)| = 01
+        \begin{align*}
+        u' &= \frac{u\theta_1}{u\theta_1+\theta_2}\\
+        \theta_1' &= (1-u)\theta_1 \\
+        \theta_2' &= u\theta_1+\theta_2
+        \end{align*}
+        \newline
+        \begin{align*}
+        \left|\frac{\partial(\theta_1',\theta_2',u')}{\partial(\theta_1,\theta_2,u)} \right| &= 
+        \left| \begin{matrix}
+        1-u & 0 & \theta_1 \\
+        u & 1 & \theta_1 \\
+        \frac{u}{u\theta_1+\theta_2}\left( 1-\frac{u\theta_1}{u\theta_1+\theta_2} \right) & -\frac{u\theta_1}{(u\theta_1+\theta_2)^2} & \frac{\theta_1}{u\theta_1+\theta_2}\left( 1-\frac{u\theta_1}{u\theta_1+\theta_2} \right)
+        \end{matrix} \right | \\
+        &= \frac{\theta_1}{u\theta_1+\theta_2}
+        \end{align*}
+        */
     }
     else { // Re-Index Move
         moveChoice = MatrixMoves::REINDEX_MOVE;

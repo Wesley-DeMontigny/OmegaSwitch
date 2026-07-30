@@ -48,7 +48,7 @@ struct Settings {
     int                     mcmcmcSwapFrequency = 10;      // How many iterations between attempted swaps in MCMCMC
     int                     printFrequency = 10;            // How many MCMC iterations between printing the program state to the screen
     int                     sampleFrequency = 10;           // How many MCMC iterations between sampling events
-    id_t                    threads = 15;                    // How many threads to use in the analysis
+    id_t                    threads = 1;                    // How many threads to use in the analysis
     int                     tuneFrequency = 1000;            // How many MCMC iterations between tuning events during the burn-in
 
     std::string             ancestralStatesOutput = "";     // The file to output all ancestral states to

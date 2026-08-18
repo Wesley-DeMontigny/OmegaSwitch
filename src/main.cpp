@@ -395,7 +395,24 @@ int main(int argc, char* argv[]){
     RandomVariable& rng = RandomVariable::randomVariableInstance();
     if(settings.simulateM0 == false && settings.simulateCMM == false && settings.simulateDPCMM == false){
         Alignment aln(settings.nexusInput);
-        TreeParameter treeParam(aln, settings.tree, treeLengthParams);
+
+        std::string newick = settings.tree;
+        if(newick.empty()){
+            std::ifstream treeFile(settings.treeFile, std::ios::binary);
+            if(!treeFile){
+                Msg::error("Could not open tree file " + settings.treeFile);
+            }
+            newick.assign(std::istreambuf_iterator<char>(treeFile), std::istreambuf_iterator<char>());
+
+            newick.erase(
+                std::remove_if(newick.begin(), newick.end(), [](unsigned char c) {
+                    return std::isspace(c);
+                }),
+                newick.end()
+            );
+        }
+
+        TreeParameter treeParam(aln, newick, treeLengthParams);
         inference(settings, aln, treeParam, settings.bayesOpt == 0, executor);
     }
     else{

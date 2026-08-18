@@ -12,21 +12,21 @@ For simulation studies, `-fixCorrectRegime` will automatically fix inference to 
 
 Something important to note about our software is that we do not support ambiguous codons currently - all incomplete codons will be treated as gaps (completely ambiguous data). This may not be desirable if your alignments have a lot of incomplete codons (e.g., ATN, GNT).
 
-NOTE: This software is currently in a pre-release state accompanying an upcoming manuscript. Interfaces and default parameters are subject to change.
+NOTE: This software is currently in a pre-release state accompanying an upcoming manuscript.
 
 # Installation
-This project uses CMake and requires a C++20 compiler.
+This project uses CMake (>= 3.20) and requires a C++20 compiler.
 
-TaskFlow is also required. Please modify the `CMakeLists.txt` so that `/workspaces/taskflow/` is changed to the proper directory for taskflow on your machine.
-
-Configure and build with:
+Configure and build this software by running:
 
 ```bash
+git clone https://github.com/Wesley-DeMontigny/OmegaSwitch.git
+cd OmegaSwitch
 cmake -S . -B build
 cmake --build build
 ```
 
-This produces the executable `main` in the build directory.
+This produces the executable `omega_switch` in the build directory.
 
 # Usage
 
@@ -39,6 +39,7 @@ This produces the executable `main` in the build directory.
 | Inference Input/Output | `-tipsOut` | The output file name for the reconstructed tip *dN/dS* ratios. |
 | Inference Input/Output | `-ancestralStatesOut` | The output file name for the all ancestral *dN/dS* ratios. |
 | Inference Input/Output | `-tree` | The NEWICK string corresponding to the fixed tree you wish to analyze. |
+| Inference Input/Output | `-treeFile` | The file containing the NEWICK tree string for the fixed tree you wish to analyze. |
 | Inference Input/Output | `-simulationOutput` | The output file name for the true simulation parameters. |
 | Inference Input/Output | `-threads` | The number of threads to use during the analysis. |
 | Inference Model and Simulation | `-M0` | Do inference under a normal codon phylogenetic model. Note that by default, this software will run the M0 model. |

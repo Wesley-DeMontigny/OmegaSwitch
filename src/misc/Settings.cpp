@@ -22,11 +22,13 @@ Settings::Settings(int argc,  char* argv[]) {
     settings.push_back("/workspaces/Varying_Selection_DPP/testing/analysis.log");
     settings.push_back("-tipsOut");
     settings.push_back("/workspaces/Varying_Selection_DPP/testing/tips.log");
-    settings.push_back("-DPCMM");
-    settings.push_back("-simulateDPCMM");
-    simulationOutput = "/workspaces/Varying_Selection_DPP/testing/sim.log";
-    numIterations = 100000;
-    burnInIterations = 10000;
+    settings.push_back("-CMM");
+    treeFile = "./testing/primate.treefile";
+    nexusInput = "./testing/primate_lys.nex";
+    numIterations = 5000;
+    burnInIterations = 500;
+    tuneFrequency = 100;
+    threads = 4;
     #endif
     if(settings.size() == 0) {
         usage();
@@ -154,6 +156,8 @@ Settings::Settings(int argc,  char* argv[]) {
                 omegaWeight = stod(settings[i]);
             else if(currentArg == "-tree")
                 tree = settings[i];
+            else if(currentArg == "-treeFile")
+                treeFile = settings[i];
             else if(currentArg == "-numSimulations")
                 numSimulations = stoi(settings[i]);
             else if(currentArg == "-simulationOutput")
@@ -168,7 +172,9 @@ Settings::Settings(int argc,  char* argv[]) {
         }
     }
 
-    if((nexusInput == "" || mcmcOutput == "" || tree == "") && !simulating){
+    bool noTree = tree == "" && treeFile == "";
+
+    if((nexusInput == "" || mcmcOutput == "" || noTree) && !simulating){
         usage();
         Msg::error("For non-simulation analyses, nexus, mcmcOut, and a topology are required arguments.");
     }
@@ -178,7 +184,7 @@ Settings::Settings(int argc,  char* argv[]) {
         Msg::warning("Simulation analyses cannot use a nexus input. This file will be ignored!");
     }
 
-    if(simulating && tree != ""){
+    if(simulating && !noTree){
         usage();
         Msg::warning("Simulation analyses cannot use a provided tree. This file be ignored!");
     }
@@ -263,6 +269,7 @@ void Settings::print(){
     std::cout << "   * -tipsOut           : " << tipsOutput << std::endl;
     std::cout << "   * -ancestralStatesOut: " << ancestralStatesOutput << std::endl;
     std::cout << "   * -tree              : " << tree << std::endl;
+    std::cout << "   * -treeFile          : " << treeFile << std::endl;
     std::cout << "   * -simulationOutput  : " << simulationOutput << std::endl;
     std::cout << "   * -threads           : " << threads << std::endl;
     std::cout << std::endl;
@@ -324,6 +331,7 @@ void Settings::usage() {
     std::cout << "   * -tipsOut           : The output file name for the reconstructed tip dN/dS ratios." << std::endl;
     std::cout << "   * -ancestralStatesOut: The output file name for the all ancestral dN/dS ratios." << std::endl;
     std::cout << "   * -tree              : The NEWICK string corresponding to the fixed tree you wish to analyze." << std::endl;
+    std::cout << "   * -treeFile          : The file containing the NEWICK tree string for the fixed tree you wish to analyze." << std::endl;
     std::cout << "   * -simulationOutput  : The output file name for the true simulation parameters." << std::endl;
     std::cout << "   * -threads           : The number of threads to use during the analysis." << std::endl;
     std::cout << std::endl;

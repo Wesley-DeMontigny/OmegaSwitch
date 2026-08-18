@@ -55,6 +55,7 @@ struct Settings {
     std::string             branchOutput = "";              // The file to output the branch length trace to
     std::string             dppOutput = "";                 // The file to output the DPP trace to
     std::string             tree = "";                      // The tree topology to enforce during MCMC
+    std::string             treeFile = "";                  // The file containing the topology to enforce during MCMC
     std::string             mcmcOutput = "";                // The file to output the general analysis trace to
     std::string             nexusInput = "";                // The nexus input file
     std::string             simulationOutput = "";          // The file to output the true simulated states to

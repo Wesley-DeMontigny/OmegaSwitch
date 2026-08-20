@@ -10,7 +10,7 @@ If you want to disable RJ-MCMC over the hidden regime count, you can provide `-f
 
 For simulation studies, `-fixCorrectRegime` will automatically fix inference to the true simulated regime count for CMM or DPCMM, and `-fixCorrectDP` will fix DPCMM inference to the true simulated site-to-category assignments.
 
-Something important to note about our software is that we do not support ambiguous codons currently - all incomplete codons will be treated as gaps (completely ambiguous data). This may not be desirable if your alignments have a lot of incomplete codons (e.g., ATN, GNT).
+Something important to note about our software is that we do not support ambiguous codons currently - all incomplete codons will be treated as completely ambiguous data. This may not be desirable if your alignments have a lot of incomplete codons (e.g., ATN, GNT).
 
 NOTE: This software is currently in a pre-release state accompanying an upcoming manuscript.
 
